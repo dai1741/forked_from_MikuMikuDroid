@@ -571,12 +571,6 @@ public class VMDParser extends ParserBase {
 	}
 	
 	private double bazier(byte[] ip, int ofs, int size, float t) {
-		/*
-		float xa = ip[0+ofs] / 256;
-		float xb = ip[8+ofs] / 256;
-		float ya = ip[4+ofs] / 256;
-		float yb = ip[12+ofs] / 256;
-		*/
 		double xa = ip[       ofs] / 256;
 		double xb = ip[size*2+ofs] / 256;
 		double ya = ip[size  +ofs] / 256;

@@ -22,11 +22,10 @@ import android.opengl.GLUtils;
 import android.opengl.Matrix;
 import android.util.Log;
 
-
 public class Miku {
-	public boolean MIKU_ANIMATION;
-	public static int   RENAME_NUM;
-	public static int   RENAME_BONE;
+	private boolean mAnimation;
+	private int   mRenameNum;
+	private int   mRenameBone;
 	
 	private FloatBuffer mToonCoordBuffer;
 	private FloatBuffer mWeightBuffer;
@@ -73,15 +72,15 @@ public class Miku {
 		mMwork.location = new float[3];
 		mMwork.rotation = new float[4];
 		mParser = parser;
-		RENAME_NUM = rename_num;
-		RENAME_BONE = rename_bone;
-		MIKU_ANIMATION = animation;
-		mBoneMatrix = new float[16*RENAME_BONE];
+		mRenameNum = rename_num;
+		mRenameBone = rename_bone;
+		mAnimation = animation;
+		mBoneMatrix = new float[16*mRenameBone];
 		makeIndexSortedBuffers();
 		if(animation) {
 			reconstructFace();
 			parser.recycleVertex();
-			reconstructMaterial(RENAME_BONE);
+			reconstructMaterial(mRenameBone);
 		} else {
 			mFaceBase = null;
 			parser.recycleVertex();
@@ -104,7 +103,8 @@ public class Miku {
 			
 			// update base face
 			for(FaceVertData fvd: mFaceBase.face_vert_data) {
-				fvd.face_vert_index = mIndexMaps[fvd.face_vert_index] * 8;	// vertex is sorted by makeIndexSortedBuffers() in stride 8
+				// vertex is sorted by makeIndexSortedBuffers() in stride 8
+				fvd.face_vert_index = mIndexMaps[fvd.face_vert_index] * 8;
 			}
 		}		
 	}
@@ -213,8 +213,8 @@ public class Miku {
 	}
 	
 	private void buildBoneRenameMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
-		mat.rename_map = new int[RENAME_NUM];
-		for(int i = 0; i < RENAME_NUM; i++) {
+		mat.rename_map = new int[mRenameNum];
+		for(int i = 0; i < mRenameNum; i++) {
 			mat.rename_map[i] = 0;		// initialize
 		}
 		for(Entry<Integer, Integer> b: rename.entrySet()) {
@@ -225,8 +225,8 @@ public class Miku {
 	}
 	
 	private void buildBoneRenameInvMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
-		mat.rename_inv_map = new int[RENAME_BONE];
-		for(int i = 0; i < RENAME_BONE; i++) {
+		mat.rename_inv_map = new int[mRenameBone];
+		for(int i = 0; i < mRenameBone; i++) {
 			mat.rename_inv_map[i] = -1;		// initialize
 		}
 		for(Entry<Integer, Integer> b: rename.entrySet()) {
@@ -289,15 +289,15 @@ public class Miku {
     {
     	GL11Ext gl11Ext = (GL11Ext) gl;
         
-    	if(MIKU_ANIMATION) {
+    	if(mAnimation) {
             gl.glMatrixMode(GL11Ext.GL_MATRIX_PALETTE_OES);    		
     	}
         
-		ArrayList<Material> rendar = MIKU_ANIMATION ? mRendarList : mParser.getMaterial();
+		ArrayList<Material> rendar = mAnimation ? mRendarList : mParser.getMaterial();
 		for(Material mat: rendar) {
-			if(MIKU_ANIMATION) {
+			if(mAnimation) {
 				for(Entry<Integer, Integer> ren: mat.rename_hash.entrySet()) {
-					if(ren.getValue() < RENAME_BONE) {
+					if(ren.getValue() < mRenameBone) {
 						gl11Ext.glCurrentPaletteMatrixOES(ren.getValue());
 				        gl11Ext.glLoadPaletteFromModelViewMatrixOES();
 						gl.glMultMatrixf(mParser.getBone().get(ren.getKey()).matrix, 0);
@@ -331,12 +331,11 @@ public class Miku {
         		gl.glDisable(GL10.GL_TEXTURE_2D);
         	}
         	
-        	/*
-        	gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_DIFFUSE, mat.face_color, 0);
-        	gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_SPECULAR, mat.specular_color, 0);
-        	gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_AMBIENT, mat.emmisive_color, 0);
-        	gl.glMaterialf(GL10.GL_FRONT_AND_BACK, GL10.GL_SHININESS, mat.power);
-        	*/
+//        	gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_DIFFUSE, mat.face_color, 0);
+//        	gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_SPECULAR, mat.specular_color, 0);
+//        	gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_AMBIENT, mat.emmisive_color, 0);
+//        	gl.glMaterialf(GL10.GL_FRONT_AND_BACK, GL10.GL_SHININESS, mat.power);
+
         	gl.glColor4f(mat.face_color[0], mat.face_color[1], mat.face_color[2], mat.face_color[3]);
         	mIndexBuffer.position(mat.face_vart_offset);
         	gl.glDrawElements(GL10.GL_TRIANGLES, mat.face_vert_count, GL10.GL_UNSIGNED_SHORT, mIndexBuffer);
@@ -345,23 +344,21 @@ public class Miku {
     }
     
 	public void drawGLES20(int bone, int blend, int texen, int color, int spec, int pow, int amb /* , float[] mvmatrix */) {
-		ArrayList<Material> rendar = MIKU_ANIMATION ? mRendarList : mParser.getMaterial();
+		ArrayList<Material> rendar = mAnimation ? mRendarList : mParser.getMaterial();
 		ArrayList<Bone> bs = mParser.getBone();
-		/*
-		if(MIKU_ANIMATION) {
-			for(Bone b: bs) {
-				if(b.matrix != null) {
-					Matrix.multiplyMM(b.matrix_current, 0, mvmatrix, 0, b.matrix, 0);
-				}
-			}			
-		}
-		*/
+//		if(MIKU_ANIMATION) {
+//			for(Bone b: bs) {
+//				if(b.matrix != null) {
+//					Matrix.multiplyMM(b.matrix_current, 0, mvmatrix, 0, b.matrix, 0);
+//				}
+//			}			
+//		}
 
 		int max = rendar.size();
 		for(int r = 0; r < max; r++) {
 			Material mat = rendar.get(r);
-			if(MIKU_ANIMATION) {
-				for(int j = 0; j < RENAME_BONE; j++) {
+			if(mAnimation) {
+				for(int j = 0; j < mRenameBone; j++) {
 					int inv = mat.rename_inv_map[j];
 					if(inv >= 0) {
 						Bone b = bs.get(inv);
@@ -581,14 +578,12 @@ public class Miku {
 			// calc IK
 			HashMap<Short, ArrayList<MotionIndex>> mhash = new HashMap<Short, ArrayList <MotionIndex> >();
 			for(Integer frame: framesInteger) {
-				/*
-				setBoneMatrix(mParser.getBone().get(ik.ik_bone_index), frame);
-				setBoneMatrix(mParser.getBone().get(ik.ik_target_bone_index), frame);
-				for(int i = 0; i < ik.ik_chain_length; i++) {
-					Bone c = mParser.getBone().get(ik.ik_child_bone_index[i]);
-					setBoneMatrix(c, frame);
-				}
-				*/
+//				setBoneMatrix(mParser.getBone().get(ik.ik_bone_index), frame);
+//				setBoneMatrix(mParser.getBone().get(ik.ik_target_bone_index), frame);
+//				for(int i = 0; i < ik.ik_chain_length; i++) {
+//					Bone c = mParser.getBone().get(ik.ik_child_bone_index[i]);
+//					setBoneMatrix(c, frame);
+//				}
 				for(Bone b : mParser.getBone()) {
 					setBoneMatrix(b, frame);
 				}
@@ -646,7 +641,8 @@ public class Miku {
 				b.matrix_current[13] = m.location[1] +(b.head_pos[1] - p.head_pos[1]);
 				b.matrix_current[14] = m.location[2] +(b.head_pos[2] - p.head_pos[2]);
 			}
-		} else { // no VMD info so assume that no rotation and translation are specified
+		} else {
+			// no VMD info so assume that no rotation and translation are specified
 			Matrix.setIdentityM(b.matrix_current, 0);
 			quaternionSetIndentity(b.quaternion);
 			if(b.parent == -1) {
@@ -751,10 +747,8 @@ public class Miku {
 					cross(axis, targetInvs, effecterInvs);
 					normalize(axis);
 
-					/*
-					rotateM(mMatworks, 0, b.matrix_current, 0, degree, axis[0], axis[1], axis[2]);
-					System.arraycopy(mMatworks, 0, b.matrix_current, 0, 16);
-					*/
+//					rotateM(mMatworks, 0, b.matrix_current, 0, degree, axis[0], axis[1], axis[2]);
+//					System.arraycopy(mMatworks, 0, b.matrix_current, 0, 16);
 					if(!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
 						makeQuat(mQuatworks, angle, axis);
 						quaternionMul(b.quaternion, b.quaternion, mQuatworks);
@@ -1046,7 +1040,26 @@ public class Miku {
 					gl.glGenTextures(1, tex, 0);
 					tb.tex = tex[0];
 					gl.glBindTexture(GL10.GL_TEXTURE_2D, tb.tex);
-					GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, tb.bmp, 0);
+					if(tb.bmp.hasAlpha()) {	// workaround
+						ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
+						for(int y = 0; y < tb.bmp.getHeight(); y++) {
+							for(int x = 0; x < tb.bmp.getWidth(); x++) {
+								int pixel = tb.bmp.getPixel(x, y);
+								buf.put((byte) ((pixel >> 16) & 0xff));
+								buf.put((byte) ((pixel >>  8) & 0xff));
+								buf.put((byte) ((pixel >>  0) & 0xff));
+								buf.put((byte) ((pixel >> 24) & 0xff));
+							}
+						}
+						buf.position(0);
+						gl.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, 
+								GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
+						buf = null;
+					} else {
+						GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
+					}
+					
+//					GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, tb.bmp, 0);
 					int err = gl.glGetError();
 					if(err != 0) {
 						Log.d("Miku", GLU.gluErrorString(err));

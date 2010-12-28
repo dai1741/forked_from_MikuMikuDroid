@@ -201,21 +201,12 @@ public class MikuRendererBase implements MikuRendererInterface {
 	protected void setDefaultCamera() {
         if(mAngle == 0) {
             mCameraPos[0] = 0;
-            mCameraPos[1] = 10;
+            mCameraPos[1] = 10; // 13
             mCameraPos[2] = 0;
             mCameraRot[0] = 0;
             mCameraRot[1] = 0;
             mCameraRot[2] = 0;
-            setCamera(-35f, mCameraPos, mCameraRot, 45, mWidth, mHeight);        	
-        	/*
-            mCameraPos[0] = 0;
-            mCameraPos[1] = 13;
-            mCameraPos[2] = 0;
-            mCameraRot[0] = 0;
-            mCameraRot[1] = 0;
-            mCameraRot[2] = 0;
-            setCamera(-38f, mCameraPos, mCameraRot, 45, mWidth, mHeight);        	
-            */
+            setCamera(-35f, mCameraPos, mCameraRot, 45, mWidth, mHeight); // -38f
         } else {
             mCameraPos[0] = 0;
             mCameraPos[1] = 10;
