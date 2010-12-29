@@ -7,6 +7,6 @@ public class MotionIndex {
 	public float[] location;
 	public float[] rotation;
 	public byte[] interp;
-//	public String bone_name;
-	
+	// public String bone_name;
+
 }
