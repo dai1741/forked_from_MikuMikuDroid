@@ -39,6 +39,10 @@ public class PMDParser extends ParserBase {
 	private ArrayList<String> mToonFileName;
 	private ArrayList<String> mEnglishBoneDispName;
 	private byte mEnglishBoneDispNameNum;
+	private int mRigidBodyNum;
+	private ArrayList<RigidBody> mRigidBody;
+	private int mJointNum;
+	private ArrayList<Joint> mJoint;
 
 	public PMDParser(String file) throws IOException {
 		super(file);
@@ -60,6 +64,8 @@ public class PMDParser extends ParserBase {
 			if (!isEof()) {
 				parsePMDEnglish();
 				parsePMDToonFileName(path);
+				parsePMDRigidBody();
+				parsePMDJoint();
 			} else {
 				mToonFileName = new ArrayList<String>(11);
 				mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
@@ -74,6 +80,74 @@ public class PMDParser extends ParserBase {
 			e.printStackTrace();
 			mIsPmd = false;
 		}
+	}
+
+	private void parsePMDJoint() {
+		mJointNum = getInt();
+		Log.d("PMDParser", "Joint: " + String.valueOf(mJointNum));
+		mJoint = new ArrayList<Joint>(mJointNum);
+		for(int i = 0; i < mJointNum; i++) {
+			Joint j = new Joint();
+			j.name				= getString(20);
+			j.rigidbody_a		= getInt();
+			j.rigidbody_b		= getInt();
+			j.position			= new float[3];
+			j.rotation			= new float[3];
+			j.const_position_1	= new float[3];
+			j.const_position_2	= new float[3];
+			j.const_rotation_1	= new float[3];
+			j.const_rotation_2	= new float[3];
+			j.spring_position	= new float[3];
+			j.spring_rotation	= new float[3];
+			
+			getFloat(j.position);
+			getFloat(j.rotation);
+			getFloat(j.const_position_1);
+			getFloat(j.const_position_2);
+			getFloat(j.const_rotation_1);
+			getFloat(j.const_rotation_2);
+			getFloat(j.spring_position);
+			getFloat(j.spring_rotation);
+			
+			mJoint.add(j);
+		}
+	}
+
+	private void parsePMDRigidBody() {
+		mRigidBodyNum = getInt();
+		Log.d("PMDParser", "RigidBody: " + String.valueOf(mRigidBodyNum));
+		mRigidBody = new ArrayList<RigidBody>(mRigidBodyNum);
+		for(int i = 0; i < mRigidBodyNum; i++) {
+			RigidBody rb = new RigidBody();
+			
+			rb.name			= getString(20);
+			rb.bone_index	= getShort();
+			rb.group_index	= getByte();
+			rb.group_target = getShort();
+			rb.shape		= getByte();
+			rb.size			= new float[3];		// w, h, d
+			rb.location		= new float[3];		// x, y, z
+			rb.rotation		= new float[3];
+			getFloat(rb.size);
+			getFloat(rb.location);
+			getFloat(rb.rotation);
+			rb.weight		= getFloat();
+			rb.v_dim		= getFloat();
+			rb.r_dim		= getFloat();
+			rb.recoil		= getFloat();
+			rb.friction		= getFloat();
+			rb.type			= getByte();
+
+			// for physics simulation
+			rb.cur_location	= new float[3];
+			rb.cur_rotation = new float[3];
+			rb.cur_v		= new float[3];
+			System.arraycopy(rb.location, 0, rb.cur_location, 0, 3);
+			System.arraycopy(rb.rotation, 0, rb.cur_rotation, 0, 3);
+			
+			mRigidBody.add(rb);
+		}
+		
 	}
 
 	private void parsePMDEnglish() throws IOException {
