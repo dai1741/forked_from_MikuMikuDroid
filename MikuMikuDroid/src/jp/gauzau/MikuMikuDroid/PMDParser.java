@@ -139,11 +139,9 @@ public class PMDParser extends ParserBase {
 			rb.type			= getByte();
 
 			// for physics simulation
-			rb.cur_location	= new float[3];
-			rb.cur_rotation = new float[3];
-			rb.cur_v		= new float[3];
-			System.arraycopy(rb.location, 0, rb.cur_location, 0, 3);
-			System.arraycopy(rb.rotation, 0, rb.cur_rotation, 0, 3);
+			rb.cur_location	= new float[4];		// x, y, z, w
+			rb.cur_rotation = new double[4];	// quaternion
+			rb.cur_v		= new double[4];	// quaternion
 			
 			mRigidBody.add(rb);
 		}
@@ -568,6 +566,14 @@ public class PMDParser extends ParserBase {
 
 	public ArrayList<Face> getFace() {
 		return mFace;
+	}
+	
+	public ArrayList<RigidBody> getRigidBody() {
+		return mRigidBody;
+	}
+	
+	public ArrayList<Joint> getJoint() {
+		return mJoint;
 	}
 
 	public void recycle() {

@@ -87,6 +87,7 @@ public class Miku {
 			buildBoneNoMotionRenameIndex();
 		}
 		parser.recycle();
+		physicsInitializer();
 	}
 
 	private void reconstructFace() {
@@ -462,6 +463,7 @@ public class Miku {
 		}
 
 		// ccdIK();
+		//fakePhysics(i);
 
 		for (int r = 0; r < max; r++) {
 			Bone b = ba.get(r);
@@ -471,6 +473,124 @@ public class Miku {
 		for (int r = 0; r < max; r++) {
 			Bone b = ba.get(r);
 			Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
+			b.updated = false;
+		}
+	}
+
+	private void fakePhysics(float i) {
+		physicsFollowBone();
+		physicsFakeExec(i);
+		physicsMoveBone();
+	}
+	
+	private void physicsInitializer() {
+		ArrayList<RigidBody> rba = mPMD.getRigidBody();
+		for(int i = 0; i < rba.size(); i++) {
+			RigidBody rb = rba.get(i);
+			if(rb.bone_index >= 0) {
+				Bone base = mPMD.getBone().get(rb.bone_index);
+				rb.cur_location[0] = base.head_pos[0] + rb.location[0];
+				rb.cur_location[1] = base.head_pos[1] + rb.location[1];
+				rb.cur_location[2] = base.head_pos[2] + rb.location[2];
+				rb.cur_location[3] = 1;
+			} else {
+				rb.cur_location[0] = rb.location[0];
+				rb.cur_location[1] = rb.location[1];
+				rb.cur_location[2] = rb.location[2];
+				rb.cur_location[3] = 1;
+			}
+			quaternionSetIndentity(rb.cur_rotation);
+			quaternionSetIndentity(rb.cur_v);
+		}
+	}
+
+	private void physicsFollowBone() {
+		ArrayList<RigidBody> rba = mPMD.getRigidBody();
+		for(int i = 0; i < rba.size(); i++) {
+			RigidBody rb = rba.get(i);
+			if(rb.type == 0) { // follow bone
+				
+			}
+		}		
+	}
+
+	private void physicsFakeExec(float i) {
+		float time = 0.01f;	// must be fixed
+		
+		float gravity[] = new float[4];
+		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
+		
+		ArrayList<Joint> ja = mPMD.getJoint();
+		for(int idx = 0; idx < ja.size(); idx++) {
+			Joint rb = ja.get(idx);
+			RigidBody target = mPMD.getRigidBody().get(rb.rigidbody_a);
+			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
+				Bone base = mPMD.getBone().get(target.bone_index);
+//				gravity[0] = base.head_pos[0];
+//				gravity[1] = base.head_pos[1] - 1;
+//				gravity[2] = base.head_pos[2];
+				float[] current = getCurrentMatrix(base);
+				getCurrentPosition(effecterVecs, base);
+				effecterVecs[0] += gravity[0];
+				effecterVecs[1] += gravity[1];
+				effecterVecs[2] += gravity[2];
+				
+				invertM(mMatworks2, 0, current, 0);
+//				Matrix.multiplyMV(effecterInvs, 0, mMatworks2, 0, gravity, 0);
+//				Matrix.multiplyMV(targetInvs, 0, mMatworks2, 0, target.cur_location, 0);
+//				targetInvs[0] = gravity[0];
+//				targetInvs[1] = gravity[1];
+//				targetInvs[2] = gravity[2];
+//				targetInvs[3] = gravity[3];
+				Matrix.multiplyMV(targetInvs, 0, mMatworks2, 0, target.cur_location, 0);
+				Matrix.multiplyMV(effecterInvs, 0, mMatworks2, 0, effecterVecs, 0);
+				Log.d("Miku", String.format("Physics Bone %d: pos %f, %f, %f",
+						target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
+				Log.d("Miku", String.format("  eff %f, %f, %f", effecterInvs[0], effecterInvs[1], effecterInvs[2]));
+				Log.d("Miku", String.format("  tar %f, %f, %f", targetInvs[0], targetInvs[1], targetInvs[2]));
+
+				// calculate rotation angle/axis
+				normalize(effecterInvs);
+				normalize(targetInvs);
+				double angle = Math.acos(Math.abs(dot(effecterInvs, targetInvs)));
+//				double angle = Math.acos(dot(effecterInvs, targetInvs));
+				angle *= time;	// must add friction
+
+				if (!Double.isNaN(angle)) {
+					cross(axis, targetInvs, effecterInvs);
+					normalize(axis);
+					if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
+						makeQuat(mQuatworks, angle, axis);
+//						quaternionMul(target.cur_v, target.cur_v, mQuatworks);
+//						quaternionMul(target.cur_rotation, target.cur_rotation, target.cur_v);						
+						quaternionMul(target.cur_rotation, target.cur_rotation, mQuatworks);
+					}
+				}
+			}
+		}		
+	}
+
+	private void physicsMoveBone() {
+		float vec[] = new float[4];
+		vec[3] = 1;
+		ArrayList<RigidBody> rba = mPMD.getRigidBody();
+		for(int i = 0; i < rba.size(); i++) {
+			RigidBody rb = rba.get(i);
+			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
+				Bone b = mPMD.getBone().get(rb.bone_index);
+				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_rotation);
+				
+				updateBoneMatrix(b);
+//				Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
+				vec[0] = rb.location[0];
+				vec[1] = rb.location[1];
+				vec[2] = rb.location[2];
+				Matrix.multiplyMV(rb.cur_location, 0, b.matrix, 0, vec, 0);
+			}
+		}
+		
+		// clear all
+		for (Bone b : mPMD.getBone()) {
 			b.updated = false;
 		}
 	}
@@ -866,7 +986,7 @@ public class Miku {
 		updateBoneMatrix(b);
 		return b.matrix;
 	}
-
+	
 	public void quaternionCreateFromAngleAxis(double[] r, double angle, double[] axis) {
 		double halfAngle = 0.5f * angle;
 		double sin = Math.sin(halfAngle);

@@ -17,7 +17,7 @@ public class RigidBody {
 	public float friction;
 	public byte type;
 	public float[] cur_location;
-	public float[] cur_rotation;
-	public float[] cur_v;
+	public double[] cur_rotation;
+	public double[] cur_v;
 
 }
