@@ -449,8 +449,10 @@ public class Miku {
 
 	public void initBoneManager(VMDParser parser) {
 		mVMD = parser;
-		// preCalcIK();
-		preCalcKeyFrameIK();
+		if(mPMD.getIK() != null) {
+			// preCalcIK();
+			preCalcKeyFrameIK();			
+		}
 	}
 
 	public void setBonePosByVMDFrame(float i) {
@@ -463,7 +465,7 @@ public class Miku {
 		}
 
 		// ccdIK();
-		//fakePhysics(i);
+		// fakePhysics(i);
 
 		for (int r = 0; r < max; r++) {
 			Bone b = ba.get(r);
@@ -510,12 +512,15 @@ public class Miku {
 			RigidBody rb = rba.get(i);
 			if(rb.type == 0) { // follow bone
 				
+			} else if(rb.bone_index >= 0) {			// follow previous fake physics
+				Bone b = mPMD.getBone().get(rb.bone_index);
+				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_rotation);
 			}
 		}		
 	}
 
 	private void physicsFakeExec(float i) {
-		float time = 0.01f;	// must be fixed
+		float time = 0.001f;	// must be fixed
 		
 		float gravity[] = new float[4];
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
@@ -523,54 +528,59 @@ public class Miku {
 		ArrayList<Joint> ja = mPMD.getJoint();
 		for(int idx = 0; idx < ja.size(); idx++) {
 			Joint rb = ja.get(idx);
-			RigidBody target = mPMD.getRigidBody().get(rb.rigidbody_a);
+			RigidBody target = mPMD.getRigidBody().get(rb.rigidbody_b);
 			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
 				Bone base = mPMD.getBone().get(target.bone_index);
-//				gravity[0] = base.head_pos[0];
-//				gravity[1] = base.head_pos[1] - 1;
-//				gravity[2] = base.head_pos[2];
-				float[] current = getCurrentMatrix(base);
-				getCurrentPosition(effecterVecs, base);
-				effecterVecs[0] += gravity[0];
-				effecterVecs[1] += gravity[1];
-				effecterVecs[2] += gravity[2];
-				
-				invertM(mMatworks2, 0, current, 0);
-//				Matrix.multiplyMV(effecterInvs, 0, mMatworks2, 0, gravity, 0);
-//				Matrix.multiplyMV(targetInvs, 0, mMatworks2, 0, target.cur_location, 0);
-//				targetInvs[0] = gravity[0];
-//				targetInvs[1] = gravity[1];
-//				targetInvs[2] = gravity[2];
-//				targetInvs[3] = gravity[3];
-				Matrix.multiplyMV(targetInvs, 0, mMatworks2, 0, target.cur_location, 0);
-				Matrix.multiplyMV(effecterInvs, 0, mMatworks2, 0, effecterVecs, 0);
-				Log.d("Miku", String.format("Physics Bone %d: pos %f, %f, %f",
-						target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
-				Log.d("Miku", String.format("  eff %f, %f, %f", effecterInvs[0], effecterInvs[1], effecterInvs[2]));
-				Log.d("Miku", String.format("  tar %f, %f, %f", targetInvs[0], targetInvs[1], targetInvs[2]));
-
-				// calculate rotation angle/axis
-				normalize(effecterInvs);
-				normalize(targetInvs);
-				double angle = Math.acos(Math.abs(dot(effecterInvs, targetInvs)));
-//				double angle = Math.acos(dot(effecterInvs, targetInvs));
-				angle *= time;	// must add friction
-
-				if (!Double.isNaN(angle)) {
-					cross(axis, targetInvs, effecterInvs);
-					normalize(axis);
-					if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
-						makeQuat(mQuatworks, angle, axis);
-//						quaternionMul(target.cur_v, target.cur_v, mQuatworks);
-//						quaternionMul(target.cur_rotation, target.cur_rotation, target.cur_v);						
-						quaternionMul(target.cur_rotation, target.cur_rotation, mQuatworks);
-					}
-				}
+				calc_pendulum_a(mQuatworks, base, target.cur_location, gravity, time);
+				quaternionMul(target.cur_v, target.cur_v, mQuatworks);
+				quaternionMul(target.cur_rotation, target.cur_rotation, target.cur_v);
+//				quaternionMul(target.cur_rotation, target.cur_rotation, mQuatworks);
 			}
 		}		
 	}
 
+	private void calc_pendulum_a(double[] quat, Bone b, float[] location, float[] force, float delta) {
+		float[] current = getCurrentMatrix(b);
+		effecterVecs[0] = current[12] + force[0];
+		effecterVecs[1] = current[13] + force[1];
+		effecterVecs[2] = current[14] + force[2];
+		effecterVecs[3] = 1;
+		
+		invertM(mMatworks2, 0, current, 0);
+		Matrix.multiplyMV(effecterInvs, 0, mMatworks2, 0, effecterVecs, 0);
+		Matrix.multiplyMV(targetInvs, 0, mMatworks2, 0, location, 0);
+		//Log.d("Miku", String.format("Physics %d Bone %d: pos %f, %f, %f",
+		//		rb.rigidbody_b, target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
+		//Log.d("Miku", String.format("  eff %f, %f, %f", effecterInvs[0], effecterInvs[1], effecterInvs[2]));
+		//Log.d("Miku", String.format("  tar %f, %f, %f", targetInvs[0], targetInvs[1], targetInvs[2]));
+
+		// calculate rotation angle/axis
+		normalize(effecterInvs);
+		normalize(targetInvs);
+		double angle = Math.acos(Math.abs(dot(effecterInvs, targetInvs)));
+//		double angle = Math.acos(dot(effecterInvs, targetInvs));
+		angle *= delta;	// must add friction
+
+		if (!Double.isNaN(angle)) {
+			cross(axis, targetInvs, effecterInvs);
+			normalize(axis);
+			if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
+				makeQuat(quat, angle, axis);
+			} else {
+				quaternionSetIndentity(quat);
+			}
+		} else {
+			quaternionSetIndentity(quat);
+		}
+	}
+
 	private void physicsMoveBone() {
+		
+		// clear all
+		for (Bone b : mPMD.getBone()) {
+			b.updated = false;
+		}
+		
 		float vec[] = new float[4];
 		vec[3] = 1;
 		ArrayList<RigidBody> rba = mPMD.getRigidBody();
@@ -579,9 +589,13 @@ public class Miku {
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mPMD.getBone().get(rb.bone_index);
 				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_rotation);
-				
+			}
+		}
+		for(int i = 0; i < rba.size(); i++) {
+			RigidBody rb = rba.get(i);
+			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
+				Bone b = mPMD.getBone().get(rb.bone_index);
 				updateBoneMatrix(b);
-//				Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
 				vec[0] = rb.location[0];
 				vec[1] = rb.location[1];
 				vec[2] = rb.location[2];
@@ -976,10 +990,8 @@ public class Miku {
 
 	private void getCurrentPosition(float v[], Bone b) {
 		float[] current = getCurrentMatrix(b);
-		Matrix.setIdentityM(mMatworks, 0);
-		Matrix.translateM(mMatworks, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]); // may be removed, multiply by (0, 0, 0)
-		Matrix.multiplyMM(mMatworks2, 0, current, 0, mMatworks, 0);
-		Matrix.multiplyMV(v, 0, mMatworks2, 0, b.head_pos, 0);
+		System.arraycopy(current, 12, v, 0, 3);
+		v[3] = 1;
 	}
 
 	private float[] getCurrentMatrix(Bone b) {

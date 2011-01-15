@@ -213,7 +213,7 @@ public class VMDParser extends ParserBase {
 		for (int i = 0; i < max; i++) {
 			byte[] bn = bone.get(i).name_bytes;
 			int j = 0;
-			for (j = 0; j < bn.length; j++) {
+			for (j = 0; j < name.length; j++) {
 				if (bn[j] != name[j]) {
 					break;
 				}

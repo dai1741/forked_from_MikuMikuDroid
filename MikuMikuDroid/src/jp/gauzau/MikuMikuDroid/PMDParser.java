@@ -413,6 +413,7 @@ public class PMDParser extends ParserBase {
 				material.edge_flag = getByte();
 				material.face_vert_count = getInt();
 				material.texture = getString(20);
+				Log.d("PMDParser", material.texture);
 				if (material.texture.length() == 0) {
 					material.texture = null;
 					material.sphere = null;
@@ -422,8 +423,13 @@ public class PMDParser extends ParserBase {
 						material.texture = path + sp[0];
 						material.sphere = path + sp[1];
 					} else {
-						material.texture = path + material.texture;
-						material.sphere = null;
+						if(material.texture.endsWith("spa") || material.texture.endsWith("sph")) {
+							material.sphere = path + material.texture;
+							material.texture = null;
+						} else {
+							material.texture = path + material.texture;
+							material.sphere = null;							
+						}
 					}
 				}
 
