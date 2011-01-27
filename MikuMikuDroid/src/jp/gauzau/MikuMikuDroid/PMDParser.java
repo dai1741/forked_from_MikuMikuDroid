@@ -140,8 +140,13 @@ public class PMDParser extends ParserBase {
 
 			// for physics simulation
 			rb.cur_location	= new float[4];		// x, y, z, w
-			rb.cur_rotation = new double[4];	// quaternion
+			rb.cur_r 		= new double[4];	// quaternion
 			rb.cur_v		= new double[4];	// quaternion
+			rb.cur_a		= new double[4];	// quaternion
+			rb.tmp_r 		= new double[4];	// quaternion
+			rb.tmp_v		= new double[4];	// quaternion
+			rb.tmp_a		= new double[4];	// quaternion
+			rb.prev_r		= new double[4];	// quaternion
 			
 			mRigidBody.add(rb);
 		}

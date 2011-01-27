@@ -59,6 +59,7 @@ public class Miku {
 	private Face mFaceBase;
 	private FacePair mFacePair = new FacePair();
 	private FaceIndex mFaceIndex = new FaceIndex();
+	private double[] mQuatworks2 = new double[4];
 
 	public Miku(PMDParser parser, int rename_num, int rename_bone, boolean animation) {
 		init(parser, rename_num, rename_bone, animation);
@@ -482,10 +483,14 @@ public class Miku {
 	private void fakePhysics(float i) {
 		physicsFollowBone();
 		physicsFakeExec(i);
+		physicsCheckCollision();
 		physicsMoveBone();
 	}
 	
 	private void physicsInitializer() {
+		float gravity[] = new float[4];
+		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;
+		
 		ArrayList<RigidBody> rba = mPMD.getRigidBody();
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
@@ -495,18 +500,27 @@ public class Miku {
 				rb.cur_location[1] = base.head_pos[1] + rb.location[1];
 				rb.cur_location[2] = base.head_pos[2] + rb.location[2];
 				rb.cur_location[3] = 1;
+				calcPendulumA(rb.cur_a, base, rb.cur_location, gravity, 1);
+				calcPendulumA(rb.tmp_a, base, rb.cur_location, gravity, 1);
 			} else {
 				rb.cur_location[0] = rb.location[0];
 				rb.cur_location[1] = rb.location[1];
 				rb.cur_location[2] = rb.location[2];
 				rb.cur_location[3] = 1;
+				quaternionSetIndentity(rb.cur_a);
+				quaternionSetIndentity(rb.tmp_a);
 			}
-			quaternionSetIndentity(rb.cur_rotation);
+			quaternionSetIndentity(rb.cur_r);
 			quaternionSetIndentity(rb.cur_v);
+			quaternionSetIndentity(rb.tmp_r);
+			quaternionSetIndentity(rb.tmp_v);
+			quaternionSetIndentity(rb.prev_r);			
 		}
 	}
 
 	private void physicsFollowBone() {
+		float time = 0.1f;	// must be fixed
+		
 		ArrayList<RigidBody> rba = mPMD.getRigidBody();
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
@@ -514,13 +528,20 @@ public class Miku {
 				
 			} else if(rb.bone_index >= 0) {			// follow previous fake physics
 				Bone b = mPMD.getBone().get(rb.bone_index);
-				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_rotation);
+				
+				// calculate v, a from previous position
+				System.arraycopy(rb.cur_r, 0, rb.prev_r, 0, 4);
+				quaternionMulScale(rb.tmp_v, rb.cur_v, rb.cur_a, time);
+				quaternionMulScale(rb.tmp_r, rb.cur_r, rb.cur_v, time);
+//				quaternionLimit(rb.tmp_r, rb.tmp_r, j.const_rotation_1, j.const_rotation_2);
+
+				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.tmp_r);
 			}
 		}		
 	}
 
 	private void physicsFakeExec(float i) {
-		float time = 0.001f;	// must be fixed
+		float time = 0.1f;	// must be fixed
 		
 		float gravity[] = new float[4];
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
@@ -531,15 +552,43 @@ public class Miku {
 			RigidBody target = mPMD.getRigidBody().get(rb.rigidbody_b);
 			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
 				Bone base = mPMD.getBone().get(target.bone_index);
-				calc_pendulum_a(mQuatworks, base, target.cur_location, gravity, time);
-				quaternionMul(target.cur_v, target.cur_v, mQuatworks);
-				quaternionMul(target.cur_rotation, target.cur_rotation, target.cur_v);
-//				quaternionMul(target.cur_rotation, target.cur_rotation, mQuatworks);
+
+//				Log.d("Miku", String.format("Physics %d Bone %d: pos %f, %f, %f",
+//						rb.rigidbody_b, target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
+
+				// calculate v, a from current position
+				float[] current = getCurrentMatrix(base);
+				targetVecs[0] = target.location[0];
+				targetVecs[1] = target.location[1];
+				targetVecs[2] = target.location[2];
+				targetVecs[3] = 1;
+				Matrix.multiplyMV(target.cur_location, 0, current, 0, targetVecs, 0);
+
+				calcPendulumA(target.tmp_a, base, target.cur_location, gravity, 1.0f);
+//				Log.d("Miku", String.format("  a2 %f, %f, %f %f", target.tmp_a[0], target.tmp_a[1], target.tmp_a[2], target.tmp_a[3]));
+//				Log.d("Miku", String.format("  a1 %f, %f, %f %f", target.cur_a[0], target.cur_a[1], target.cur_a[2], target.cur_a[3]));
+				
+				quaternionMulScale(mQuatworks, target.cur_v, target.tmp_a, time);
+//				Log.d("Miku", String.format("  v1 %f, %f, %f %f", mQuatworks[0], mQuatworks[1], mQuatworks[2], mQuatworks[3]));
+//				Log.d("Miku", String.format("  v2 %f, %f, %f %f", target.tmp_v[0], target.tmp_v[1], target.tmp_v[2], target.tmp_v[3]));
+				quaternionMul(target.cur_v, mQuatworks, target.tmp_v);
+				quaternionScale(target.cur_v, 0.5f);
+				
+				quaternionMulScale(mQuatworks, target.cur_r, target.tmp_v, time);
+//				Log.d("Miku", String.format("  r1 %f, %f, %f %f", mQuatworks[0], mQuatworks[1], mQuatworks[2], mQuatworks[3]));
+//				Log.d("Miku", String.format("  r2 %f, %f, %f %f", target.tmp_r[0], target.tmp_r[1], target.tmp_r[2], target.tmp_r[3]));
+				quaternionMul(target.cur_r, mQuatworks, target.tmp_r);
+				quaternionScale(target.cur_r, 0.5f);
+				quaternionLimit(target.cur_r, target.cur_r, rb.const_rotation_1, rb.const_rotation_2);
+//				System.arraycopy(target.tmp_v, 0, target.cur_v, 0, 4);
+//				System.arraycopy(target.tmp_r, 0, target.cur_r, 0, 4);
+				
+
 			}
 		}		
 	}
 
-	private void calc_pendulum_a(double[] quat, Bone b, float[] location, float[] force, float delta) {
+	private void calcPendulumA(double[] quat, Bone b, float[] location, float[] force, double delta) {
 		float[] current = getCurrentMatrix(b);
 		effecterVecs[0] = current[12] + force[0];
 		effecterVecs[1] = current[13] + force[1];
@@ -549,8 +598,6 @@ public class Miku {
 		invertM(mMatworks2, 0, current, 0);
 		Matrix.multiplyMV(effecterInvs, 0, mMatworks2, 0, effecterVecs, 0);
 		Matrix.multiplyMV(targetInvs, 0, mMatworks2, 0, location, 0);
-		//Log.d("Miku", String.format("Physics %d Bone %d: pos %f, %f, %f",
-		//		rb.rigidbody_b, target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
 		//Log.d("Miku", String.format("  eff %f, %f, %f", effecterInvs[0], effecterInvs[1], effecterInvs[2]));
 		//Log.d("Miku", String.format("  tar %f, %f, %f", targetInvs[0], targetInvs[1], targetInvs[2]));
 
@@ -565,7 +612,7 @@ public class Miku {
 			cross(axis, targetInvs, effecterInvs);
 			normalize(axis);
 			if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
-				makeQuat(quat, angle, axis);
+				quaternionCreateFromAngleAxis(quat, angle, axis);
 			} else {
 				quaternionSetIndentity(quat);
 			}
@@ -573,9 +620,11 @@ public class Miku {
 			quaternionSetIndentity(quat);
 		}
 	}
+	
+	private void physicsCheckCollision() {
+		float gravity[] = new float[4];
+		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
 
-	private void physicsMoveBone() {
-		
 		// clear all
 		for (Bone b : mPMD.getBone()) {
 			b.updated = false;
@@ -588,7 +637,74 @@ public class Miku {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mPMD.getBone().get(rb.bone_index);
-				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_rotation);
+				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
+			}
+		}
+		for(int i = 0; i < rba.size(); i++) {
+			RigidBody rb = rba.get(i);
+			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
+				Bone b = mPMD.getBone().get(rb.bone_index);
+				float[] current = getCurrentMatrix(b);
+				vec[0] = rb.location[0];
+				vec[1] = rb.location[1];
+				vec[2] = rb.location[2];
+				Matrix.multiplyMV(rb.cur_location, 0, current, 0, vec, 0);
+			}
+		}
+		
+		// check collision
+		ArrayList<Joint> ja = mPMD.getJoint();
+		for(int idx = 0; idx < ja.size(); idx++) {
+			Joint j = ja.get(idx);
+			RigidBody target = mPMD.getRigidBody().get(j.rigidbody_b);
+			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
+				for(int i = 0; i < rba.size(); i++) {
+					if(i == j.rigidbody_b) {
+						continue;
+					}
+					RigidBody rb = rba.get(i);
+					
+					float len = Matrix.length(
+							rb.cur_location[0] - target.cur_location[0],
+							rb.cur_location[1] - target.cur_location[1],
+							rb.cur_location[2] - target.cur_location[2]);
+					
+//					if(len < rb.size[0] + target.size[0]) {	// collision
+					if(len < Math.max(rb.size[0], Math.max(rb.size[1], rb.size[2])) +
+							 Math.max(target.size[0], Math.max(target.size[1], target.size[2]))) { // collision
+						System.arraycopy(rb.prev_r, 0, rb.cur_r, 0, 4);
+//						rb.cur_v[3] = - rb.cur_v[3];
+						break;
+					}
+				}
+			}
+		}		
+		
+		// clear all
+		for (Bone b : mPMD.getBone()) {
+			b.updated = false;
+		}
+
+	}
+
+	private void physicsMoveBone() {
+		float gravity[] = new float[4];
+		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
+
+		// clear all
+		for (Bone b : mPMD.getBone()) {
+			b.updated = false;
+		}
+		
+		float vec[] = new float[4];
+		vec[3] = 1;
+		ArrayList<RigidBody> rba = mPMD.getRigidBody();
+		for(int i = 0; i < rba.size(); i++) {
+			RigidBody rb = rba.get(i);
+			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
+				Bone b = mPMD.getBone().get(rb.bone_index);
+				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
+				quaternionScale(rb.cur_v, 1 - rb.r_dim);
 			}
 		}
 		for(int i = 0; i < rba.size(); i++) {
@@ -600,6 +716,7 @@ public class Miku {
 				vec[1] = rb.location[1];
 				vec[2] = rb.location[2];
 				Matrix.multiplyMV(rb.cur_location, 0, b.matrix, 0, vec, 0);
+				calcPendulumA(rb.cur_a, b, rb.cur_location, gravity, 1.0f);
 			}
 		}
 		
@@ -822,7 +939,7 @@ public class Miku {
 						if (!Double.isNaN(angle)) {
 							axis[0] = -1;
 							axis[1] = axis[2] = 0;
-							makeQuat(mQuatworks, angle, axis);
+							quaternionCreateFromAngleAxis(mQuatworks, angle, axis);
 							quaternionMul(b.quaternion, b.quaternion, mQuatworks);
 							quaternionToMatrixPreserveTranslate(b.matrix_current, b.quaternion);
 						}
@@ -856,7 +973,7 @@ public class Miku {
 					// rotateM(mMatworks, 0, b.matrix_current, 0, degree, axis[0], axis[1], axis[2]);
 					// System.arraycopy(mMatworks, 0, b.matrix_current, 0, 16);
 					if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
-						makeQuat(mQuatworks, angle, axis);
+						quaternionCreateFromAngleAxis(mQuatworks, angle, axis);
 						quaternionMul(b.quaternion, b.quaternion, mQuatworks);
 						quaternionToMatrixPreserveTranslate(b.matrix_current, b.quaternion);
 					}
@@ -879,15 +996,6 @@ public class Miku {
 			}
 		}
 		root.updated = false;
-	}
-
-	public void makeQuat(double[] quat, double angle, float[] axis) {
-		double s = Math.sin(angle / 2);
-
-		quat[0] = s * axis[0];
-		quat[1] = s * axis[1];
-		quat[2] = s * axis[2];
-		quat[3] = Math.cos(angle / 2);
 	}
 
 	public void cross(float[] d, float[] v1, float[] v2) {
@@ -999,7 +1107,7 @@ public class Miku {
 		return b.matrix;
 	}
 	
-	public void quaternionCreateFromAngleAxis(double[] r, double angle, double[] axis) {
+	public void quaternionCreateFromAngleAxis(double[] r, double angle, float[] axis) {
 		double halfAngle = 0.5f * angle;
 		double sin = Math.sin(halfAngle);
 		r[3] = Math.cos(halfAngle);
@@ -1022,13 +1130,60 @@ public class Miku {
 		res[3] = -x * qx - y * qy - z * qz + w * qw;
 	}
 
-	public void quaternionNormalize(double[] pvec4Out, double[] pvec4Src) {
-		float fSqr = (float) (1.0f / Math.sqrt(pvec4Src[0] * pvec4Src[0] + pvec4Src[1] * pvec4Src[1] + pvec4Src[2] * pvec4Src[2] + pvec4Src[3] * pvec4Src[3]));
+	public void quaternionScale(double[] res, double scale) {
+		double angle = Math.acos(res[3]);
+//		double sin_scale = Math.sin(angle * scale) / Math.sin(res[3]);
+		double sin_scale = Math.sin(angle * scale) / Math.sin(angle);
+		if(!Double.isNaN(sin_scale)) {
+			res[0] *= sin_scale;
+			res[1] *= sin_scale;
+			res[2] *= sin_scale;
+			res[3]  = Math.cos(angle * scale);			
+		} else {
+			quaternionSetIndentity(res);
+		}
+	}
+	
+	public void quaternionMulScale(double[] res, double[] r, double[] q, double scale) {
+		System.arraycopy(q, 0, mQuatworks2, 0, 4);
+		quaternionScale(mQuatworks2, scale);
+		quaternionMul(res, r, mQuatworks2);
+	}
+	
+	public void quaternionNormalize(double[] res, double[] q) {
+		float scale = (float) (1.0f / Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]));
 
-		pvec4Out[0] = pvec4Src[0] * fSqr;
-		pvec4Out[1] = pvec4Src[1] * fSqr;
-		pvec4Out[2] = pvec4Src[2] * fSqr;
-		pvec4Out[3] = pvec4Src[3] * fSqr;
+		res[0] = q[0] * scale;
+		res[1] = q[1] * scale;
+		res[2] = q[2] * scale;
+		res[3] = q[3] * scale;
+	}
+	
+	public void quaternionLimit(double[] res, double[] q, float[] min, float[] max) {
+		for(int i = 0; i < 3; i++) {
+			double angle = Math.sinh(q[i]);
+			if(q[3] < 0) {
+				if(angle >= 0) {
+					angle =  Math.PI - angle;
+				} else {
+					angle = -Math.PI - angle;
+				}
+			}
+			if(angle < min[i]) {
+				angle = Math.max(min[i], -Math.PI);
+			} else if(angle >= max[i]) {
+				angle = Math.min(max[i],  Math.PI);
+			}
+			res[i] = Math.sin(angle);
+			if(q[3] < 0) {
+				res[i] = - res[i];
+			}
+		}
+		
+		res[3] = Math.sqrt(1 - res[0] * res[0] - res[1] * res[1] - res[2] * res[2]);
+		if(q[3] < 0) {
+			res[3] = -res[3];
+		}
 	}
 
 	public void quaternionToMatrix(float mat[], float quat[]) {
