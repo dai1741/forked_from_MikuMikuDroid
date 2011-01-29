@@ -64,11 +64,7 @@ public class Miku implements Serializable {
 	private transient float axis[] = new float[3];
 	private transient float mMatworks[] = new float[16];
 	private transient float mBoneMatrix[];
-	private transient float[] mInvSrcs = new float[16];
-	private transient float[] mInvTmps = new float[12];
-	private transient float[] mInvDsts = new float[16];
 	private transient double[] mQuatworks = new double[4];
-	private transient double[] mQuatworks2 = new double[4];
 	private transient Face mFaceBase;
 	private transient FacePair mFacePair = new FacePair();
 	private transient FaceIndex mFaceIndex = new FaceIndex();
@@ -538,14 +534,14 @@ public class Miku implements Serializable {
 				rb.cur_location[1] = rb.location[1];
 				rb.cur_location[2] = rb.location[2];
 				rb.cur_location[3] = 1;
-				quaternionSetIndentity(rb.cur_a);
-				quaternionSetIndentity(rb.tmp_a);
+				Quaternion.setIndentity(rb.cur_a);
+				Quaternion.setIndentity(rb.tmp_a);
 			}
-			quaternionSetIndentity(rb.cur_r);
-			quaternionSetIndentity(rb.cur_v);
-			quaternionSetIndentity(rb.tmp_r);
-			quaternionSetIndentity(rb.tmp_v);
-			quaternionSetIndentity(rb.prev_r);			
+			Quaternion.setIndentity(rb.cur_r);
+			Quaternion.setIndentity(rb.cur_v);
+			Quaternion.setIndentity(rb.tmp_r);
+			Quaternion.setIndentity(rb.tmp_v);
+			Quaternion.setIndentity(rb.prev_r);			
 		}
 	}
 
@@ -562,11 +558,11 @@ public class Miku implements Serializable {
 				
 				// calculate v, a from previous position
 				System.arraycopy(rb.cur_r, 0, rb.prev_r, 0, 4);
-				quaternionMulScale(rb.tmp_v, rb.cur_v, rb.cur_a, time);
-				quaternionMulScale(rb.tmp_r, rb.cur_r, rb.cur_v, time);
+				Quaternion.mulScale(rb.tmp_v, rb.cur_v, rb.cur_a, time);
+				Quaternion.mulScale(rb.tmp_r, rb.cur_r, rb.cur_v, time);
 //				quaternionLimit(rb.tmp_r, rb.tmp_r, j.const_rotation_1, j.const_rotation_2);
 
-				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.tmp_r);
+				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.tmp_r);
 			}
 		}		
 	}
@@ -599,18 +595,18 @@ public class Miku implements Serializable {
 //				Log.d("Miku", String.format("  a2 %f, %f, %f %f", target.tmp_a[0], target.tmp_a[1], target.tmp_a[2], target.tmp_a[3]));
 //				Log.d("Miku", String.format("  a1 %f, %f, %f %f", target.cur_a[0], target.cur_a[1], target.cur_a[2], target.cur_a[3]));
 				
-				quaternionMulScale(mQuatworks, target.cur_v, target.tmp_a, time);
+				Quaternion.mulScale(mQuatworks, target.cur_v, target.tmp_a, time);
 //				Log.d("Miku", String.format("  v1 %f, %f, %f %f", mQuatworks[0], mQuatworks[1], mQuatworks[2], mQuatworks[3]));
 //				Log.d("Miku", String.format("  v2 %f, %f, %f %f", target.tmp_v[0], target.tmp_v[1], target.tmp_v[2], target.tmp_v[3]));
-				quaternionMul(target.cur_v, mQuatworks, target.tmp_v);
-				quaternionScale(target.cur_v, 0.5f);
+				Quaternion.mul(target.cur_v, mQuatworks, target.tmp_v);
+				Quaternion.scale(target.cur_v, 0.5f);
 				
-				quaternionMulScale(mQuatworks, target.cur_r, target.tmp_v, time);
+				Quaternion.mulScale(mQuatworks, target.cur_r, target.tmp_v, time);
 //				Log.d("Miku", String.format("  r1 %f, %f, %f %f", mQuatworks[0], mQuatworks[1], mQuatworks[2], mQuatworks[3]));
 //				Log.d("Miku", String.format("  r2 %f, %f, %f %f", target.tmp_r[0], target.tmp_r[1], target.tmp_r[2], target.tmp_r[3]));
-				quaternionMul(target.cur_r, mQuatworks, target.tmp_r);
-				quaternionScale(target.cur_r, 0.5f);
-				quaternionLimit(target.cur_r, target.cur_r, rb.const_rotation_1, rb.const_rotation_2);
+				Quaternion.mul(target.cur_r, mQuatworks, target.tmp_r);
+				Quaternion.scale(target.cur_r, 0.5f);
+				Quaternion.limit(target.cur_r, target.cur_r, rb.const_rotation_1, rb.const_rotation_2);
 //				System.arraycopy(target.tmp_v, 0, target.cur_v, 0, 4);
 //				System.arraycopy(target.tmp_r, 0, target.cur_r, 0, 4);
 				
@@ -626,29 +622,29 @@ public class Miku implements Serializable {
 		effecterVecs[2] = current[14] + force[2];
 		effecterVecs[3] = 1;
 		
-		invertM(mMatworks, 0, current, 0);
+		Vector.invertM(mMatworks, 0, current, 0);
 		Matrix.multiplyMV(effecterInvs, 0, mMatworks, 0, effecterVecs, 0);
 		Matrix.multiplyMV(targetInvs, 0, mMatworks, 0, location, 0);
 		//Log.d("Miku", String.format("  eff %f, %f, %f", effecterInvs[0], effecterInvs[1], effecterInvs[2]));
 		//Log.d("Miku", String.format("  tar %f, %f, %f", targetInvs[0], targetInvs[1], targetInvs[2]));
 
 		// calculate rotation angle/axis
-		normalize(effecterInvs);
-		normalize(targetInvs);
-		double angle = Math.acos(Math.abs(dot(effecterInvs, targetInvs)));
+		Vector.normalize(effecterInvs);
+		Vector.normalize(targetInvs);
+		double angle = Math.acos(Math.abs(Vector.dot(effecterInvs, targetInvs)));
 //		double angle = Math.acos(dot(effecterInvs, targetInvs));
 		angle *= delta;	// must add friction
 
 		if (!Double.isNaN(angle)) {
-			cross(axis, targetInvs, effecterInvs);
-			normalize(axis);
+			Vector.cross(axis, targetInvs, effecterInvs);
+			Vector.normalize(axis);
 			if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
-				quaternionCreateFromAngleAxis(quat, angle, axis);
+				Quaternion.createFromAngleAxis(quat, angle, axis);
 			} else {
-				quaternionSetIndentity(quat);
+				Quaternion.setIndentity(quat);
 			}
 		} else {
-			quaternionSetIndentity(quat);
+			Quaternion.setIndentity(quat);
 		}
 	}
 	
@@ -668,7 +664,7 @@ public class Miku implements Serializable {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mBone.get(rb.bone_index);
-				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
+				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
 			}
 		}
 		for(int i = 0; i < rba.size(); i++) {
@@ -734,8 +730,8 @@ public class Miku implements Serializable {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mBone.get(rb.bone_index);
-				quaternionToMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
-				quaternionScale(rb.cur_v, 1 - rb.r_dim);
+				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
+				Quaternion.scale(rb.cur_v, 1 - rb.r_dim);
 			}
 		}
 		for(int i = 0; i < rba.size(); i++) {
@@ -900,7 +896,7 @@ public class Miku implements Serializable {
 			b.quaternion[1] = m.rotation[1];
 			b.quaternion[2] = m.rotation[2];
 			b.quaternion[3] = m.rotation[3];
-			quaternionToMatrix(b.matrix_current, m.rotation);
+			Quaternion.toMatrix(b.matrix_current, m.rotation);
 
 			if (b.parent == -1) {
 				b.matrix_current[12] = m.location[0] + b.head_pos[0];
@@ -915,7 +911,7 @@ public class Miku implements Serializable {
 		} else {
 			// no VMD info so assume that no rotation and translation are specified
 			Matrix.setIdentityM(b.matrix_current, 0);
-			quaternionSetIndentity(b.quaternion);
+			Quaternion.setIndentity(b.quaternion);
 			if (b.parent == -1) {
 				Matrix.translateM(b.matrix_current, 0, b.head_pos[0], b.head_pos[1], b.head_pos[2]);
 			} else {
@@ -974,9 +970,9 @@ public class Miku implements Serializable {
 						if (!Double.isNaN(angle)) {
 							axis[0] = -1;
 							axis[1] = axis[2] = 0;
-							quaternionCreateFromAngleAxis(mQuatworks, angle, axis);
-							quaternionMul(b.quaternion, b.quaternion, mQuatworks);
-							quaternionToMatrixPreserveTranslate(b.matrix_current, b.quaternion);
+							Quaternion.createFromAngleAxis(mQuatworks, angle, axis);
+							Quaternion.mul(b.quaternion, b.quaternion, mQuatworks);
+							Quaternion.toMatrixPreserveTranslate(b.matrix_current, b.quaternion);
 						}
 					}
 					continue;
@@ -991,26 +987,26 @@ public class Miku implements Serializable {
 				}
 
 				float[] current = getCurrentMatrix(b);
-				invertM(mMatworks, 0, current, 0);
+				Vector.invertM(mMatworks, 0, current, 0);
 				Matrix.multiplyMV(effecterInvs, 0, mMatworks, 0, effecterVecs, 0);
 				Matrix.multiplyMV(targetInvs, 0, mMatworks, 0, targetVecs, 0);
 
 				// calculate rotation angle/axis
-				normalize(effecterInvs);
-				normalize(targetInvs);
-				double angle = Math.acos(dot(effecterInvs, targetInvs));
+				Vector.normalize(effecterInvs);
+				Vector.normalize(targetInvs);
+				double angle = Math.acos(Vector.dot(effecterInvs, targetInvs));
 				angle *= ik.control_weight;
 
 				if (!Double.isNaN(angle)) {
-					cross(axis, targetInvs, effecterInvs);
-					normalize(axis);
+					Vector.cross(axis, targetInvs, effecterInvs);
+					Vector.normalize(axis);
 
 					// rotateM(mMatworks, 0, b.matrix_current, 0, degree, axis[0], axis[1], axis[2]);
 					// System.arraycopy(mMatworks, 0, b.matrix_current, 0, 16);
 					if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
-						quaternionCreateFromAngleAxis(mQuatworks, angle, axis);
-						quaternionMul(b.quaternion, b.quaternion, mQuatworks);
-						quaternionToMatrixPreserveTranslate(b.matrix_current, b.quaternion);
+						Quaternion.createFromAngleAxis(mQuatworks, angle, axis);
+						Quaternion.mul(b.quaternion, b.quaternion, mQuatworks);
+						Quaternion.toMatrixPreserveTranslate(b.matrix_current, b.quaternion);
 					}
 				}
 			}
@@ -1033,104 +1029,6 @@ public class Miku implements Serializable {
 		root.updated = false;
 	}
 
-	public void cross(float[] d, float[] v1, float[] v2) {
-		d[0] = v1[1] * v2[2] - v1[2] * v2[1];
-		d[1] = v1[2] * v2[0] - v1[0] * v2[2];
-		d[2] = v1[0] * v2[1] - v1[1] * v2[0];
-	}
-
-	public void normalize(float[] v) {
-		float d = Matrix.length(v[0], v[1], v[2]);
-		v[0] /= d;
-		v[1] /= d;
-		v[2] /= d;
-	}
-
-	public float dot(float[] v1, float[] v2) {
-		return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-	}
-
-	public boolean invertM(float[] mInv, int mInvOffset, float[] m, int mOffset) {
-		// Invert a 4 x 4 matrix using Cramer's Rule
-
-		// transpose matrix
-		Matrix.transposeM(mInvSrcs, 0, m, mOffset);
-
-		// calculate pairs for first 8 elements (cofactors)
-		mInvTmps[0] = mInvSrcs[10] * mInvSrcs[15];
-		mInvTmps[1] = mInvSrcs[11] * mInvSrcs[14];
-		mInvTmps[2] = mInvSrcs[9] * mInvSrcs[15];
-		mInvTmps[3] = mInvSrcs[11] * mInvSrcs[13];
-		mInvTmps[4] = mInvSrcs[9] * mInvSrcs[14];
-		mInvTmps[5] = mInvSrcs[10] * mInvSrcs[13];
-		mInvTmps[6] = mInvSrcs[8] * mInvSrcs[15];
-		mInvTmps[7] = mInvSrcs[11] * mInvSrcs[12];
-		mInvTmps[8] = mInvSrcs[8] * mInvSrcs[14];
-		mInvTmps[9] = mInvSrcs[10] * mInvSrcs[12];
-		mInvTmps[10] = mInvSrcs[8] * mInvSrcs[13];
-		mInvTmps[11] = mInvSrcs[9] * mInvSrcs[12];
-
-		// calculate first 8 elements (cofactors)
-		mInvDsts[0] = mInvTmps[0] * mInvSrcs[5] + mInvTmps[3] * mInvSrcs[6] + mInvTmps[4] * mInvSrcs[7];
-		mInvDsts[0] -= mInvTmps[1] * mInvSrcs[5] + mInvTmps[2] * mInvSrcs[6] + mInvTmps[5] * mInvSrcs[7];
-		mInvDsts[1] = mInvTmps[1] * mInvSrcs[4] + mInvTmps[6] * mInvSrcs[6] + mInvTmps[9] * mInvSrcs[7];
-		mInvDsts[1] -= mInvTmps[0] * mInvSrcs[4] + mInvTmps[7] * mInvSrcs[6] + mInvTmps[8] * mInvSrcs[7];
-		mInvDsts[2] = mInvTmps[2] * mInvSrcs[4] + mInvTmps[7] * mInvSrcs[5] + mInvTmps[10] * mInvSrcs[7];
-		mInvDsts[2] -= mInvTmps[3] * mInvSrcs[4] + mInvTmps[6] * mInvSrcs[5] + mInvTmps[11] * mInvSrcs[7];
-		mInvDsts[3] = mInvTmps[5] * mInvSrcs[4] + mInvTmps[8] * mInvSrcs[5] + mInvTmps[11] * mInvSrcs[6];
-		mInvDsts[3] -= mInvTmps[4] * mInvSrcs[4] + mInvTmps[9] * mInvSrcs[5] + mInvTmps[10] * mInvSrcs[6];
-		mInvDsts[4] = mInvTmps[1] * mInvSrcs[1] + mInvTmps[2] * mInvSrcs[2] + mInvTmps[5] * mInvSrcs[3];
-		mInvDsts[4] -= mInvTmps[0] * mInvSrcs[1] + mInvTmps[3] * mInvSrcs[2] + mInvTmps[4] * mInvSrcs[3];
-		mInvDsts[5] = mInvTmps[0] * mInvSrcs[0] + mInvTmps[7] * mInvSrcs[2] + mInvTmps[8] * mInvSrcs[3];
-		mInvDsts[5] -= mInvTmps[1] * mInvSrcs[0] + mInvTmps[6] * mInvSrcs[2] + mInvTmps[9] * mInvSrcs[3];
-		mInvDsts[6] = mInvTmps[3] * mInvSrcs[0] + mInvTmps[6] * mInvSrcs[1] + mInvTmps[11] * mInvSrcs[3];
-		mInvDsts[6] -= mInvTmps[2] * mInvSrcs[0] + mInvTmps[7] * mInvSrcs[1] + mInvTmps[10] * mInvSrcs[3];
-		mInvDsts[7] = mInvTmps[4] * mInvSrcs[0] + mInvTmps[9] * mInvSrcs[1] + mInvTmps[10] * mInvSrcs[2];
-		mInvDsts[7] -= mInvTmps[5] * mInvSrcs[0] + mInvTmps[8] * mInvSrcs[1] + mInvTmps[11] * mInvSrcs[2];
-
-		// calculate pairs for second 8 elements (cofactors)
-		mInvTmps[0] = mInvSrcs[2] * mInvSrcs[7];
-		mInvTmps[1] = mInvSrcs[3] * mInvSrcs[6];
-		mInvTmps[2] = mInvSrcs[1] * mInvSrcs[7];
-		mInvTmps[3] = mInvSrcs[3] * mInvSrcs[5];
-		mInvTmps[4] = mInvSrcs[1] * mInvSrcs[6];
-		mInvTmps[5] = mInvSrcs[2] * mInvSrcs[5];
-		mInvTmps[6] = mInvSrcs[0] * mInvSrcs[7];
-		mInvTmps[7] = mInvSrcs[3] * mInvSrcs[4];
-		mInvTmps[8] = mInvSrcs[0] * mInvSrcs[6];
-		mInvTmps[9] = mInvSrcs[2] * mInvSrcs[4];
-		mInvTmps[10] = mInvSrcs[0] * mInvSrcs[5];
-		mInvTmps[11] = mInvSrcs[1] * mInvSrcs[4];
-
-		// calculate second 8 elements (cofactors)
-		mInvDsts[8] = mInvTmps[0] * mInvSrcs[13] + mInvTmps[3] * mInvSrcs[14] + mInvTmps[4] * mInvSrcs[15];
-		mInvDsts[8] -= mInvTmps[1] * mInvSrcs[13] + mInvTmps[2] * mInvSrcs[14] + mInvTmps[5] * mInvSrcs[15];
-		mInvDsts[9] = mInvTmps[1] * mInvSrcs[12] + mInvTmps[6] * mInvSrcs[14] + mInvTmps[9] * mInvSrcs[15];
-		mInvDsts[9] -= mInvTmps[0] * mInvSrcs[12] + mInvTmps[7] * mInvSrcs[14] + mInvTmps[8] * mInvSrcs[15];
-		mInvDsts[10] = mInvTmps[2] * mInvSrcs[12] + mInvTmps[7] * mInvSrcs[13] + mInvTmps[10] * mInvSrcs[15];
-		mInvDsts[10] -= mInvTmps[3] * mInvSrcs[12] + mInvTmps[6] * mInvSrcs[13] + mInvTmps[11] * mInvSrcs[15];
-		mInvDsts[11] = mInvTmps[5] * mInvSrcs[12] + mInvTmps[8] * mInvSrcs[13] + mInvTmps[11] * mInvSrcs[14];
-		mInvDsts[11] -= mInvTmps[4] * mInvSrcs[12] + mInvTmps[9] * mInvSrcs[13] + mInvTmps[10] * mInvSrcs[14];
-		mInvDsts[12] = mInvTmps[2] * mInvSrcs[10] + mInvTmps[5] * mInvSrcs[11] + mInvTmps[1] * mInvSrcs[9];
-		mInvDsts[12] -= mInvTmps[4] * mInvSrcs[11] + mInvTmps[0] * mInvSrcs[9] + mInvTmps[3] * mInvSrcs[10];
-		mInvDsts[13] = mInvTmps[8] * mInvSrcs[11] + mInvTmps[0] * mInvSrcs[8] + mInvTmps[7] * mInvSrcs[10];
-		mInvDsts[13] -= mInvTmps[6] * mInvSrcs[10] + mInvTmps[9] * mInvSrcs[11] + mInvTmps[1] * mInvSrcs[8];
-		mInvDsts[14] = mInvTmps[6] * mInvSrcs[9] + mInvTmps[11] * mInvSrcs[11] + mInvTmps[3] * mInvSrcs[8];
-		mInvDsts[14] -= mInvTmps[10] * mInvSrcs[11] + mInvTmps[2] * mInvSrcs[8] + mInvTmps[7] * mInvSrcs[9];
-		mInvDsts[15] = mInvTmps[10] * mInvSrcs[10] + mInvTmps[4] * mInvSrcs[8] + mInvTmps[9] * mInvSrcs[9];
-		mInvDsts[15] -= mInvTmps[8] * mInvSrcs[9] + mInvTmps[11] * mInvSrcs[10] + mInvTmps[5] * mInvSrcs[8];
-
-		// calculate determinant
-		float det = mInvSrcs[0] * mInvDsts[0] + mInvSrcs[1] * mInvDsts[1] + mInvSrcs[2] * mInvDsts[2] + mInvSrcs[3] * mInvDsts[3];
-
-		// calculate matrix inverse
-		det = 1 / det;
-		for (int j = 0; j < 16; j++)
-			mInv[j + mInvOffset] = mInvDsts[j] * det;
-
-		return true;
-	}
-
 	private void getCurrentPosition(float v[], Bone b) {
 		float[] current = getCurrentMatrix(b);
 		System.arraycopy(current, 12, v, 0, 3);
@@ -1142,135 +1040,6 @@ public class Miku implements Serializable {
 		return b.matrix;
 	}
 	
-	public void quaternionCreateFromAngleAxis(double[] r, double angle, float[] axis) {
-		double halfAngle = 0.5f * angle;
-		double sin = Math.sin(halfAngle);
-		r[3] = Math.cos(halfAngle);
-		r[0] = sin * axis[0];
-		r[1] = sin * axis[1];
-		r[2] = sin * axis[2];
-	}
-
-	public void quaternionSetIndentity(double[] r) {
-		r[0] = r[1] = r[2] = 0;
-		r[3] = 1;
-	}
-
-	public void quaternionMul(double[] res, double[] r, double[] q) {
-		double w = r[3], x = r[0], y = r[1], z = r[2];
-		double qw = q[3], qx = q[0], qy = q[1], qz = q[2];
-		res[0] = x * qw + y * qz - z * qy + w * qx;
-		res[1] = -x * qz + y * qw + z * qx + w * qy;
-		res[2] = x * qy - y * qx + z * qw + w * qz;
-		res[3] = -x * qx - y * qy - z * qz + w * qw;
-	}
-
-	public void quaternionScale(double[] res, double scale) {
-		double angle = Math.acos(res[3]);
-//		double sin_scale = Math.sin(angle * scale) / Math.sin(res[3]);
-		double sin_scale = Math.sin(angle * scale) / Math.sin(angle);
-		if(!Double.isNaN(sin_scale)) {
-			res[0] *= sin_scale;
-			res[1] *= sin_scale;
-			res[2] *= sin_scale;
-			res[3]  = Math.cos(angle * scale);			
-		} else {
-			quaternionSetIndentity(res);
-		}
-	}
-	
-	public void quaternionMulScale(double[] res, double[] r, double[] q, double scale) {
-		System.arraycopy(q, 0, mQuatworks2, 0, 4);
-		quaternionScale(mQuatworks2, scale);
-		quaternionMul(res, r, mQuatworks2);
-	}
-	
-	public void quaternionNormalize(double[] res, double[] q) {
-		float scale = (float) (1.0f / Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]));
-
-		res[0] = q[0] * scale;
-		res[1] = q[1] * scale;
-		res[2] = q[2] * scale;
-		res[3] = q[3] * scale;
-	}
-	
-	public void quaternionLimit(double[] res, double[] q, float[] min, float[] max) {
-		for(int i = 0; i < 3; i++) {
-			double angle = Math.sinh(q[i]);
-			if(q[3] < 0) {
-				if(angle >= 0) {
-					angle =  Math.PI - angle;
-				} else {
-					angle = -Math.PI - angle;
-				}
-			}
-			if(angle < min[i]) {
-				angle = Math.max(min[i], -Math.PI);
-			} else if(angle >= max[i]) {
-				angle = Math.min(max[i],  Math.PI);
-			}
-			res[i] = Math.sin(angle);
-			if(q[3] < 0) {
-				res[i] = - res[i];
-			}
-		}
-		
-		res[3] = Math.sqrt(1 - res[0] * res[0] - res[1] * res[1] - res[2] * res[2]);
-		if(q[3] < 0) {
-			res[3] = -res[3];
-		}
-	}
-
-	public void quaternionToMatrix(float mat[], float quat[]) {
-		float x2 = quat[0] * quat[0] * 2.0f;
-		float y2 = quat[1] * quat[1] * 2.0f;
-		float z2 = quat[2] * quat[2] * 2.0f;
-		float xy = quat[0] * quat[1] * 2.0f;
-		float yz = quat[1] * quat[2] * 2.0f;
-		float zx = quat[2] * quat[0] * 2.0f;
-		float xw = quat[0] * quat[3] * 2.0f;
-		float yw = quat[1] * quat[3] * 2.0f;
-		float zw = quat[2] * quat[3] * 2.0f;
-
-		mat[0] = 1.0f - y2 - z2;
-		mat[1] = xy + zw;
-		mat[2] = zx - yw;
-		mat[4] = xy - zw;
-		mat[5] = 1.0f - z2 - x2;
-		mat[6] = yz + xw;
-		mat[8] = zx + yw;
-		mat[9] = yz - xw;
-		mat[10] = 1.0f - x2 - y2;
-
-		mat[3] = mat[7] = mat[11] = mat[12] = mat[13] = mat[14] = 0.0f;
-		mat[15] = 1.0f;
-	}
-
-	public void quaternionToMatrixPreserveTranslate(float mat[], double quat[]) {
-		double x2 = quat[0] * quat[0] * 2.0f;
-		double y2 = quat[1] * quat[1] * 2.0f;
-		double z2 = quat[2] * quat[2] * 2.0f;
-		double xy = quat[0] * quat[1] * 2.0f;
-		double yz = quat[1] * quat[2] * 2.0f;
-		double zx = quat[2] * quat[0] * 2.0f;
-		double xw = quat[0] * quat[3] * 2.0f;
-		double yw = quat[1] * quat[3] * 2.0f;
-		double zw = quat[2] * quat[3] * 2.0f;
-
-		mat[0] = (float) (1.0f - y2 - z2);
-		mat[1] = (float) (xy + zw);
-		mat[2] = (float) (zx - yw);
-		mat[4] = (float) (xy - zw);
-		mat[5] = (float) (1.0f - z2 - x2);
-		mat[6] = (float) (yz + xw);
-		mat[8] = (float) (zx + yw);
-		mat[9] = (float) (yz - xw);
-		mat[10] = (float) (1.0f - x2 - y2);
-
-		mat[3] = mat[7] = mat[11] = /* mat[12] = mat[13] = mat[14] = */0.0f;
-		mat[15] = 1.0f;
-	}
-
 	public void calcToonTexCoord(float x, float y, float z) {
 		ByteBuffer tbb = ByteBuffer.allocateDirect(mAllBuffer.capacity() / 8 * 2 * 4);
 		tbb.order(ByteOrder.nativeOrder());
