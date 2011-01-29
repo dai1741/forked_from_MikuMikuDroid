@@ -1,10 +1,12 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.HashMap;
 
-public class Material {
+public class Material implements Serializable {
+	private static final long serialVersionUID = 2851797827233142586L;
 	public Material(Material mat) {
 		diffuse_color		= mat.diffuse_color;
 		power				= mat.power;

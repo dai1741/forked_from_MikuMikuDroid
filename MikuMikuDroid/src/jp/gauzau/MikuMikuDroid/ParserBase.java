@@ -98,12 +98,20 @@ public class ParserBase {
 			return "";
 		}
 	}
-
-	protected byte[] getBytes(int i, byte[] tmp) {
+	
+	protected byte[] getStringBytes(byte[] tmp, int i) {
 		mBB.get(tmp, 0, i);
+		for(int j = 0; j < i; j++) {
+			if(tmp[j] == '\0') { // null
+				for(int k = j; k < i; k++) {
+					tmp[k] = '\0';
+				}
+				return tmp;
+			}
+		}
 		return tmp;
 	}
-
+	
 	protected boolean isEof() {
 		return mBB.remaining() == 0;
 	}

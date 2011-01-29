@@ -1,7 +1,9 @@
 package jp.gauzau.MikuMikuDroid;
 
-public class RigidBody {
+import java.io.Serializable;
 
+public class RigidBody implements Serializable {
+	private static final long serialVersionUID = -7562525045135372564L;
 	public String name;
 	public short bone_index;
 	public byte group_index;
@@ -16,13 +18,14 @@ public class RigidBody {
 	public float recoil;
 	public float friction;
 	public byte type;
-	public float[] cur_location;
-	public double[] cur_r;
-	public double[] cur_v;
-	public double[] cur_a;
-	public double[] tmp_r;
-	public double[] tmp_v;
-	public double[] tmp_a;
-	public double[] prev_r;
+	
+	public transient float[] cur_location;
+	public transient double[] cur_r;
+	public transient double[] cur_v;
+	public transient double[] cur_a;
+	public transient double[] tmp_r;
+	public transient double[] tmp_v;
+	public transient double[] tmp_a;
+	public transient double[] prev_r;
 
 }

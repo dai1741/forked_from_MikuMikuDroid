@@ -1,14 +1,16 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public class Face {
-
+public class Face implements Serializable {
+	private static final long serialVersionUID = 3872043545105902643L;
 	public String name;
 	public int face_vert_count;
 	public byte face_type;
 	public ArrayList<FaceVertData> face_vert_data;
-	public ArrayList<FaceIndex> motion;
-	public int current_motion;
+	
+	public transient ArrayList<FaceIndex> motion;
+	public transient int current_motion;
 
 }

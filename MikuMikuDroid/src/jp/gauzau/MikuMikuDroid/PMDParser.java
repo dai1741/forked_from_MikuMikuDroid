@@ -10,38 +10,23 @@ public class PMDParser extends ParserBase {
 	private boolean mIsPmd;
 	private String mModelName;
 	private String mDescription;
-	private int mVertexNum;
 	private ArrayList<Vertex> mVertex;
-	private int mIndexNum;
 	private ArrayList<Integer> mIndex;
-	private int mMaterialNum;
 	private ArrayList<Material> mMaterial;
-	private int mBoneNum;
 	private ArrayList<Bone> mBone;
-
-	private int mIKNum;
 	private ArrayList<IK> mIK;
-	private short mFaceNum;
 	private ArrayList<Face> mFace;
-	private byte mSkinDispNum;
 	private ArrayList<Short> mSkinDisp;
-	private byte mBoneDispNameNum;
 	private ArrayList<String> mBoneDispName;
-	private int mBoneDispNum;
 	private ArrayList<BoneDisp> mBoneDisp;
 	private byte mHasEnglishName;
 	private String mEnglishModelName;
 	private String mEnglishComment;
-	private int mEnglishBoneListNum;
 	private ArrayList<String> mEnglishBoneName;
-	private int mEnglishSkinListNum;
 	private ArrayList<String> mEnglishSkinName;
 	private ArrayList<String> mToonFileName;
 	private ArrayList<String> mEnglishBoneDispName;
-	private byte mEnglishBoneDispNameNum;
-	private int mRigidBodyNum;
 	private ArrayList<RigidBody> mRigidBody;
-	private int mJointNum;
 	private ArrayList<Joint> mJoint;
 
 	public PMDParser(String file) throws IOException {
@@ -71,7 +56,7 @@ public class PMDParser extends ParserBase {
 				mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
 				for (int i = 0; i < 10; i++) {
 					String str = String.format("/sdcard/MikuMikuDroid/Data/toon%02d.bmp", i + 1);
-					Log.d("PMDParser", str);
+//					Log.d("PMDParser", str);
 					mToonFileName.add(i + 1, str);
 				}
 
@@ -83,10 +68,10 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDJoint() {
-		mJointNum = getInt();
-		Log.d("PMDParser", "Joint: " + String.valueOf(mJointNum));
-		mJoint = new ArrayList<Joint>(mJointNum);
-		for(int i = 0; i < mJointNum; i++) {
+		int num = getInt();
+		Log.d("PMDParser", "Joint: " + String.valueOf(num));
+		mJoint = new ArrayList<Joint>(num);
+		for(int i = 0; i < num; i++) {
 			Joint j = new Joint();
 			j.name				= getString(20);
 			j.rigidbody_a		= getInt();
@@ -114,10 +99,10 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDRigidBody() {
-		mRigidBodyNum = getInt();
-		Log.d("PMDParser", "RigidBody: " + String.valueOf(mRigidBodyNum));
-		mRigidBody = new ArrayList<RigidBody>(mRigidBodyNum);
-		for(int i = 0; i < mRigidBodyNum; i++) {
+		int num = getInt();
+		Log.d("PMDParser", "RigidBody: " + String.valueOf(num));
+		mRigidBody = new ArrayList<RigidBody>(num);
+		for(int i = 0; i < num; i++) {
 			RigidBody rb = new RigidBody();
 			
 			rb.name			= getString(20);
@@ -166,12 +151,11 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDEnglishBoneDispName() throws IOException {
-		mEnglishBoneDispNameNum = mBoneDispNameNum;
-		mEnglishBoneDispName = new ArrayList<String>(mEnglishBoneDispNameNum);
-		for (int i = 0; i < mEnglishBoneDispNameNum; i++) {
+		int num = mBoneDispName.size();
+		mEnglishBoneDispName = new ArrayList<String>(num);
+		for (int i = 0; i < num; i++) {
 			String str = getString(50);
 			mEnglishBoneDispName.add(i, str);
-			Log.d("PMDParser", "EnglishBoneDispName: " + str);
 		}
 	}
 
@@ -185,25 +169,24 @@ public class PMDParser extends ParserBase {
 			} else {
 				mToonFileName.add(i + 1, "/sdcard/MikuMikuDroid/Data/" + str);
 			}
-			Log.d("PMDParser", "ToonFile: " + str);
 		}
 	}
 
 	private void parsePMDEnglishSkinList() throws IOException {
-		mEnglishSkinListNum = mSkinDispNum;
-		Log.d("PMDParser", "EnglishSkinName: " + String.valueOf(mEnglishSkinListNum));
-		mEnglishSkinName = new ArrayList<String>(mEnglishSkinListNum);
-		for (int i = 0; i < mEnglishSkinListNum; i++) {
+		int num = mSkinDisp.size();
+		Log.d("PMDParser", "EnglishSkinName: " + String.valueOf(num));
+		mEnglishSkinName = new ArrayList<String>(num);
+		for (int i = 0; i < num; i++) {
 			String str = getString(20);
 			mEnglishSkinName.add(i, str);
 		}
 	}
 
 	private void parsePMDEnglishBoneList() throws IOException {
-		mEnglishBoneListNum = mBoneNum;
-		Log.d("PMDParser", "EnglishBoneName: " + String.valueOf(mEnglishBoneListNum));
-		mEnglishBoneName = new ArrayList<String>(mEnglishBoneListNum);
-		for (int i = 0; i < mEnglishBoneListNum; i++) {
+		int num = mBone.size();
+		Log.d("PMDParser", "EnglishBoneName: " + String.valueOf(num));
+		mEnglishBoneName = new ArrayList<String>(num);
+		for (int i = 0; i < num; i++) {
 			String str = getString(20);
 			mEnglishBoneName.add(i, str);
 		}
@@ -217,7 +200,7 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDBoneDisp() {
-		mBoneDispNum = getInt();
+		int mBoneDispNum = getInt();
 		Log.d("PMDParser", "BoneDisp: " + String.valueOf(mBoneDispNum));
 		if (mBoneDispNum > 0) {
 			mBoneDisp = new ArrayList<BoneDisp>(mBoneDispNum);
@@ -239,15 +222,15 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDBoneDispName() {
-		mBoneDispNameNum = getByte();
-		Log.d("PMDParser", "BoneDispName: " + String.valueOf(mBoneDispNameNum));
-		if (mBoneDispNameNum > 0) {
-			mBoneDispName = new ArrayList<String>(mBoneDispNameNum);
+		byte num = getByte();
+		Log.d("PMDParser", "BoneDispName: " + String.valueOf(num));
+		if (num > 0) {
+			mBoneDispName = new ArrayList<String>(num);
 			if (mBoneDispName == null) {
 				mIsPmd = false;
 				return;
 			}
-			for (int i = 0; i < mBoneDispNameNum; i++) {
+			for (int i = 0; i < num; i++) {
 				String str = getString(50);
 				mBoneDispName.add(i, str);
 			}
@@ -257,15 +240,15 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDSkinDisp() {
-		mSkinDispNum = getByte();
-		Log.d("PMDParser", "SkinDisp: " + String.valueOf(mSkinDispNum));
-		if (mSkinDispNum > 0) {
-			mSkinDisp = new ArrayList<Short>(mSkinDispNum);
+		byte num = getByte();
+		Log.d("PMDParser", "SkinDisp: " + String.valueOf(num));
+		if (num > 0) {
+			mSkinDisp = new ArrayList<Short>(num);
 			if (mSkinDisp == null) {
 				mIsPmd = false;
 				return;
 			}
-			for (int i = 0; i < mSkinDispNum; i++) {
+			for (int i = 0; i < num; i++) {
 				short idx = getShort();
 				mSkinDisp.add(i, idx);
 			}
@@ -275,15 +258,11 @@ public class PMDParser extends ParserBase {
 	}
 
 	private void parsePMDFaceList() {
-		mFaceNum = getShort();
-		Log.d("PMDParser", "Face: " + String.valueOf(mFaceNum));
-		if (mFaceNum > 0) {
-			mFace = new ArrayList<Face>(mFaceNum);
-			if (mFace == null) {
-				mIsPmd = false;
-				return;
-			}
-			for (int i = 0; i < mFaceNum; i++) {
+		short num = getShort();
+		Log.d("PMDParser", "Face: " + String.valueOf(num));
+		if (num > 0) {
+			mFace = new ArrayList<Face>(num);
+			for (int i = 0; i < num; i++) {
 				Face face = new Face();
 
 				face.name = getString(20);
@@ -311,15 +290,11 @@ public class PMDParser extends ParserBase {
 
 	private void parsePMDIKList() {
 		// the number of Vertexes
-		mIKNum = getShort();
-		Log.d("PMDParser", "IK: " + String.valueOf(mIKNum));
-		if (mIKNum > 0) {
-			mIK = new ArrayList<IK>(mIKNum);
-			if (mIK == null) {
-				mIsPmd = false;
-				return;
-			}
-			for (int i = 0; i < mIKNum; i++) {
+		short num = getShort();
+		Log.d("PMDParser", "IK: " + String.valueOf(num));
+		if (num > 0) {
+			mIK = new ArrayList<IK>(num);
+			for (int i = 0; i < num; i++) {
 				IK ik = new IK();
 
 				ik.ik_bone_index = getShort();
@@ -342,19 +317,15 @@ public class PMDParser extends ParserBase {
 
 	private void parsePMDBoneList() {
 		// the number of Vertexes
-		mBoneNum = getShort();
-		Log.d("PMDParser", "BONE: " + String.valueOf(mBoneNum));
-		if (mBoneNum > 0) {
-			mBone = new ArrayList<Bone>(mBoneNum);
-			if (mBone == null) {
-				mIsPmd = false;
-				return;
-			}
-			for (int i = 0; i < mBoneNum; i++) {
+		short num = getShort();
+		Log.d("PMDParser", "BONE: " + String.valueOf(num));
+		if (num > 0) {
+			mBone = new ArrayList<Bone>(num);
+			for (int i = 0; i < num; i++) {
 				Bone bone = new Bone();
 
-				bone.name_bytes = getBytes(20, new byte[20]);
-				String name = toString(bone.name_bytes);
+				bone.name_bytes = getStringBytes(new byte[20], 20);
+				bone.name = toString(bone.name_bytes);
 				bone.parent = getShort();
 				bone.tail = getShort();
 				bone.type = getByte();
@@ -371,7 +342,7 @@ public class PMDParser extends ParserBase {
 				bone.matrix = new float[16]; // for skin-mesh animation
 				bone.matrix_current = new float[16]; // for temporary (current bone matrix that is not include parent rotation
 				bone.updated = false; // whether matrix is updated by VMD or not
-				bone.is_leg = name.contains("‚Ð‚´");
+				bone.is_leg = bone.name.contains("‚Ð‚´");
 
 				if (bone.tail != -1) {
 					mBone.add(i, bone);
@@ -384,16 +355,12 @@ public class PMDParser extends ParserBase {
 
 	private void parsePMDMaterialList(String path) {
 		// the number of Vertexes
-		mMaterialNum = getInt();
-		Log.d("PMDParser", "MATERIAL: " + String.valueOf(mMaterialNum));
-		if (mMaterialNum > 0) {
-			mMaterial = new ArrayList<Material>(mMaterialNum);
-			if (mMaterial == null) {
-				mIsPmd = false;
-				return;
-			}
+		int num = getInt();
+		Log.d("PMDParser", "MATERIAL: " + String.valueOf(num));
+		if (num > 0) {
+			mMaterial = new ArrayList<Material>(num);
 			int acc = 0;
-			for (int i = 0; i < mMaterialNum; i++) {
+			for (int i = 0; i < num; i++) {
 				Material material = new Material();
 
 				material.diffuse_color = new float[4];
@@ -418,7 +385,6 @@ public class PMDParser extends ParserBase {
 				material.edge_flag = getByte();
 				material.face_vert_count = getInt();
 				material.texture = getString(20);
-				Log.d("PMDParser", material.texture);
 				if (material.texture.length() == 0) {
 					material.texture = null;
 					material.sphere = null;
@@ -442,9 +408,6 @@ public class PMDParser extends ParserBase {
 
 				acc = acc + material.face_vert_count;
 				mMaterial.add(i, material);
-				if (material.texture != null) {
-					Log.d("PMDParser", "TEXTURE" + String.valueOf(i) + "=\"" + material.texture + "\"");
-				}
 			}
 			Log.d("PMDParser", "CHECKSUM IN MATERIAL: " + String.valueOf(acc));
 		} else {
@@ -455,15 +418,11 @@ public class PMDParser extends ParserBase {
 
 	private void parsePMDIndexList() {
 		// the number of Vertexes
-		mIndexNum = getInt();
-		Log.d("PMDParser", "INDEX: " + String.valueOf(mIndexNum));
-		if (mIndexNum > 0) {
-			mIndex = new ArrayList<Integer>(mIndexNum);
-			if (mIndex == null) {
-				mIsPmd = false;
-				return;
-			}
-			for (int i = 0; i < mIndexNum; i++) {
+		int num = getInt();
+		Log.d("PMDParser", "INDEX: " + String.valueOf(num));
+		if (num > 0) {
+			mIndex = new ArrayList<Integer>(num);
+			for (int i = 0; i < num; i++) {
 				mIndex.add(i, (0x0000ffff & getShort()));
 			}
 		} else {
@@ -473,15 +432,11 @@ public class PMDParser extends ParserBase {
 
 	private void parsePMDVertexList() {
 		// the number of Vertexes
-		mVertexNum = getInt();
-		Log.d("PMDParser", "VERTEX: " + String.valueOf(mVertexNum));
-		if (mVertexNum > 0) {
-			mVertex = new ArrayList<Vertex>(mVertexNum);
-			if (mVertex == null) {
-				mIsPmd = false;
-				return;
-			}
-			for (int i = 0; i < mVertexNum; i++) {
+		int num = getInt();
+		Log.d("PMDParser", "VERTEX: " + String.valueOf(num));
+		if (num > 0) {
+			mVertex = new ArrayList<Vertex>(num);
+			for (int i = 0; i < num; i++) {
 				Vertex vertex = new Vertex();
 				vertex.pos = new float[3];
 				vertex.normal = new float[3];
@@ -535,40 +490,24 @@ public class PMDParser extends ParserBase {
 		return mIsPmd;
 	}
 
-	public int numVertex() {
-		return mVertexNum;
-	}
-
 	public ArrayList<Vertex> getVertex() {
 		return mVertex;
-	}
-
-	public int numIndex() {
-		return mIndexNum;
 	}
 
 	public ArrayList<Integer> getIndex() {
 		return mIndex;
 	}
 
-	public int numMaterial() {
-		return mMaterialNum;
-	}
-
 	public ArrayList<Material> getMaterial() {
 		return mMaterial;
-	}
-
-	public int numBone() {
-		return mBoneNum;
 	}
 
 	public ArrayList<Bone> getBone() {
 		return mBone;
 	}
 
-	public String getToonFileName(int i) {
-		return mToonFileName.get(i);
+	public ArrayList<String> getToonFileName() {
+		return mToonFileName;
 	}
 
 	public ArrayList<IK> getIK() {

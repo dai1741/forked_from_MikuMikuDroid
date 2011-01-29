@@ -1,6 +1,11 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -16,8 +21,7 @@ public class MikuRendererBase implements MikuRendererInterface {
 	protected float[] mPMatrix = new float[16];
 
 	private float[] mMVMatrix = new float[16];
-	private VMDParser mCamera;
-	private PMDParser mPMD;
+	private MikuMotion mCamera;
 	private long mPrevTime;
 	private long mStartTime;
 
@@ -42,23 +46,38 @@ public class MikuRendererBase implements MikuRendererInterface {
 	// Model configurations
 	@Override
 	public void loadModel(String file) throws IOException {
-		mPMD = new PMDParser(file);
 		if (mMiku == null) {
 			mMiku = new ArrayList<Miku>();
 		}
-		Miku miku = new Miku(mPMD, 256, mBoneNum, true);
+		PMDParser pmd = new PMDParser(file);
+		Miku miku = new Miku(pmd, 256, mBoneNum, true);			
 		mMiku.add(miku);
 	}
 
 	@Override
 	public void loadMotion(String file) throws IOException {
-		if (mPMD == null) {
-			throw new IOException("PMD file does not open");
-		} else {
-			VMDParser vp = new VMDParser(file, mPMD);
-			mMiku.get(mMiku.size() - 1).initBoneManager(vp);
-			mPrevTime = 0;
+		VMDParser vmd = new VMDParser(file);
+		MikuMotion mm = null;
+
+		// check IK cache
+		String vmdc = file.replaceFirst(".vmd", "_mmcache.vmc");
+		try {
+			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmdc));
+			mm = (MikuMotion)oi.readObject();
+			mm.attachVMD(vmd);
+		} catch (Exception e) {
+			mm = new MikuMotion(vmd);
 		}
+		
+		mMiku.get(mMiku.size() - 1).attachMotion(mm);
+		
+		// store IK chache
+		File f = new File(vmdc);
+		if(!f.exists()) {
+			ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmdc));
+			oi.writeObject(mm);
+		}
+		mPrevTime = 0;
 		mMiku.get(mMiku.size() - 1).setBonePosByVMDFrame(0);
 		mMiku.get(mMiku.size() - 1).setFaceByVMDFrame(0);
 	}
@@ -82,14 +101,13 @@ public class MikuRendererBase implements MikuRendererInterface {
 
 	@Override
 	public void loadCamera(String camera) throws IOException {
-		mCamera = new VMDParser(camera);
+		mCamera = new MikuMotion(new VMDParser(camera));
 	}
 
 	@Override
 	public void clear() {
 		mMiku = null;
 		mMikuStage = null;
-		mPMD = null;
 		mPrevTime = 0;
 		mStartTime = 0;
 		mCamera = null;

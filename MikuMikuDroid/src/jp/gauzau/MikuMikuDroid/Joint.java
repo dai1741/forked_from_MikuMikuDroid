@@ -1,7 +1,9 @@
 package jp.gauzau.MikuMikuDroid;
 
-public class Joint {
+import java.io.Serializable;
 
+public class Joint implements Serializable {
+	private static final long serialVersionUID = -386158105135399782L;
 	public String name;
 	public int rigidbody_a;
 	public int rigidbody_b;

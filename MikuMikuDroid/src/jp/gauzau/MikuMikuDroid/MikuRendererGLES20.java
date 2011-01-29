@@ -260,6 +260,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		// GLES20.glBlendFunc( GLES20.GL_CONSTANT_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
 		GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
+		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+		GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
+		GLES20.glPolygonOffset(-1.0f, -2.0f);
+		
 		// sharder program
 		mBoneNum = 48;
 		mProgram = createProgram(String.format(mVertexShader, mBoneNum), mFragmentShader);
