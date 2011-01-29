@@ -1,439 +1,91 @@
 package jp.gauzau.MikuMikuDroid;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import javax.microedition.khronos.opengles.GL10;
-import javax.microedition.khronos.opengles.GL11Ext;
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.opengl.GLES20;
-import android.opengl.GLU;
-import android.opengl.GLUtils;
 import android.opengl.Matrix;
-import android.util.Log;
 
-public class Miku implements Serializable {
-	private static final long serialVersionUID = -854013413264043930L;
-	
-	// configurations
-	private boolean mAnimation;
-	private int mRenameNum;
-	private int mRenameBone;
-	private CubeArea mCube;
-
+public class Miku {
 	// model data
-	private FloatBuffer mToonCoordBuffer;
-	private FloatBuffer mWeightBuffer;
-	private ShortBuffer mIndexBuffer;
-	private FloatBuffer mAllBuffer;
-	
-	private ArrayList<Bone>	mBone;
-	private ArrayList<Material> mMaterial;
-	private ArrayList<Face> mFace;
-	private ArrayList<IK> mIK;
-	private ArrayList<RigidBody> mRigidBody;
-	private ArrayList<Joint> mJoint;
-	private ArrayList<String> mToonFileName;
-	private ArrayList<Material> mRendarList;
-	
-	private HashMap<String, TexBitmap> mTexture;
-	private ArrayList<TexBitmap> mToon;
-	private int mIndexMaps[];
+	public MikuModel mModel;
 
 	// motion data
-	private transient MikuMotion mMotion;
+	private MikuMotion mMotion;
 
 	// temporary data
-	private transient MotionPair mMpWork = new MotionPair();
-	private transient Motion mMwork = new Motion();
-	private transient float effecterVecs[] = new float[4];
-	private transient float effecterInvs[] = new float[4];
-	private transient float targetVecs[] = new float[4];
-	private transient float targetInvs[] = new float[4];
-	private transient float axis[] = new float[3];
-	private transient float mMatworks[] = new float[16];
-	private transient float mBoneMatrix[];
-	private transient double[] mQuatworks = new double[4];
-	private transient Face mFaceBase;
-	private transient FacePair mFacePair = new FacePair();
-	private transient FaceIndex mFaceIndex = new FaceIndex();
+	private MotionPair mMpWork = new MotionPair();
+	private Motion mMwork = new Motion();
+	private float effecterVecs[] = new float[4];
+	private float effecterInvs[] = new float[4];
+	private float targetVecs[] = new float[4];
+	private float targetInvs[] = new float[4];
+	private float axis[] = new float[3];
+	private float mMatworks[] = new float[16];
+	private double[] mQuatworks = new double[4];
 
-	public Miku(PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
-		init(pmd, rename_num, rename_bone, animation);
-	}
+	private FacePair mFacePair = new FacePair();
+	private FaceIndex mFaceIndex = new FaceIndex();
 
-	public Miku(PMDParser pmd, int rename_num, int rename_bone) {
-		init(pmd, rename_num, rename_bone, true);
-	}
-
-	public void init(PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
+	public Miku(MikuModel model) {
+		mModel = model;
 		mMwork.location = new float[3];
 		mMwork.rotation = new float[4];
-		mRenameNum		= rename_num;
-		mRenameBone		= rename_bone;
-		mAnimation		= animation;
-		mBoneMatrix		= new float[16 * mRenameBone];
-		mBone			= pmd.getBone();
-		mMaterial		= pmd.getMaterial();
-		mFace			= pmd.getFace();
-		mIK				= pmd.getIK();
-		mRigidBody		= pmd.getRigidBody();
-		mJoint			= pmd.getJoint();
-		mToonFileName	= pmd.getToonFileName();
-		
-		makeIndexSortedBuffers(pmd);
-		if (animation) {
-			reconstructFace();
-			pmd.recycleVertex();
-			reconstructMaterial(pmd, mRenameBone);
-		} else {
-			mFaceBase = null;
-			pmd.recycleVertex();
-			buildBoneNoMotionRenameIndex(pmd);
-		}
-		pmd.recycle();
 		physicsInitializer();
 	}
 
-	private void reconstructFace() {
-		mFaceBase = null;
-
-		// find base face
-		if (mFace != null) {
-			for (Face s : mFace) {
-				if (s.face_type == 0) {
-					mFaceBase = s;
-					break;
-				}
-			}
-
-			// update base face
-			for (FaceVertData fvd : mFaceBase.face_vert_data) {
-				// vertex is sorted by makeIndexSortedBuffers() in stride 8
-				fvd.face_vert_index = mIndexMaps[fvd.face_vert_index] * 8;
-			}
+	public void attachMotion(MikuMotion mm) {
+		mMotion = mm;
+		mm.attachModel(mModel.mBone, mModel.mFace);
+		if(mModel.mIK != null && mm.getIKMotion() == null) {
+			// preCalcIK();
+			preCalcKeyFrameIK();			
 		}
 	}
 
-	private void makeIndexSortedBuffers(PMDParser pmd) {
-		mIndexMaps = new int[pmd.getVertex().size()];
-		for (int i = 0; i < mIndexMaps.length; i++) {
-			mIndexMaps[i] = -1; // not mapped yet
-		}
-		int vc = 0;
+	public void setBonePosByVMDFrame(float i) {
+		ArrayList<Bone> ba = mModel.mBone;
+		int max = ba.size();
 
-		// vertex, normal, texture buffer
-		ByteBuffer abb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 8 * 4);
-		abb.order(ByteOrder.nativeOrder());
-		mAllBuffer = abb.asFloatBuffer();
-
-		// weight buffer
-		ByteBuffer wbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 2 * 4);
-		wbb.order(ByteOrder.nativeOrder());
-		mWeightBuffer = wbb.asFloatBuffer();
-
-		// index buffer
-		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 2);
-		ibb.order(ByteOrder.nativeOrder());
-		mIndexBuffer = ibb.asShortBuffer();
-
-		// reference cube
-		mCube = new CubeArea();
-
-		// sort vertex by index order
-		for (Integer idx : pmd.getIndex()) {
-			if (mIndexMaps[idx] < 0) { // not mapped yet
-				Vertex ver = pmd.getVertex().get(idx);
-
-				// vertex, normal, texture
-				mAllBuffer.put(ver.pos);
-				mAllBuffer.put(ver.normal);
-				mAllBuffer.put(ver.uv);
-
-				// weight
-				mWeightBuffer.put(ver.bone_weight / 100.0f);
-				mWeightBuffer.put((100 - ver.bone_weight) / 100.0f);
-
-				// update cube
-				mCube.set(ver.pos);
-
-				// update map
-				mIndexMaps[idx] = vc++;
-			}
-
-			mIndexBuffer.put((short) mIndexMaps[idx]);
-		}
-		mIndexBuffer.position(0);
-		mWeightBuffer.position(0);
-		mAllBuffer.position(0);
-
-		mCube.logOutput("Miku");
-	}
-
-	private void reconstructMaterial(PMDParser parser, int max_bone) {
-		mRendarList = new ArrayList<Material>();
-		for (Material mat : mMaterial) {
-			reconstructMaterial1(parser, mat, 0, max_bone);
-		}
-	}
-
-	private void reconstructMaterial1(PMDParser pmd, Material mat, int offset, int max_bone) {
-		Material mat_new = new Material(mat);
-		mat_new.face_vart_offset = mat.face_vart_offset + offset;
-
-		ArrayList<Vertex> ver = pmd.getVertex();
-		HashMap<Integer, Integer> rename = new HashMap<Integer, Integer>();
-		int acc = 0;
-		for (int j = offset; j < mat.face_vert_count; j += 3) {
-			acc = renameBone1(pmd, rename, mat.face_vart_offset + j + 0, ver, acc);
-			acc = renameBone1(pmd, rename, mat.face_vart_offset + j + 1, ver, acc);
-			acc = renameBone1(pmd, rename, mat.face_vart_offset + j + 2, ver, acc);
-			if (acc > max_bone) {
-				mat_new.face_vert_count = j - offset;
-				mat_new.rename_hash = rename;
-				buildBoneRenameMap(mat_new, rename, max_bone);
-				buildBoneRenameInvMap(mat_new, rename, max_bone);
-				buildBoneRenameIndex(pmd, mat_new, max_bone);
-				mRendarList.add(mat_new);
-
-				Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
-				for (Entry<Integer, Integer> b : rename.entrySet()) {
-					Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
-				}
-
-				reconstructMaterial1(pmd, mat, j, max_bone);
-				return;
-			}
-		}
-		mat_new.face_vert_count = mat.face_vert_count - offset;
-		mat_new.rename_hash = rename;
-		buildBoneRenameMap(mat_new, rename, max_bone);
-		buildBoneRenameInvMap(mat_new, rename, max_bone);
-		buildBoneRenameIndex(pmd, mat_new, max_bone);
-		mRendarList.add(mat_new);
-
-//		Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
-//		for (Entry<Integer, Integer> b : rename.entrySet()) {
-//			Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
-//		}
-	}
-
-	private void buildBoneRenameMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
-		mat.rename_map = new int[mRenameNum];
-		for (int i = 0; i < mRenameNum; i++) {
-			mat.rename_map[i] = 0; // initialize
-		}
-		for (Entry<Integer, Integer> b : rename.entrySet()) {
-			if (b.getValue() < max_bone) {
-				mat.rename_map[b.getKey()] = b.getValue();
-			}
-		}
-	}
-
-	private void buildBoneRenameInvMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
-		mat.rename_inv_map = new int[mRenameBone];
-		for (int i = 0; i < mRenameBone; i++) {
-			mat.rename_inv_map[i] = -1; // initialize
-		}
-		for (Entry<Integer, Integer> b : rename.entrySet()) {
-			if (b.getValue() < max_bone) {
-				mat.rename_inv_map[b.getValue()] = b.getKey();
-			}
-		}
-	}
-
-	private void buildBoneRenameIndex(PMDParser pmd, Material mat, int max_bone) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
-		rbb.order(ByteOrder.nativeOrder());
-		mat.rename_index = rbb;
-
-		for (int i = 0; i < mIndexMaps.length; i++) {
-			Vertex ver = pmd.getVertex().get(i);
-			if (mIndexMaps[i] >= 0) {
-				mat.rename_index.position(mIndexMaps[i] * 3);
-				mat.rename_index.put((byte) mat.rename_map[ver.bone_num_0]);
-				mat.rename_index.put((byte) mat.rename_map[ver.bone_num_1]);
-				mat.rename_index.put(ver.bone_weight);
-			}
-		}
-
-		mat.rename_index.position(0);
-	}
-
-	private void buildBoneNoMotionRenameIndex(PMDParser pmd) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
-		rbb.order(ByteOrder.nativeOrder());
-
-		for (int i = 0; i < pmd.getVertex().size(); i++) {
-			rbb.put((byte) 0);
-			rbb.put((byte) 0);
-			rbb.put((byte) 100);
-		}
-		rbb.position(0);
-
-		for (Material m : mMaterial) {
-			m.rename_index = rbb;
-		}
-	}
-
-	private int renameBone1(PMDParser pmd, HashMap<Integer, Integer> rename, int veridx, ArrayList<Vertex> ver, int acc) {
-		int idx = ver.get(pmd.getIndex().get(veridx)).bone_num_0;
-		Integer i = rename.get(idx);
-		if (i == null) {
-			rename.put(idx, acc++);
-		}
-		idx = ver.get(pmd.getIndex().get(veridx)).bone_num_1;
-		i = rename.get(idx);
-		if (i == null) {
-			rename.put(idx, acc++);
-		}
-
-		return acc;
-	}
-
-	public void draw(GL10 gl) {
-		GL11Ext gl11Ext = (GL11Ext) gl;
-
-		if (mAnimation) {
-			gl.glMatrixMode(GL11Ext.GL_MATRIX_PALETTE_OES);
-		}
-
-		ArrayList<Material> rendar = mAnimation ? mRendarList : mMaterial;
-		for (Material mat : rendar) {
-			if (mAnimation) {
-				for (Entry<Integer, Integer> ren : mat.rename_hash.entrySet()) {
-					if (ren.getValue() < mRenameBone) {
-						gl11Ext.glCurrentPaletteMatrixOES(ren.getValue());
-						gl11Ext.glLoadPaletteFromModelViewMatrixOES();
-						gl.glMultMatrixf(mBone.get(ren.getKey()).matrix, 0);
-					}
-				}
-				// gl11.glBindBuffer(GL11.GL_ARRAY_BUFFER, 0);
-				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, mat.rename_index);
-			}
-
-			// Toon texture
-			gl.glActiveTexture(GL10.GL_TEXTURE0);
-			gl.glEnable(GL10.GL_TEXTURE_2D);
-			gl.glTexEnvf(GL10.GL_TEXTURE_ENV, GL10.GL_TEXTURE_ENV_MODE, GL10.GL_MODULATE);
-			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE);
-			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
-			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
-			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
-			gl.glBindTexture(GL10.GL_TEXTURE_2D, mToon.get(mat.toon_index).tex);
-
-			if (mat.texture != null) {
-				gl.glActiveTexture(GL10.GL_TEXTURE1);
-				gl.glEnable(GL10.GL_TEXTURE_2D);
-				gl.glTexEnvf(GL10.GL_TEXTURE_ENV, GL10.GL_TEXTURE_ENV_MODE, GL10.GL_MODULATE);
-				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE);
-				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
-				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
-				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
-				gl.glBindTexture(GL10.GL_TEXTURE_2D, mTexture.get(mat.texture).tex);
-			} else {
-				gl.glActiveTexture(GL10.GL_TEXTURE1);
-				gl.glDisable(GL10.GL_TEXTURE_2D);
-			}
-
-			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_DIFFUSE, mat.face_color, 0);
-			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_SPECULAR, mat.specular_color, 0);
-			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_AMBIENT, mat.emmisive_color, 0);
-			// gl.glMaterialf(GL10.GL_FRONT_AND_BACK, GL10.GL_SHININESS, mat.power);
-
-			gl.glColor4f(mat.diffuse_color[0], mat.diffuse_color[1], mat.diffuse_color[2], mat.diffuse_color[3]);
-			mIndexBuffer.position(mat.face_vart_offset);
-			gl.glDrawElements(GL10.GL_TRIANGLES, mat.face_vert_count, GL10.GL_UNSIGNED_SHORT, mIndexBuffer);
-		}
-		mIndexBuffer.position(0);
-	}
-
-	public void drawGLES20(int bone, int blend, int texen, int color, int spec, int pow, int amb /* , float[] mvmatrix */) {
-		ArrayList<Material> rendar = mAnimation ? mRendarList : mMaterial;
-		ArrayList<Bone> bs = mBone;
-
-		int max = rendar.size();
 		for (int r = 0; r < max; r++) {
-			Material mat = rendar.get(r);
-			if (mAnimation) {
-				for (int j = 0; j < mRenameBone; j++) {
-					int inv = mat.rename_inv_map[j];
-					if (inv >= 0) {
-						Bone b = bs.get(inv);
-						System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
-					}
-				}
-				GLES20.glUniformMatrix4fv(bone, mat.rename_hash.size(), false, mBoneMatrix, 0);
-
-				GLES20.glEnableVertexAttribArray(blend);
-				GLES20.glVertexAttribPointer(blend, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.rename_index);
-				checkGlError("drawGLES20 VertexAttribPointer blend");
-			}
-
-			// alpha & cull
-			/*
-			if(mat.diffuse_color[3] < 1) {
-				GLES20.glDisable(GLES20.GL_CULL_FACE);
-				GLES20.glEnable(GLES20.GL_BLEND);
-			} else {
-				GLES20.glEnable(GLES20.GL_CULL_FACE);
-				GLES20.glDisable(GLES20.GL_BLEND);
-			}
-			*/
-
-			// Toon texture
-			GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mToon.get(mat.toon_index).tex);
-
-			if (mat.texture != null) {
-				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTexture.get(mat.texture).tex);
-				GLES20.glUniform1i(texen, 1);
-			} else {
-				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-				GLES20.glUniform1i(texen, 0);
-			}
-			checkGlError("on DrawGLES20");
-			
-			float w = 0.6f;
-			float wi = 0.6f;
-			GLES20.glUniform4f(color, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
-			GLES20.glUniform4f(amb, mat.emmisive_color[0] * w, mat.emmisive_color[1] * w, mat.emmisive_color[2] * w, mat.emmisive_color[3]);
-			if (pow >= 0) {
-				GLES20.glUniform4f(spec, mat.specular_color[0] * w, mat.specular_color[1] * w, mat.specular_color[2] * w, mat.specular_color[3]);
-				GLES20.glUniform1f(pow, mat.power);
-			}
-			// GLES20.glBlendColor(0, 0, 0, mat.face_color[3]);
-			mIndexBuffer.position(mat.face_vart_offset);
-			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, mIndexBuffer);
-			checkGlError("glDrawElements");
+			Bone b = ba.get(r);
+			setBoneMatrix(b, i);
 		}
-		mIndexBuffer.position(0);
+
+		if(mModel.mIK != null && mMotion.getIKMotion() == null) {
+			ccdIK();
+		}
+		// fakePhysics(i);
+
+		for (int r = 0; r < max; r++) {
+			Bone b = ba.get(r);
+			updateBoneMatrix(b);
+		}
+
+		for (int r = 0; r < max; r++) {
+			Bone b = ba.get(r);
+			Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
+			b.updated = false;
+		}
 	}
-
+	
 	public void setFaceByVMDFrame(float i) {
-		if (mFaceBase != null) {
-			initFace(mFaceBase);
+		if (mModel.mFaceBase != null) {
+			initFace(mModel.mFaceBase);
 
-			for (Face f : mFace) {
+			for (Face f : mModel.mFace) {
 				setFace(f, i);
 			}
 
-			updateVertexFace(mFaceBase);
+			updateVertexFace(mModel.mFaceBase);
 		}
 	}
 
+	
+	
+	
 	private void initFace(Face f) {
 		for (int i = 0; i < f.face_vert_count; i++) {
 			FaceVertData fvd = f.face_vert_data.get(i);
@@ -452,7 +104,7 @@ public class Miku implements Serializable {
 			for (int r = 0; r < f.face_vert_count; r++) {
 				FaceVertData fvd = f.face_vert_data.get(r);
 
-				FaceVertData base = mFaceBase.face_vert_data.get(fvd.face_vert_index);
+				FaceVertData base = mModel.mFaceBase.face_vert_data.get(fvd.face_vert_index);
 				base.base[0] += fvd.offset[0] * m.weight;
 				base.base[1] += fvd.offset[1] * m.weight;
 				base.base[2] += fvd.offset[2] * m.weight;
@@ -466,45 +118,12 @@ public class Miku implements Serializable {
 			FaceVertData fvd = f.face_vert_data.get(r);
 
 			if (fvd.updated || !fvd.cleared) {
-				mAllBuffer.position(fvd.face_vert_index);
-				mAllBuffer.put(fvd.base, 0, 3);
+				mModel.mAllBuffer.position(fvd.face_vert_index);
+				mModel.mAllBuffer.put(fvd.base, 0, 3);
 				fvd.cleared = !fvd.updated;
 			}
 		}
-		mAllBuffer.position(0);
-	}
-
-	public void attachMotion(MikuMotion mm) {
-		mMotion = mm;
-		mm.attachModel(mBone, mFace);
-		if(mIK != null && mm.getIKMotion() == null) {
-			// preCalcIK();
-			preCalcKeyFrameIK();			
-		}
-	}
-
-	public void setBonePosByVMDFrame(float i) {
-		ArrayList<Bone> ba = mBone;
-		int max = ba.size();
-
-		for (int r = 0; r < max; r++) {
-			Bone b = ba.get(r);
-			setBoneMatrix(b, i);
-		}
-
-		// ccdIK();
-		// fakePhysics(i);
-
-		for (int r = 0; r < max; r++) {
-			Bone b = ba.get(r);
-			updateBoneMatrix(b);
-		}
-
-		for (int r = 0; r < max; r++) {
-			Bone b = ba.get(r);
-			Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
-			b.updated = false;
-		}
+		mModel.mAllBuffer.position(0);
 	}
 
 	private void fakePhysics(float i) {
@@ -518,11 +137,11 @@ public class Miku implements Serializable {
 		float gravity[] = new float[4];
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;
 		
-		ArrayList<RigidBody> rba = mRigidBody;
+		ArrayList<RigidBody> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
 			if(rb.bone_index >= 0) {
-				Bone base = mBone.get(rb.bone_index);
+				Bone base = mModel.mBone.get(rb.bone_index);
 				rb.cur_location[0] = base.head_pos[0] + rb.location[0];
 				rb.cur_location[1] = base.head_pos[1] + rb.location[1];
 				rb.cur_location[2] = base.head_pos[2] + rb.location[2];
@@ -548,13 +167,13 @@ public class Miku implements Serializable {
 	private void physicsFollowBone() {
 		float time = 0.1f;	// must be fixed
 		
-		ArrayList<RigidBody> rba = mRigidBody;
+		ArrayList<RigidBody> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
 			if(rb.type == 0) { // follow bone
 				
 			} else if(rb.bone_index >= 0) {			// follow previous fake physics
-				Bone b = mBone.get(rb.bone_index);
+				Bone b = mModel.mBone.get(rb.bone_index);
 				
 				// calculate v, a from previous position
 				System.arraycopy(rb.cur_r, 0, rb.prev_r, 0, 4);
@@ -573,12 +192,12 @@ public class Miku implements Serializable {
 		float gravity[] = new float[4];
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
 		
-		ArrayList<Joint> ja = mJoint;
+		ArrayList<Joint> ja = mModel.mJoint;
 		for(int idx = 0; idx < ja.size(); idx++) {
 			Joint rb = ja.get(idx);
-			RigidBody target = mRigidBody.get(rb.rigidbody_b);
+			RigidBody target = mModel.mRigidBody.get(rb.rigidbody_b);
 			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
-				Bone base = mBone.get(target.bone_index);
+				Bone base = mModel.mBone.get(target.bone_index);
 
 //				Log.d("Miku", String.format("Physics %d Bone %d: pos %f, %f, %f",
 //						rb.rigidbody_b, target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
@@ -653,24 +272,24 @@ public class Miku implements Serializable {
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
 
 		// clear all
-		for (Bone b : mBone) {
+		for (Bone b : mModel.mBone) {
 			b.updated = false;
 		}
 		
 		float vec[] = new float[4];
 		vec[3] = 1;
-		ArrayList<RigidBody> rba = mRigidBody;
+		ArrayList<RigidBody> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mBone.get(rb.bone_index);
+				Bone b = mModel.mBone.get(rb.bone_index);
 				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
 			}
 		}
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mBone.get(rb.bone_index);
+				Bone b = mModel.mBone.get(rb.bone_index);
 				float[] current = getCurrentMatrix(b);
 				vec[0] = rb.location[0];
 				vec[1] = rb.location[1];
@@ -680,10 +299,10 @@ public class Miku implements Serializable {
 		}
 		
 		// check collision
-		ArrayList<Joint> ja = mJoint;
+		ArrayList<Joint> ja = mModel.mJoint;
 		for(int idx = 0; idx < ja.size(); idx++) {
 			Joint j = ja.get(idx);
-			RigidBody target = mRigidBody.get(j.rigidbody_b);
+			RigidBody target = mModel.mRigidBody.get(j.rigidbody_b);
 			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
 				for(int i = 0; i < rba.size(); i++) {
 					if(i == j.rigidbody_b) {
@@ -708,7 +327,7 @@ public class Miku implements Serializable {
 		}		
 		
 		// clear all
-		for (Bone b : mBone) {
+		for (Bone b : mModel.mBone) {
 			b.updated = false;
 		}
 
@@ -719,17 +338,17 @@ public class Miku implements Serializable {
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
 
 		// clear all
-		for (Bone b : mBone) {
+		for (Bone b : mModel.mBone) {
 			b.updated = false;
 		}
 		
 		float vec[] = new float[4];
 		vec[3] = 1;
-		ArrayList<RigidBody> rba = mRigidBody;
+		ArrayList<RigidBody> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mBone.get(rb.bone_index);
+				Bone b = mModel.mBone.get(rb.bone_index);
 				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
 				Quaternion.scale(rb.cur_v, 1 - rb.r_dim);
 			}
@@ -737,7 +356,7 @@ public class Miku implements Serializable {
 		for(int i = 0; i < rba.size(); i++) {
 			RigidBody rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mBone.get(rb.bone_index);
+				Bone b = mModel.mBone.get(rb.bone_index);
 				updateBoneMatrix(b);
 				vec[0] = rb.location[0];
 				vec[1] = rb.location[1];
@@ -748,68 +367,23 @@ public class Miku implements Serializable {
 		}
 		
 		// clear all
-		for (Bone b : mBone) {
+		for (Bone b : mModel.mBone) {
 			b.updated = false;
 		}
 	}
 
-	public void preCalcIK() {
-		HashMap<Short, ArrayList<MotionIndex>> mhash = new HashMap<Short, ArrayList<MotionIndex>>();
-
-		for (int frame = 0; frame < mMotion.maxFrame(); frame += 5) {
-			for (Bone b : mBone) {
-				setBoneMatrix(b, frame);
-			}
-
-			ccdIK();
-
-			float[] location = new float[3];
-			location[0] = location[1] = location[2] = 0;
-
-			for (IK ik : mIK) {
-				for (int i = 0; i < ik.ik_chain_length; i++) {
-					Bone c = mBone.get(ik.ik_child_bone_index[i]);
-					MotionIndex cm = new MotionIndex();
-					cm.frame_no = frame;
-					cm.location = location;
-					cm.rotation = new float[4];
-					cm.rotation[0] = (float) c.quaternion[0]; // calc in ccdIK
-					cm.rotation[1] = (float) c.quaternion[1];
-					cm.rotation[2] = (float) c.quaternion[2];
-					cm.rotation[3] = (float) c.quaternion[3];
-					cm.interp = null;
-					cm.position = 0;
-
-					ArrayList<MotionIndex> mi = mhash.get(ik.ik_child_bone_index[i]);
-					if (mi == null) {
-						mi = new ArrayList<MotionIndex>();
-						mhash.put(ik.ik_child_bone_index[i], mi);
-					}
-					mi.add(cm);
-				}
-			}
-
-		}
-
-		for (Entry<Short, ArrayList<MotionIndex>> entry : mhash.entrySet()) {
-			Bone b = mBone.get(entry.getKey());
-			b.motion = entry.getValue();
-			b.current_motion = 0;
-		}
-	}
-
-	public void preCalcKeyFrameIK() {
+	private void preCalcKeyFrameIK() {
 		float[] location = new float[3];
 		location[0] = location[1] = location[2] = 0;
 		
 		HashMap<String, ArrayList<MotionIndex>> mhs = new HashMap<String, ArrayList<MotionIndex>>();			
 
-		for (IK ik : mIK) {
+		for (IK ik : mModel.mIK) {
 			// find parents
 			HashMap<Integer, Bone> parents = new HashMap<Integer, Bone>();
 			int target = ik.ik_target_bone_index;
 			while (target != -1) {
-				Bone b = mBone.get(target);
+				Bone b = mModel.mBone.get(target);
 				parents.put(target, b);
 				target = b.parent;
 			}
@@ -820,7 +394,7 @@ public class Miku implements Serializable {
 				if (b != null) {
 					parents.remove(effecter);
 				} else {
-					b = mBone.get(effecter);
+					b = mModel.mBone.get(effecter);
 					parents.put(effecter, b);
 				}
 				effecter = b.parent;
@@ -849,14 +423,14 @@ public class Miku implements Serializable {
 			// calc IK
 			HashMap<Short, ArrayList<MotionIndex>> mhash = new HashMap<Short, ArrayList<MotionIndex>>();
 			for (Integer frame : framesInteger) {
-				for (Bone b : mBone) {
+				for (Bone b : mModel.mBone) {
 					setBoneMatrix(b, frame);
 				}
 
 				ccdIK1(ik);
 
 				for (int i = 0; i < ik.ik_chain_length; i++) {
-					Bone c = mBone.get(ik.ik_child_bone_index[i]);
+					Bone c = mModel.mBone.get(ik.ik_child_bone_index[i]);
 					MotionIndex cm = new MotionIndex();
 					cm.frame_no = frame;
 					cm.location = location;
@@ -879,7 +453,7 @@ public class Miku implements Serializable {
 
 			// set motions to bones and motion
 			for (Entry<Short, ArrayList<MotionIndex>> entry : mhash.entrySet()) {
-				Bone b = mBone.get(entry.getKey());
+				Bone b = mModel.mBone.get(entry.getKey());
 				b.motion = entry.getValue();
 				b.current_motion = 0;
 				mhs.put(b.name, entry.getValue());
@@ -903,7 +477,7 @@ public class Miku implements Serializable {
 				b.matrix_current[13] = m.location[1] + b.head_pos[1];
 				b.matrix_current[14] = m.location[2] + b.head_pos[2];
 			} else {
-				Bone p = mBone.get(b.parent);
+				Bone p = mModel.mBone.get(b.parent);
 				b.matrix_current[12] = m.location[0] + (b.head_pos[0] - p.head_pos[0]);
 				b.matrix_current[13] = m.location[1] + (b.head_pos[1] - p.head_pos[1]);
 				b.matrix_current[14] = m.location[2] + (b.head_pos[2] - p.head_pos[2]);
@@ -915,7 +489,7 @@ public class Miku implements Serializable {
 			if (b.parent == -1) {
 				Matrix.translateM(b.matrix_current, 0, b.head_pos[0], b.head_pos[1], b.head_pos[2]);
 			} else {
-				Bone p = mBone.get(b.parent);
+				Bone p = mModel.mBone.get(b.parent);
 				Matrix.translateM(b.matrix_current, 0, b.head_pos[0], b.head_pos[1], b.head_pos[2]);
 				Matrix.translateM(b.matrix_current, 0, -p.head_pos[0], -p.head_pos[1], -p.head_pos[2]);
 			}
@@ -925,7 +499,7 @@ public class Miku implements Serializable {
 	private void updateBoneMatrix(Bone b) {
 		if (b.updated == false) {
 			if (b.parent != -1) {
-				Bone p = mBone.get(b.parent);
+				Bone p = mModel.mBone.get(b.parent);
 				updateBoneMatrix(p);
 				Matrix.multiplyMM(b.matrix, 0, p.matrix, 0, b.matrix_current, 0);
 			} else {
@@ -938,27 +512,27 @@ public class Miku implements Serializable {
 	}
 
 	private void ccdIK() {
-		for (IK ik : mIK) {
+		for (IK ik : mModel.mIK) {
 			ccdIK1(ik);
 		}
 	}
 
 	private void ccdIK1(IK ik) {
-		Bone effecter = mBone.get(ik.ik_bone_index);
-		Bone target = mBone.get(ik.ik_target_bone_index);
+		Bone effecter = mModel.mBone.get(ik.ik_bone_index);
+		Bone target = mModel.mBone.get(ik.ik_target_bone_index);
 
 		getCurrentPosition(effecterVecs, effecter);
 
 		for (int i = 0; i < ik.iterations; i++) {
 			for (int j = 0; j < ik.ik_chain_length; j++) {
-				Bone b = mBone.get(ik.ik_child_bone_index[j]);
+				Bone b = mModel.mBone.get(ik.ik_child_bone_index[j]);
 
 				clearUpdateFlags(b, target);
 				getCurrentPosition(targetVecs, target);
 
 				if (b.is_leg) {
 					if (i == 0) {
-						Bone base = mBone.get(ik.ik_child_bone_index[ik.ik_chain_length - 1]);
+						Bone base = mModel.mBone.get(ik.ik_child_bone_index[ik.ik_chain_length - 1]);
 						getCurrentPosition(targetInvs, b);
 						getCurrentPosition(effecterInvs, base);
 
@@ -980,7 +554,7 @@ public class Miku implements Serializable {
 
 				if (Matrix.length(targetVecs[0] - effecterVecs[0], targetVecs[1] - effecterVecs[1], targetVecs[2] - effecterVecs[2]) < 0.001f) {
 					// clear all
-					for (Bone c : mBone) {
+					for (Bone c : mModel.mBone) {
 						c.updated = false;
 					}
 					return;
@@ -1012,7 +586,7 @@ public class Miku implements Serializable {
 			}
 		}
 		// clear all
-		for (Bone b : mBone) {
+		for (Bone b : mModel.mBone) {
 			b.updated = false;
 		}
 	}
@@ -1021,7 +595,7 @@ public class Miku implements Serializable {
 		while (root != b) {
 			b.updated = false;
 			if (b.parent != -1) {
-				b = mBone.get(b.parent);
+				b = mModel.mBone.get(b.parent);
 			} else {
 				return;
 			}
@@ -1039,255 +613,5 @@ public class Miku implements Serializable {
 		updateBoneMatrix(b);
 		return b.matrix;
 	}
-	
-	public void calcToonTexCoord(float x, float y, float z) {
-		ByteBuffer tbb = ByteBuffer.allocateDirect(mAllBuffer.capacity() / 8 * 2 * 4);
-		tbb.order(ByteOrder.nativeOrder());
-		mToonCoordBuffer = tbb.asFloatBuffer();
 
-		float vn[] = new float[6];
-		for (int i = 0; i < mAllBuffer.capacity() / 8; i++) {
-			mAllBuffer.position(i * 8);
-			mAllBuffer.get(vn);
-
-			float dx, dy, dz, a;
-
-			// Calculate translate effects: assume that light is at (0, 0, 0)
-			dx = x + vn[0];
-			dy = y + vn[1];
-			dz = z + vn[2];
-
-			// normalize
-			a = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-			dx /= a;
-			dy /= a;
-			dz /= a;
-
-			// calculate an inner product as a texture coordinate
-			float p = (vn[3] * dx + vn[4] * dy + vn[5] * dz);
-			// Log.d("Miku", String.format("Vertex=%2.2fx%2.2fx%2.2f, Normal=%2.2fx%2.2fx%2.2f", dx, dy, dz, n.x, n.y, n.z));
-			// Log.d("Miku", "V: " + String.valueOf(p));
-
-			mToonCoordBuffer.put(0.5f); // u
-			mToonCoordBuffer.put(p); // v
-		}
-		mToonCoordBuffer.position(0);
-		mAllBuffer.position(0);
-	}
-
-	public void readAndBindTexture(GL10 gl) {
-		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
-
-		mTexture = new HashMap<String, TexBitmap>();
-		for (int i = 0; i < mMaterial.size(); i++) {
-			Material mat = mMaterial.get(i);
-			if (mat.texture != null) {
-				if (mTexture.get(mat.texture) == null) {
-					// read
-					TexBitmap tb = new TexBitmap();
-
-					tb.bmp = loadPicture(mat.texture, 2);
-					Log.d("Miku",
-							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-					mTexture.put(mat.texture, tb);
-
-					// bind
-					int tex[] = new int[1];
-					gl.glGenTextures(1, tex, 0);
-					tb.tex = tex[0];
-					gl.glBindTexture(GL10.GL_TEXTURE_2D, tb.tex);
-					if (tb.bmp.hasAlpha()) { // workaround
-						ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
-						for (int y = 0; y < tb.bmp.getHeight(); y++) {
-							for (int x = 0; x < tb.bmp.getWidth(); x++) {
-								int pixel = tb.bmp.getPixel(x, y);
-								buf.put((byte) ((pixel >> 16) & 0xff));
-								buf.put((byte) ((pixel >> 8) & 0xff));
-								buf.put((byte) ((pixel >> 0) & 0xff));
-								buf.put((byte) ((pixel >> 24) & 0xff));
-							}
-						}
-						buf.position(0);
-						gl.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-						buf = null;
-					} else {
-						GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-					}
-
-					int err = gl.glGetError();
-					if (err != 0) {
-						Log.d("Miku", GLU.gluErrorString(err));
-					}
-				}
-			}
-		}
-	}
-
-	public void readAndBindTextureGLES20() {
-		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		mTexture = new HashMap<String, TexBitmap>();
-		for (int i = 0; i < mMaterial.size(); i++) {
-			Material mat = mMaterial.get(i);
-			if (mat.texture != null) {
-				if (mTexture.get(mat.texture) == null) {
-					// read
-					TexBitmap tb = new TexBitmap();
-
-					tb.bmp = loadPicture(mat.texture, 2);
-					Log.d("Miku",
-							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-					mTexture.put(mat.texture, tb);
-
-					// bind
-					int tex[] = new int[1];
-					GLES20.glGenTextures(1, tex, 0);
-					tb.tex = tex[0];
-
-					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-					// GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-					if (tb.bmp.hasAlpha()) { // workaround
-						ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
-						for (int y = 0; y < tb.bmp.getHeight(); y++) {
-							for (int x = 0; x < tb.bmp.getWidth(); x++) {
-								int pixel = tb.bmp.getPixel(x, y);
-								buf.put((byte) ((pixel >> 16) & 0xff));
-								buf.put((byte) ((pixel >> 8) & 0xff));
-								buf.put((byte) ((pixel >> 0) & 0xff));
-								buf.put((byte) ((pixel >> 24) & 0xff));
-							}
-						}
-						buf.position(0);
-						GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-						buf = null;
-					} else {
-						GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-					}
-					// GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-
-					tb.bmp.recycle();
-					int err = GLES20.glGetError();
-					if (err != 0) {
-						Log.d("Miku", GLU.gluErrorString(err));
-					}
-				}
-			}
-		}
-	}
-
-	public void readToonTexture() {
-		mToon = new ArrayList<TexBitmap>();
-		for (int i = 0; i < 11; i++) {
-			TexBitmap tb = new TexBitmap();
-			tb.bmp = loadPicture(mToonFileName.get(i), 1);
-			Log.d("Miku",
-					mToonFileName.get(i) + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-							+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-			mToon.add(tb);
-		}
-	}
-
-	public void bindToonTexture(GL10 gl) {
-		int tex[] = new int[11];
-		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
-		gl.glGenTextures(11, tex, 0);
-
-		for (int i = 0; i < 11; i++) {
-			TexBitmap tb = mToon.get(i);
-			tb.tex = tex[i];
-
-			gl.glBindTexture(GL10.GL_TEXTURE_2D, tb.tex);
-			GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, tb.bmp, 0);
-		}
-	}
-
-	public void bindToonTextureGLES20() {
-		int tex[] = new int[11];
-		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		GLES20.glGenTextures(11, tex, 0);
-
-		for (int i = 0; i < 11; i++) {
-			TexBitmap tb = mToon.get(i);
-			tb.tex = tex[i];
-
-			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-			tb.bmp.recycle();
-		}
-	}
-
-	public Bitmap loadPicture(String file, int scale) {
-		Bitmap bmp = null;
-		if (file.endsWith(".tga")) {
-			try {
-				bmp = TgaBitmapFactory.decodeFileCached(file, scale);
-			} catch (IOException e) {
-				e.printStackTrace();
-				return null;
-			}
-		} else {
-			BitmapFactory.Options opt = new BitmapFactory.Options();
-			// opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
-			opt.inSampleSize = scale;
-			bmp = BitmapFactory.decodeFile(file, opt);
-		}
-
-		return bmp;
-	}
-
-	public void bindBufferGLES20(int vertex, int normal) {
-		GLES20.glEnableVertexAttribArray(vertex);
-		mAllBuffer.position(0);
-		GLES20.glVertexAttribPointer(vertex, 4, GLES20.GL_FLOAT, false, 8 * 4, mAllBuffer);
-		checkGlError("drawGLES20 VertexAttribPointer vertex");
-
-		GLES20.glEnableVertexAttribArray(normal);
-		mAllBuffer.position(4);
-		GLES20.glVertexAttribPointer(normal, 4, GLES20.GL_FLOAT, false, 8 * 4, mAllBuffer);
-		checkGlError("drawGLES20 VertexAttribPointer normal");
-		mAllBuffer.position(0);
-	}
-
-	public void bindBuffer(GL10 gl) {
-		GL11Ext gl11Ext = (GL11Ext) gl;
-
-		mAllBuffer.position(0);
-		gl.glVertexPointer(3, GL10.GL_FLOAT, 8 * 4, mAllBuffer);
-
-		mAllBuffer.position(3);
-		gl.glNormalPointer(GL10.GL_FLOAT, 8 * 4, mAllBuffer);
-
-		gl11Ext.glWeightPointerOES(2, GL10.GL_FLOAT, 0, mWeightBuffer);
-
-		gl.glClientActiveTexture(GL10.GL_TEXTURE0);
-		gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, mToonCoordBuffer);
-
-		mAllBuffer.position(6);
-		gl.glClientActiveTexture(GL10.GL_TEXTURE1);
-		gl.glTexCoordPointer(2, GL10.GL_FLOAT, 8 * 4, mAllBuffer);
-
-		mAllBuffer.position(0);
-
-	}
-
-	private void checkGlError(String op) {
-		int error;
-		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
-			Log.e("Miku", op + ": glError " + error);
-			throw new RuntimeException(op + ": glError " + error);
-		}
-	}
-
-	public ArrayList<Bone> getBone() {
-		return mBone;
-	}
 }

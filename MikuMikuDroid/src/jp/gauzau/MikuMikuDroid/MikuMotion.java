@@ -28,20 +28,26 @@ public class MikuMotion implements Serializable {
 	}
 	
 	public void attachModel(ArrayList<Bone> ba, ArrayList<Face> fa) {
-		for(Bone b: ba) {
-			if(mIKMotion != null) {
-				b.motion = mIKMotion.get(b.name);
-				if(b.motion == null) {
-					b.motion = mMotion.get(b.name);					
+		if(ba != null) {
+			for(Bone b: ba) {
+				if(mIKMotion != null) {
+					b.motion = mIKMotion.get(b.name);
+					if(b.motion == null) {
+						b.motion = mMotion.get(b.name);					
+					}
+				} else {
+					b.motion = mMotion.get(b.name);				
 				}
-			} else {
-				b.motion = mMotion.get(b.name);				
+				b.current_motion = 0;
 			}
-			b.current_motion = 0;
+			
 		}
-		for(Face f: fa) {
-			f.motion = mFace.get(f.name);
-			f.current_motion = 0;
+		
+		if(fa != null) {
+			for(Face f: fa) {
+				f.motion = mFace.get(f.name);
+				f.current_motion = 0;
+			}			
 		}
 	}
 	

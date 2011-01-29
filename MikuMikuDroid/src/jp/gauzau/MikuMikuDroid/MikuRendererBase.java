@@ -50,7 +50,8 @@ public class MikuRendererBase implements MikuRendererInterface {
 			mMiku = new ArrayList<Miku>();
 		}
 		PMDParser pmd = new PMDParser(file);
-		Miku miku = new Miku(pmd, 256, mBoneNum, true);			
+		MikuModel model = new MikuModel(pmd, 256, mBoneNum, true);
+		Miku miku = new Miku(model);
 		mMiku.add(miku);
 	}
 
@@ -86,7 +87,8 @@ public class MikuRendererBase implements MikuRendererInterface {
 	public void loadStage(String file) throws IOException {
 		mMikuStage = null;
 		PMDParser pmd = new PMDParser(file);
-		mMikuStage = new Miku(pmd, 256, mBoneNum, false);
+		MikuModel model = new MikuModel(pmd, 256, mBoneNum, false);
+		mMikuStage = new Miku(model);
 	}
 
 	@Override
@@ -224,7 +226,7 @@ public class MikuRendererBase implements MikuRendererInterface {
 	}
 
 	protected void setCameraToCenter(Miku miku) {
-		Bone b = miku.getBone().get(0);
+		Bone b = miku.mModel.mBone.get(0);
 		if (mCenter == null) {
 			mCenter = new ArrayList<MotionIndex>();
 			for (int i = 0; i < 30; i++) {
