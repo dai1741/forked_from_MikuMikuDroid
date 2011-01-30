@@ -1,6 +1,9 @@
 package jp.gauzau.MikuMikuDroid;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -19,29 +22,40 @@ import android.opengl.GLU;
 import android.opengl.GLUtils;
 import android.util.Log;
 
-public class MikuModel {
-	public boolean mAnimation;
-	public int mRenameNum;
-	public int mRenameBone;
-	public CubeArea mCube;
+public class MikuModel implements Serializable, SerializableExt {
+	private static final long serialVersionUID = -9127943692220369080L;
 	
-	public FloatBuffer mToonCoordBuffer;
-	public FloatBuffer mWeightBuffer;
-	public ShortBuffer mIndexBuffer;
-	public FloatBuffer mAllBuffer;
+	// model configuration
+	public transient boolean mAnimation;
+	public transient int mRenameNum;
+	public transient int mRenameBone;
+	public transient CubeArea mCube;
 	
-	public ArrayList<Bone> mBone;
-	public ArrayList<Material> mMaterial;
-	public ArrayList<Face> mFace;
-	public ArrayList<IK> mIK;
-	public ArrayList<RigidBody> mRigidBody;
-	public ArrayList<Joint> mJoint;
-	public ArrayList<String> mToonFileName;
-	public ArrayList<Material> mRendarList;
-	public HashMap<String, TexBitmap> mTexture;
-	public ArrayList<TexBitmap> mToon;
-	public int[] mIndexMaps;
-	public Face mFaceBase;
+	// model data
+	public transient FloatBuffer mToonCoordBuffer;
+	public transient FloatBuffer mWeightBuffer;
+	public transient ShortBuffer mIndexBuffer;
+	public transient FloatBuffer mAllBuffer;
+	
+	public transient ArrayList<Bone> mBone;
+	public transient ArrayList<Material> mMaterial;
+	public transient ArrayList<Face> mFace;
+	public transient ArrayList<IK> mIK;
+	public transient ArrayList<RigidBody> mRigidBody;
+	public transient ArrayList<Joint> mJoint;
+	public transient ArrayList<String> mToonFileName;
+	
+	// generated data
+	public transient ArrayList<Material> mRendarList;
+	public transient int[] mIndexMaps;
+	public transient Face mFaceBase;
+	
+	public transient HashMap<String, TexBitmap> mTexture;
+	public transient ArrayList<TexBitmap> mToon;
+	
+	public MikuModel() {
+		
+	}
 	
 	public MikuModel(PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
 		init(pmd, rename_num, rename_bone, animation);
@@ -68,6 +82,13 @@ public class MikuModel {
 			reconstructFace();
 			pmd.recycleVertex();
 			reconstructMaterial(pmd, mRenameBone);
+			
+			// release unused data
+			for(Material rb: mRendarList) {
+				rb.rename_hash_size = rb.rename_hash.size();
+				rb.rename_hash = null;
+				rb.rename_map = null;
+			}
 		} else {
 			mFaceBase = null;
 			pmd.recycleVertex();
@@ -177,10 +198,10 @@ public class MikuModel {
 				buildBoneRenameIndex(pmd, mat_new, max_bone);
 				mRendarList.add(mat_new);
 
-				Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
-				for (Entry<Integer, Integer> b : rename.entrySet()) {
-					Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
-				}
+//				Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
+//				for (Entry<Integer, Integer> b : rename.entrySet()) {
+//					Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
+//				}
 
 				reconstructMaterial1(pmd, mat, j, max_bone);
 				return;
@@ -446,6 +467,127 @@ public class MikuModel {
 	
 		return bmp;
 	}
+	
+	public MikuModel create() {
+		return new MikuModel();
+	}
+	
+	public void read(ObjectInputStream is) throws IOException, ClassNotFoundException {
+		mAnimation = is.readBoolean();
+		mRenameNum = is.readInt();
+		mRenameBone = is.readInt();
 
+		// all
+		int len = is.readInt();
+		ByteBuffer tmp = ByteBuffer.allocateDirect(len*4);
+		tmp.order(ByteOrder.nativeOrder());
+		mAllBuffer = tmp.asFloatBuffer();
+		for(int i = 0; i < len; i++) {
+			mAllBuffer.put(is.readFloat());
+		}
+		mAllBuffer.position(0);
+		
+		// weight
+		len = is.readInt();
+		tmp = ByteBuffer.allocateDirect(len*4);
+		tmp.order(ByteOrder.nativeOrder());
+		mWeightBuffer = tmp.asFloatBuffer();
+		for(int i = 0; i < len; i++) {
+			mWeightBuffer.put(is.readByte());
+		}
+		mWeightBuffer.position(0);
+		
+		// index
+		len = is.readInt();
+		tmp = ByteBuffer.allocateDirect(len*2);
+		tmp.order(ByteOrder.nativeOrder());
+		mIndexBuffer = tmp.asShortBuffer();
+		for(int i = 0; i < len; i++) {
+			mIndexBuffer.put(is.readShort());
+		}
+		mIndexBuffer.position(0);
 
+		mBone = (ArrayList<Bone>)is.readObject();
+		mMaterial = ObjRW.readArrayList(is, new Material());
+		mFace = (ArrayList<Face>)is.readObject();
+		mIK = (ArrayList<IK>)is.readObject();
+		mRigidBody = (ArrayList<RigidBody>)is.readObject();
+		mJoint = (ArrayList<Joint>)is.readObject();
+		mToonFileName = (ArrayList<String>)is.readObject();
+		
+		mRendarList = ObjRW.readArrayList(is, new Material());
+		mIndexMaps = ObjRW.readIntA(is);
+		mFaceBase = (Face)is.readObject();
+		
+		// re-allocate memory
+		for(Bone b: mBone) {
+			b.matrix = new float[16];
+			b.matrix_current = new float[16];
+			b.quaternion = new double[4];
+		}
+		for(RigidBody r: mRigidBody) {
+			r.cur_location = new float[4];
+			r.cur_r = new double[4];
+			r.cur_v = new double[4];
+			r.cur_a = new double[4];
+			r.tmp_r = new double[4];
+			r.tmp_v = new double[4];
+			r.tmp_a = new double[4];
+			r.prev_r = new double[4];
+		}
+	}
+	
+	
+	public void write(ObjectOutputStream os) throws IOException {
+		os.writeBoolean(mAnimation);
+		os.writeInt(mRenameNum);
+		os.writeInt(mRenameBone);
+
+		// buffers
+		os.writeInt(mAllBuffer.capacity());
+		mAllBuffer.position(0);
+		for(int i = 0; i < mAllBuffer.capacity(); i++) {
+			os.writeFloat(mAllBuffer.get());
+		}
+		mAllBuffer.position(0);
+		
+		os.writeInt(mWeightBuffer.capacity());
+		mWeightBuffer.position(0);
+		for(int i = 0; i < mWeightBuffer.capacity(); i++) {
+			os.writeByte((byte) mWeightBuffer.get());
+		}
+		mWeightBuffer.position(0);
+
+		os.writeInt(mIndexBuffer.capacity());
+		mIndexBuffer.position(0);
+		for(int i = 0; i < mIndexBuffer.capacity(); i++) {
+			os.writeShort(mIndexBuffer.get());
+		}
+		mIndexBuffer.position(0);
+		os.reset();
+		os.flush();
+		
+		os.writeObject(mBone);
+		ObjRW.writeArrayList(os, mMaterial);
+		os.writeObject(mFace);
+		os.writeObject(mIK);
+		os.writeObject(mRigidBody);
+		os.writeObject(mJoint);
+		os.writeObject(mToonFileName);
+		
+		ObjRW.writeArrayList(os, mRendarList);
+		ObjRW.writeIntA(os, mIndexMaps);
+		os.writeObject(mFaceBase);
+	}
+
+	private void writeObject(ObjectOutputStream os) throws IOException {
+		os.defaultWriteObject();
+		write(os);
+	}
+
+	private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+		is.defaultReadObject();
+		read(is);
+	}
+	
 }

@@ -136,7 +136,6 @@ public class VMDParser extends ParserBase {
 				bone_name.put(name);
 				bone_name.position(0);
 				m.frame_no = getInt();
-				m.position = position();
 				getFloat(m.location);
 				getFloat(m.rotation);
 				getBytes(m.interp, 16);

@@ -1,8 +1,12 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 public class MikuMotion implements Serializable {
 	private static final long serialVersionUID = -7581376490687593200L;
@@ -12,7 +16,7 @@ public class MikuMotion implements Serializable {
 	private transient ArrayList<CameraIndex> mCamera;
 	private transient int mCameraCurrent;
 
-	private HashMap<String, ArrayList<MotionIndex>> mIKMotion;
+	private transient HashMap<String, ArrayList<MotionIndex>> mIKMotion;
 
 	public MikuMotion(VMDParser vmd) {
 		mCameraCurrent	= 0;
@@ -419,4 +423,40 @@ public class MikuMotion implements Serializable {
 		}
 	}
 	
+	private void writeObject(ObjectOutputStream os) throws IOException {
+		os.defaultWriteObject();
+		if(mIKMotion == null) {
+			os.writeInt(0);
+		} else {
+			os.writeInt(mIKMotion.size());
+			for(Entry<String, ArrayList<MotionIndex>> i: mIKMotion.entrySet()) {
+				os.writeUTF(i.getKey());
+				os.writeInt(i.getValue().size());
+				for(MotionIndex j: i.getValue()) {
+					j.write(os);
+				}
+			}			
+		}
+	}
+
+	private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+		is.defaultReadObject();
+		int hsize = is.readInt();
+		if(hsize == 0) {
+			mIKMotion = null;
+		} else {
+			mIKMotion = new HashMap<String, ArrayList<MotionIndex>>(hsize);
+			for(int i = 0; i < hsize; i++) {
+				String name = is.readUTF();
+				int size = is.readInt();
+				ArrayList<MotionIndex> mi = new ArrayList<MotionIndex>(size);
+				for(int j = 0; j < size; j++) {
+					MotionIndex m = new MotionIndex();
+					m.read(is);
+					mi.add(m);
+				}
+				mIKMotion.put(name, mi);
+			}			
+		}
+	}
 }

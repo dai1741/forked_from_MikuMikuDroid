@@ -343,7 +343,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 						System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
 					}
 				}
-				GLES20.glUniformMatrix4fv(bone, mat.rename_hash.size(), false, mBoneMatrix, 0);
+				GLES20.glUniformMatrix4fv(bone, mat.rename_hash_size, false, mBoneMatrix, 0);
 	
 				GLES20.glEnableVertexAttribArray(blend);
 				GLES20.glVertexAttribPointer(blend, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.rename_index);

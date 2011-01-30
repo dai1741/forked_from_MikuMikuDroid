@@ -13,6 +13,7 @@ import javax.microedition.khronos.opengles.GL10;
 
 import android.media.MediaPlayer;
 import android.opengl.Matrix;
+import android.util.Log;
 
 public class MikuRendererBase implements MikuRendererInterface {
 	protected ArrayList<Miku> mMiku;
@@ -49,8 +50,29 @@ public class MikuRendererBase implements MikuRendererInterface {
 		if (mMiku == null) {
 			mMiku = new ArrayList<Miku>();
 		}
+		
+		// check cache
+		/*
+		String pmc = file.replaceFirst(".pmd", "_mmcache.pmc");
+		MikuModel model = null;
+		try {
+			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(pmc));
+			model = (MikuModel)oi.readObject();
+			oi.close();
+		} catch (Exception e) {
+			Log.d("MRB", e.toString());
+			e.printStackTrace();
+			PMDParser pmd = new PMDParser(file);
+			model = new MikuModel(pmd, 256, mBoneNum, true);
+			ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(pmc));
+			oi.writeObject(model);
+			oi.close();
+		}
+		*/
+		
 		PMDParser pmd = new PMDParser(file);
 		MikuModel model = new MikuModel(pmd, 256, mBoneNum, true);
+		
 		Miku miku = new Miku(model);
 		mMiku.add(miku);
 	}
@@ -61,9 +83,9 @@ public class MikuRendererBase implements MikuRendererInterface {
 		MikuMotion mm = null;
 
 		// check IK cache
-		String vmdc = file.replaceFirst(".vmd", "_mmcache.vmc");
+		String vmc = file.replaceFirst(".vmd", "_mmcache.vmc");
 		try {
-			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmdc));
+			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
 			mm = (MikuMotion)oi.readObject();
 			mm.attachVMD(vmd);
 		} catch (Exception e) {
@@ -73,9 +95,9 @@ public class MikuRendererBase implements MikuRendererInterface {
 		mMiku.get(mMiku.size() - 1).attachMotion(mm);
 		
 		// store IK chache
-		File f = new File(vmdc);
+		File f = new File(vmc);
 		if(!f.exists()) {
-			ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmdc));
+			ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmc));
 			oi.writeObject(mm);
 		}
 		mPrevTime = 0;

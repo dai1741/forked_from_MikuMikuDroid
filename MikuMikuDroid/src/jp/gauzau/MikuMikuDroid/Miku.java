@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import android.opengl.Matrix;
+import android.util.Log;
 
 public class Miku {
 	// model data
@@ -41,6 +42,7 @@ public class Miku {
 		mm.attachModel(mModel.mBone, mModel.mFace);
 		if(mModel.mIK != null && mm.getIKMotion() == null) {
 			// preCalcIK();
+			Log.d("Miku", "IK calcuration");
 			preCalcKeyFrameIK();			
 		}
 	}
@@ -440,7 +442,6 @@ public class Miku {
 					cm.rotation[2] = (float) c.quaternion[2];
 					cm.rotation[3] = (float) c.quaternion[3];
 					cm.interp = null;
-					cm.position = 0;
 
 					ArrayList<MotionIndex> mi = mhash.get(ik.ik_child_bone_index[i]);
 					if (mi == null) {
