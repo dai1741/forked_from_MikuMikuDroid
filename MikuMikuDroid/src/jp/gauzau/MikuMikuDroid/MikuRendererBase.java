@@ -71,7 +71,9 @@ public class MikuRendererBase implements MikuRendererInterface {
 		*/
 		
 		PMDParser pmd = new PMDParser(file);
+		Log.d("MRB", "PARSE");
 		MikuModel model = new MikuModel(pmd, 256, mBoneNum, true);
+		Log.d("MRB", "MODEL");
 		
 		Miku miku = new Miku(model);
 		mMiku.add(miku);

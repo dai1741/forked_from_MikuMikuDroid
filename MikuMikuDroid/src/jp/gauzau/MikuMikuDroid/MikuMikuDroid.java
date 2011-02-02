@@ -9,6 +9,7 @@ import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -41,6 +42,43 @@ public class MikuMikuDroid extends Activity implements OnClickListener {
 			ad.setMessage("Please put toon??.bmp files in MikuMikuDance Ver5.x on /sdcard/MikuMikuDroid/Data/ .");
 			ad.setPositiveButton("OK", null);
 			ad.show();
+		}
+		
+		// restoreState();
+	}
+	
+	private void restoreState() {
+		SharedPreferences sp = getSharedPreferences("default", 0);
+		
+		// model & motion
+		int num = sp.getInt("ModelNum", 0);
+		for(int i = 0; i < num; i++) {
+			String model  = sp.getString(String.format("Model%d", i), null);
+			String motion = sp.getString(String.format("Motion%d", i), null);
+			if(model != null) {
+				if(motion == null) {
+					mMMGLSurfaceView.loadStage(model);
+				} else {
+					mMMGLSurfaceView.loadModel(model);
+					mMMGLSurfaceView.loadMotion(motion);
+				}
+			}
+		}
+
+		// camera
+		String camera = sp.getString("Camera", null);
+		if(camera != null) {
+			mMMGLSurfaceView.loadCamera(camera);
+		}
+		
+		// music
+		String music = sp.getString("Music", null);
+		if(music != null) {
+			Uri uri = Uri.parse(music);
+			mMedia = MediaPlayer.create(this, uri);
+			int pos = sp.getInt("Position", 0);
+			mMedia.seekTo(pos);
+			mMMGLSurfaceView.setMedia(mMedia);
 		}
 	}
 
@@ -169,7 +207,13 @@ public class MikuMikuDroid extends Activity implements OnClickListener {
 			if (mMedia != null) {
 				mMedia.stop();
 			}
+		    mMedia.release();
+		    mMedia = null;
 			mMMGLSurfaceView.clear();
+			SharedPreferences sp = getSharedPreferences("default", 0);
+			SharedPreferences.Editor ed = sp.edit();
+			ed.clear();
+			ed.commit();
 			break;
 
 		default:
@@ -181,6 +225,9 @@ public class MikuMikuDroid extends Activity implements OnClickListener {
 
 	@Override
 	public void onClick(DialogInterface arg0, int arg1) {
+		SharedPreferences sp = getSharedPreferences("default", 0);
+		SharedPreferences.Editor ed = sp.edit();
+		
 		if (mOpenType == 0) {
 			mModelName = mFiles[arg1];
 			Builder ad = new AlertDialog.Builder(this);
@@ -206,17 +253,32 @@ public class MikuMikuDroid extends Activity implements OnClickListener {
 			ad.setItems(mFiles, this);
 			ad.show();
 		} else if (mOpenType == 1) {
-			mMMGLSurfaceView.loadCamera("/sdcard/MikuMikuDroid/UserFile/Motion/" + mFiles[arg1] + ".vmd");
+			String camera = "/sdcard/MikuMikuDroid/UserFile/Motion/" + mFiles[arg1] + ".vmd";
+			ed.putString("Camera", camera);
+			ed.commit();
+			mMMGLSurfaceView.loadCamera(camera);
 		} else if (mOpenType == 2) {
-			Uri uri = Uri.parse("file:///sdcard/MikuMikuDroid/UserFile/Wave/" + mFiles[arg1]);
+			String media = "file:///sdcard/MikuMikuDroid/UserFile/Wave/" + mFiles[arg1];
+			ed.putString("Music", media);
+			ed.commit();
+			Uri uri = Uri.parse(media);
 			mMedia = MediaPlayer.create(this, uri);
 			mMMGLSurfaceView.setMedia(mMedia);
 		} else if (mOpenType == 3) {
+			int num = sp.getInt("ModelNum", 0);
+			ed.putInt("ModelNum", num + 1);
+			
+			String model = "/sdcard/MikuMikuDroid/UserFile/Model/" + mModelName + ".pmd";
+			ed.putString(String.format("Model%d", num), model);
 			if (arg1 == 0) {
-				mMMGLSurfaceView.loadStage("/sdcard/MikuMikuDroid/UserFile/Model/" + mModelName + ".pmd");
+				ed.commit();
+				mMMGLSurfaceView.loadStage(model);
 			} else {
-				mMMGLSurfaceView.loadModel("/sdcard/MikuMikuDroid/UserFile/Model/" + mModelName + ".pmd");
-				mMMGLSurfaceView.loadMotion("/sdcard/MikuMikuDroid/UserFile/Motion/" + mFiles[arg1] + ".vmd");
+				String motion = "/sdcard/MikuMikuDroid/UserFile/Motion/" + mFiles[arg1] + ".vmd";
+				ed.putString(String.format("Motion%d", num), motion);
+				ed.commit();
+				mMMGLSurfaceView.loadModel(model);
+				mMMGLSurfaceView.loadMotion(motion);
 			}
 		}
 	}
@@ -224,5 +286,17 @@ public class MikuMikuDroid extends Activity implements OnClickListener {
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
 		super.onConfigurationChanged(newConfig);
+	}
+	
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		
+		if(mMedia != null) {
+			SharedPreferences sp = getSharedPreferences("default", 0);
+			SharedPreferences.Editor ed = sp.edit();
+			ed.putInt("Position", mMedia.getCurrentPosition());
+			ed.commit();
+		}
 	}
 }
