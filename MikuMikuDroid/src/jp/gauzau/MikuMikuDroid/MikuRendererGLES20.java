@@ -1,6 +1,5 @@
 package jp.gauzau.MikuMikuDroid;
 
-import java.io.IOException;
 import java.util.ArrayList;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -151,21 +150,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	
 	public float mBoneMatrix[];
 
-	public MikuRendererGLES20() {
+	public MikuRendererGLES20(CoreLogic cl) {
+		super(cl);
 		mBoneMatrix		= new float[16 * 256];	// ad-hock number: will be fixed to mBoneNum
 		clear();
-	}
-
-	@Override
-	public void loadModel(String file) throws IOException {
-		super.loadModel(file);
-		initializeTextures(mMiku.get(mMiku.size() - 1));
-	}
-
-	@Override
-	public void loadStage(String file) throws IOException {
-		super.loadStage(file);
-		initializeStageTextures();
 	}
 
 	public void initializeTextures(Miku miku) {
@@ -179,36 +167,16 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		miku.mModel.readAndBindTextureGLES20();
 	}
 
-	public void initializeStageTextures() {
-		// toon shading
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		mMikuStage.mModel.readToonTexture();
-		bindToonTextureGLES20(mMikuStage.mModel);
-
-		// Texture
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-		mMikuStage.mModel.readAndBindTextureGLES20();
-	}
-
 	@Override
 	public void onDrawFrame(GL10 gl) {
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 
-		double frame;
-		frame = nowFrames(32767);
-
-		if (mMiku != null) {
-			for (Miku miku : mMiku) {
-				miku.setBonePosByVMDFrame((float) frame);
-				miku.setFaceByVMDFrame((float) frame);
-			}
-		}
-		setCameraByVMDFrame(frame);
+		mCoreLogic.applyCurrentMotion();
 
 		GLES20.glUseProgram(mProgram);
 
 		// Projection Matrix
-		GLES20.glUniformMatrix4fv(muPMatrix, 1, false, mPMatrix, 0);
+		GLES20.glUniformMatrix4fv(muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
 
 		// LightPosition
 		GLES20.glUniform4f(muLightPos, 0, 0, -35f, 1f);
@@ -218,18 +186,22 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		GLES20.glUniform1i(muTextureSampler, 1);
 		checkGlError("on onDrawFrame");
 
-		if (mMiku != null) {
-			for (Miku miku : mMiku) {
+		if (mCoreLogic.getMiku() != null) {
+			for (Miku miku : mCoreLogic.getMiku()) {
+				if(miku.mModel.mIsTextureLoaded == false) {
+					initializeTextures(miku);
+					miku.mModel.mIsTextureLoaded = true;
+				}
 				bindBufferGLES20(miku.mModel, maPositionHandle, maNormalHandle);
 				drawGLES20(miku.mModel, muMBone, maBlendHandle, muTexEn, muColor, muSpec, muPow, muAmb);
 			}
 		}
 
-		if (mMikuStage != null) {
+		if (mCoreLogic.getMikuStage() != null) {
 			GLES20.glUseProgram(mProgramStage);
 
 			// Projection, Model, View Matrix
-			GLES20.glUniformMatrix4fv(muPMatrixStage, 1, false, mPMatrix, 0);
+			GLES20.glUniformMatrix4fv(muPMatrixStage, 1, false, mCoreLogic.getProjectionMatrix(), 0);
 			// GLES20.glUniformMatrix4fv(muMVMatrixStage, 1, false, mMVMatrix, 0);
 
 			// LightPosition
@@ -239,8 +211,12 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glUniform1i(muTextureSamplerStage, 1);
 			checkGlError("on onDrawFrame");
 
-			bindBufferGLES20(mMikuStage.mModel, maPositionHandleStage, maNormalHandleStage);
-			drawGLES20(mMikuStage.mModel, 0, 0, muTexEnStage, muColorStage, -1, -1, muAmbStage);
+			if(mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
+				initializeTextures(mCoreLogic.getMikuStage());
+				mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
+			}				
+			bindBufferGLES20(mCoreLogic.getMikuStage().mModel, maPositionHandleStage, maNormalHandleStage);
+			drawGLES20(mCoreLogic.getMikuStage().mModel, 0, 0, muTexEnStage, muColorStage, -1, -1, muAmbStage);
 		}
 
 		GLES20.glFlush();
@@ -266,12 +242,13 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
 		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
-		GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
-		GLES20.glPolygonOffset(-1.0f, -2.0f);
+//		GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
+//		GLES20.glPolygonOffset(-1.0f, -2.0f);
 		
 		// sharder program
-		mBoneNum = 48;
-		mProgram = createProgram(String.format(mVertexShader, mBoneNum), mFragmentShader);
+		int bonenum = 48;
+		mCoreLogic.setGLConfig(bonenum);
+		mProgram = createProgram(String.format(mVertexShader, bonenum), mFragmentShader);
 		if (mProgram == 0) {
 			return;
 		}
@@ -295,8 +272,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		muMBone = getUniformLocation(mProgram, "uMBone");
 		muLightPos = getUniformLocation(mProgram, "vLightPos");
 
-		if (mMiku != null) {
-			for (Miku miku : mMiku) {
+		if (mCoreLogic.getMiku() != null) {
+			for (Miku miku : mCoreLogic.getMiku()) {
 				initializeTextures(miku);
 			}
 		}
@@ -323,8 +300,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		muAmbStage = getUniformLocation(mProgramStage, "vAmb");
 		muLightPosStage = getUniformLocation(mProgramStage, "vLightPos");
 
-		if (mMikuStage != null) {
-			initializeStageTextures();
+		if (mCoreLogic.getMikuStage() != null) {
+			initializeTextures(mCoreLogic.getMikuStage());
 		}
 	}
 	

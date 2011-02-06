@@ -30,6 +30,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	public transient int mRenameNum;
 	public transient int mRenameBone;
 	public transient CubeArea mCube;
+	public transient boolean mIsTextureLoaded;
 	
 	// model data
 	public transient FloatBuffer mToonCoordBuffer;
@@ -69,6 +70,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		mRenameNum		= rename_num;
 		mRenameBone		= rename_bone;
 		mAnimation		= animation;
+		mIsTextureLoaded= false;
 		mBone			= pmd.getBone();
 		mMaterial		= pmd.getMaterial();
 		mFace			= pmd.getFace();

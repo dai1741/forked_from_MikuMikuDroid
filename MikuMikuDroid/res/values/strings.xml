@@ -2,4 +2,18 @@
 <resources>
     <string name="hello">MikuMikuDroid</string>
     <string name="app_name">MikuMikuDroid</string>
+<string name="select_ok">OK</string><string name="setup_alert_title">Setup alert</string>
+<string name="setup_alert_text">Please put toon??.bmp files in MikuMikuDance Ver5.x on /sdcard/MikuMikuDroid/Data/ .</string>
+
+
+<string name="setup_alert_pmd">Please put PMD files on /sdcard/MikuMikuDroid/UserFile/Model/ .</string><string name="setup_alert_vmd">Please put VMD files on /sdcard/MikuMikuDroid/UserFile/Motion/ .</string><string name="setup_alert_music">Please put sound files on /sdcard/MikuMikuDroid/UserFile/Wave/ .</string><string name="menu_load_model">Load Model</string>
+<string name="menu_load_camera">Load Camera</string>
+<string name="menu_load_music">Load Music</string>
+<string name="menu_play_pause">Play/Pause</string><string name="menu_load_motion">Load Motion</string>
+<string name="menu_rewind">Rewind</string>
+<string name="menu_initialize">Initialize</string>
+
+
+
+
 </resources>

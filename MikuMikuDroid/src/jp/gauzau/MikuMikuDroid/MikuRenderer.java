@@ -1,6 +1,5 @@
 package jp.gauzau.MikuMikuDroid;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map.Entry;
 
@@ -15,22 +14,16 @@ public class MikuRenderer extends MikuRendererBase {
 	private boolean mBufferInitialized;
 	private boolean mStageBufferInitialized;
 
-	public MikuRenderer() {
+	public MikuRenderer(CoreLogic cl) {
+		super(cl);
+		mCoreLogic = cl;
 		clear();
-	}
-
-	public void loadModel(String file) throws IOException {
-		super.loadModel(file);
 		mBufferInitialized = false;
-	}
-
-	public void loadStage(String file) throws IOException {
-		super.loadStage(file);
 		mStageBufferInitialized = false;
 	}
 
 	public void initializeBuffers(GL10 gl) {
-		for (Miku miku : mMiku) {
+		for (Miku miku : mCoreLogic.getMiku()) {
 			// toon shading
 			gl.glActiveTexture(GL10.GL_TEXTURE0);
 			miku.mModel.calcToonTexCoord(0, -10f, -9f);
@@ -49,16 +42,16 @@ public class MikuRenderer extends MikuRendererBase {
 	public void initializeStageBuffers(GL10 gl) {
 		// toon shading
 		gl.glActiveTexture(GL10.GL_TEXTURE0);
-		mMikuStage.mModel.calcToonTexCoord(0, -10f, -9f);
-		mMikuStage.mModel.readToonTexture();
-		bindToonTexture(mMikuStage.mModel, gl);
+		mCoreLogic.getMikuStage().mModel.calcToonTexCoord(0, -10f, -9f);
+		mCoreLogic.getMikuStage().mModel.readToonTexture();
+		bindToonTexture(mCoreLogic.getMikuStage().mModel, gl);
 
 		// Texture
 		gl.glActiveTexture(GL10.GL_TEXTURE1);
-		mMikuStage.mModel.readAndBindTexture(gl);
+		mCoreLogic.getMikuStage().mModel.readAndBindTexture(gl);
 
 		// buffer bindings
-		bindBuffer(mMikuStage.mModel, gl);
+		bindBuffer(mCoreLogic.getMikuStage().mModel, gl);
 	}
 
 	@Override
@@ -68,22 +61,16 @@ public class MikuRenderer extends MikuRendererBase {
 
 		gl.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 
-		double frame = nowFrames(32767);
-		setCameraByVMDFrame(frame);
+		mCoreLogic.applyCurrentMotion();
 
-		if (mMiku != null) {
+		if (mCoreLogic.getMiku() != null) {
 			if (mBufferInitialized == false) {
 				initializeBuffers(gl);
 				mBufferInitialized = true;
 			}
-			for (Miku miku : mMiku) {
-				miku.setBonePosByVMDFrame((float) frame);
-				miku.setFaceByVMDFrame((float) frame);
-				// miku.updateVertexBuffer();
-			}
 
 			gl.glMatrixMode(GL10.GL_PROJECTION);
-			gl.glLoadMatrixf(mPMatrix, 0);
+			gl.glLoadMatrixf(mCoreLogic.getProjectionMatrix(), 0);
 
 			gl.glMatrixMode(GL10.GL_MODELVIEW);
 			gl.glLoadIdentity();
@@ -103,13 +90,13 @@ public class MikuRenderer extends MikuRendererBase {
 			// gl.glLightModelfv(GL10.GL_LIGHT_MODEL_AMBIENT, lmodel_ambient, 0);
 
 			gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
-			for (Miku miku : mMiku) {
+			for (Miku miku : mCoreLogic.getMiku()) {
 				bindBuffer(miku.mModel, gl);
 				draw(gl, miku.mModel);
 			}
 		}
 
-		if (mMikuStage != null) {
+		if (mCoreLogic.getMikuStage() != null) {
 			if (mStageBufferInitialized == false) {
 				initializeStageBuffers(gl);
 				mStageBufferInitialized = true;
@@ -117,8 +104,8 @@ public class MikuRenderer extends MikuRendererBase {
 			gl.glDisable(GL11Ext.GL_MATRIX_PALETTE_OES);
 			gl11.glDisableClientState(GL11Ext.GL_MATRIX_INDEX_ARRAY_OES);
 			gl11.glDisableClientState(GL11Ext.GL_WEIGHT_ARRAY_OES);
-			bindBuffer(mMikuStage.mModel, gl);
-			draw(gl, mMikuStage.mModel);
+			bindBuffer(mCoreLogic.getMikuStage().mModel, gl);
+			draw(gl, mCoreLogic.getMikuStage().mModel);
 		}
 		gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
 
@@ -156,15 +143,15 @@ public class MikuRenderer extends MikuRendererBase {
 
 		int matnum[] = new int[1];
 		gl.glGetIntegerv(GL11Ext.GL_MAX_PALETTE_MATRICES_OES, matnum, 0);
-		mBoneNum = matnum[0];
+		mCoreLogic.setGLConfig(matnum[0]);
 
 		// gl.glEnable( GL10.GL_ALPHA_TEST );
 		// gl.glAlphaFunc( GL10.GL_GEQUAL, 0.05f );
 
-		if (mMiku != null) {
+		if (mCoreLogic.getMiku() != null) {
 			initializeBuffers(gl);
 		}
-		if (mMikuStage != null) {
+		if (mCoreLogic.getMikuStage() != null) {
 			initializeStageBuffers(gl);
 		}
 	}

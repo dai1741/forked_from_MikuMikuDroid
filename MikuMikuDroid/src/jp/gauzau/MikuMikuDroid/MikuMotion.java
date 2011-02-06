@@ -37,14 +37,13 @@ public class MikuMotion implements Serializable {
 				if(mIKMotion != null) {
 					b.motion = mIKMotion.get(b.name);
 					if(b.motion == null) {
-						b.motion = mMotion.get(b.name);					
+						b.motion = mMotion.get(b.name);
 					}
 				} else {
-					b.motion = mMotion.get(b.name);				
+					b.motion = mMotion.get(b.name);
 				}
 				b.current_motion = 0;
 			}
-			
 		}
 		
 		if(fa != null) {

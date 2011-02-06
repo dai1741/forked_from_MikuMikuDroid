@@ -615,4 +615,8 @@ public class Miku {
 		return b.matrix;
 	}
 
+	public boolean hasMotion() {
+		return mMotion != null;
+	}
+
 }
