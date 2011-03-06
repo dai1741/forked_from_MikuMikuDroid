@@ -14,7 +14,7 @@ public class Miku {
 	public MikuModel mModel;
 
 	// motion data
-	private MikuMotion mMotion;
+	public MikuMotion mMotion;
 
 	// temporary data
 	private MotionPair mMpWork = new MotionPair();

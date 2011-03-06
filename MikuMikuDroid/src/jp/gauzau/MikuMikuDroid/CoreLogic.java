@@ -17,6 +17,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.opengl.Matrix;
 import android.os.PowerManager;
+import android.util.Log;
 
 public class CoreLogic {
 	// model / music data
@@ -24,6 +25,7 @@ public class CoreLogic {
 	private Miku				mMikuStage;
 	private MikuMotion			mCamera;
 	private MediaPlayer			mMedia;
+	private String				mMediaName;
 	private long				mPrevTime;
 	private long				mStartTime;
 	private double				mFPS;
@@ -52,18 +54,20 @@ public class CoreLogic {
 	}
 
 	public CoreLogic(Context ctx) {
-		mCtx = ctx;
+		clearMember();
 		
-		clear();
+		mCtx = ctx;
 	}
 	
 	public void setGLConfig(int boneNum) {
 		if(mBoneNum == 0) {
 			mBoneNum = boneNum;
-			restoreState();
+			onInitialize();
 		}
 	}
 	
+	public void onInitialize() {}
+
 	// ///////////////////////////////////////////////////////////
 	// Model configurations
 	public void loadModel(String modelf) throws IOException {
@@ -75,9 +79,6 @@ public class CoreLogic {
 		Miku miku = new Miku(model);
 				
 		// add Miku
-		if (mMiku == null) {
-			mMiku = new ArrayList<Miku>();
-		}
 		mMiku.add(miku);
 	}
 	
@@ -164,9 +165,6 @@ public class CoreLogic {
 		}
 		
 		// add Miku
-		if (mMiku == null) {
-			mMiku = new ArrayList<Miku>();
-		}
 		mMiku.add(miku);
 	}
 
@@ -182,9 +180,12 @@ public class CoreLogic {
 	}
 
 	public synchronized void loadMedia(String media) {
+		mMediaName = media;
 		Uri uri = Uri.parse(media);
 		mMedia = MediaPlayer.create(mCtx, uri);
-		mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
+		if(mMedia != null) {
+			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);			
+		}
 	}
 
 	public synchronized void loadCamera(String camera) throws IOException {
@@ -192,7 +193,16 @@ public class CoreLogic {
 	}
 
 	public synchronized void clear() {
-		mMiku = null;
+		clearMember();
+		
+		SharedPreferences sp = mCtx.getSharedPreferences("default", 0);
+		SharedPreferences.Editor ed = sp.edit();
+		ed.clear();
+		ed.commit();
+	}
+	
+	private void clearMember() {
+		mMiku = new ArrayList<Miku>();
 		mMikuStage = null;
 		mPrevTime = 0;
 		mStartTime = 0;
@@ -205,11 +215,6 @@ public class CoreLogic {
 		mAngle = 0;
 
 		setDefaultCamera();
-		
-		SharedPreferences sp = mCtx.getSharedPreferences("default", 0);
-		SharedPreferences.Editor ed = sp.edit();
-		ed.clear();
-		ed.commit();
 	}
 
 	public synchronized void setScreenAngle(int angle) {
@@ -260,12 +265,95 @@ public class CoreLogic {
 	}
 
 	public void storeState() {
+		SharedPreferences sp = mCtx.getSharedPreferences("default", Context.MODE_PRIVATE);
+		SharedPreferences.Editor ed = sp.edit();
+		
+		// model & motion
+		if(mMiku != null) {
+			ed.putInt("ModelNum", mMiku.size());
+			for(int i = 0; i < mMiku.size(); i++) {
+				Miku m = mMiku.get(i);
+				ed.putString(String.format("Model%d", i), m.mModel.mFileName);
+				ed.putString(String.format("Motion%d", i), m.mMotion.mFileName);
+			}
+		} else {
+			ed.putInt("ModelNum", 0);
+		}
+		
+		// stage
+		if(mMikuStage != null) {
+			ed.putString("Stage", mMikuStage.mModel.mFileName);
+		}
+		
+		// camera
+		if(mCamera != null) {
+			ed.putString("Camera", mCamera.mFileName);
+		}
+		
+		// music
 		if(mMedia != null) {
-			SharedPreferences sp = mCtx.getSharedPreferences("default", 0);
-			SharedPreferences.Editor ed = sp.edit();
+			ed.putString("Music", mMediaName);
 			ed.putInt("Position", mMedia.getCurrentPosition());
+		}
+		
+		ed.commit();
+		Log.d("CoreLogic", "Store State");
+	}
+	
+	public void restoreState() {
+		SharedPreferences sp = mCtx.getSharedPreferences("default", Context.MODE_PRIVATE);
+		
+		try {
+			// model & motion
+			int num = sp.getInt("ModelNum", 0);
+			
+			String model[] = new String[num];
+			String motion[] = new String[num];
+			for(int i = 0; i < num; i++) {
+				model[i]  = sp.getString(String.format("Model%d", i), null);
+				motion[i] = sp.getString(String.format("Motion%d", i), null);
+			}
+
+			String stage = sp.getString("Stage", null);
+			String camera = sp.getString("Camera", null);
+			String music = sp.getString("Music", null);
+			int pos = sp.getInt("Position", 0);
+			
+			// crear preferences
+			Editor ed = sp.edit();
+			ed.clear();
 			ed.commit();
-		}		
+			
+			// load data
+			for(int i = 0; i < num; i++) {
+				loadModelMotion(model[i], motion[i]);
+			}
+			
+			if(stage != null) {
+				loadStage(stage);
+			}			
+
+			if(camera != null) {
+				loadCamera(camera);
+			}			
+
+			if(music != null) {
+				loadMedia(music);
+				if(mMedia != null) {
+					mMedia.seekTo(pos);					
+				}
+			}
+
+			// restore
+			storeState();
+		
+		} catch(IOException e) {
+			Editor ed = sp.edit();
+			ed.clear();
+			ed.commit();
+		}
+		
+
 	}
 
 	public void setScreenSize(int width, int height) {
@@ -371,48 +459,10 @@ public class CoreLogic {
 		
 		return item;
 	}
-
+	
 	// ///////////////////////////////////////////////////////////
 	// Some common methods
-	private void restoreState() {
-		SharedPreferences sp = mCtx.getSharedPreferences("default", Context.MODE_PRIVATE);
 
-		// model & motion
-		int num = sp.getInt("ModelNum", 0);
-		try {
-			for(int i = 0; i < num; i++) {
-				String model  = sp.getString(String.format("Model%d", i), null);
-				String motion = sp.getString(String.format("Motion%d", i), null);
-				if(model != null) {
-					if(motion == null) {
-						loadStage(model);
-					} else {
-						loadModelMotion(model, motion);
-					}
-				}
-			}
-
-			// camera
-			String camera = sp.getString("Camera", null);
-			if(camera != null) {
-				loadCamera(camera);
-			}			
-
-			// music
-			String music = sp.getString("Music", null);
-			if(music != null) {
-				Uri uri = Uri.parse(music);
-				mMedia = MediaPlayer.create(mCtx, uri);
-				int pos = sp.getInt("Position", 0);
-				mMedia.seekTo(pos);
-			}
-		} catch(IOException e) {
-			Editor ed = sp.edit();
-			ed.clear();
-			ed.commit();
-		}
-		
-	}
 
 	protected double nowFrames(int max_frame) {
 		double frame;

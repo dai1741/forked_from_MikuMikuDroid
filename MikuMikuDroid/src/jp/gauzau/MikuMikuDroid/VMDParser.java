@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 import android.util.Log;
 
 public class VMDParser extends ParserBase {
+	private String  mFileName;
 	private boolean mIsVmd;
 	private String mModelName;
 	private int mMaxFrame;
@@ -20,6 +21,7 @@ public class VMDParser extends ParserBase {
 
 	public VMDParser(String file) throws IOException {
 		super(file);
+		mFileName = file;
 		mMaxFrame = 0;
 		parseVMDHeader();
 		parseVMDFrame();
@@ -216,5 +218,9 @@ public class VMDParser extends ParserBase {
 	
 	public ArrayList<CameraIndex> getCamera() {
 		return mCamera;
+	}
+	
+	public String getFileName() {
+		return mFileName;
 	}
 }

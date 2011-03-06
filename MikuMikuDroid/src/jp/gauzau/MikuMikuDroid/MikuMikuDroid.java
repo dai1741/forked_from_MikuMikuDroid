@@ -23,7 +23,26 @@ public class MikuMikuDroid extends Activity {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		mCoreLogic = new CoreLogic(this);
+		mCoreLogic = new CoreLogic(this) {
+			@Override
+			public void onInitialize() {
+				MikuMikuDroid.this.runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						AsyncExec<CoreLogic> ae = new AsyncExec<CoreLogic>(MikuMikuDroid.this) {
+							@Override
+							protected boolean exec(CoreLogic target) {
+								mCoreLogic.restoreState();
+								return true;
+							}
+						};
+						ae.setMax(1);
+						ae.setMessage("Restoreing Previous state...");
+						ae.execute(mCoreLogic);
+					}
+				});
+			}
+		};
 		mCoreLogic.setScreenAngle(0);
 
 		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic);
@@ -72,80 +91,81 @@ public class MikuMikuDroid extends Activity {
 
 		case (Menu.FIRST + 0):
 			final CoreLogic.Selection sc0 = mCoreLogic.getModelSelector();
-			openSelectDialog(sc0.item, R.string.menu_load_model, R.string.setup_alert_pmd,
-				new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						final String model = sc0.task.select(which);
-						final CoreLogic.Selection sc = mCoreLogic.getMotionSelector();
-						openSelectDialog(sc.item, R.string.menu_load_motion, R.string.setup_alert_vmd,
-							new DialogInterface.OnClickListener() {
+			openSelectDialog(sc0.item, R.string.menu_load_model, R.string.setup_alert_pmd, new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					final String model = sc0.task.select(which);
+					final CoreLogic.Selection sc = mCoreLogic.getMotionSelector();
+					openSelectDialog(sc.item, R.string.menu_load_motion, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, final int which) {
+							final String motion = sc.task.select(which);
+							AsyncExec<CoreLogic> ae = new AsyncExec<CoreLogic>(MikuMikuDroid.this) {
 								@Override
-								public void onClick(DialogInterface dialog, final int which) {
-									final String motion = sc.task.select(which);
-									new AsyncTask<Void, Void, Void>() {
-										@Override
-										protected Void doInBackground(Void... params) {
-											try {
-												if(which == 0) {
-													mCoreLogic.loadStage(model);
-												} else {
-													mCoreLogic.loadModelMotion(model, motion);											
-												}
-											} catch (IOException e) {
-												// TODO Auto-generated catch block
-												e.printStackTrace();
-											}										
-											return null;
+								protected boolean exec(CoreLogic target) {
+									try {
+										if(which == 0) {
+											target.loadStage(model);
+										} else {
+											target.loadModelMotion(model, motion);											
 										}
-									}.execute();
+										mCoreLogic.storeState();
+									} catch (IOException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
+									return true;
 								}
-						});
-					}
-				});
+								
+							};
+							ae.setMax(1);
+							ae.setMessage("Loading Model/Motion...");
+							ae.execute(mCoreLogic);
+						}
+					});
+				}
+			});
 			break;
 
 		case (Menu.FIRST + 1):
 			final CoreLogic.Selection sc1 = mCoreLogic.getCameraSelector();
-			openSelectDialog(sc1.item, R.string.menu_load_camera, R.string.setup_alert_vmd,
-				new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						final String camera = sc1.task.select(which);
-						new AsyncTask <Void, Void, Void>() {
-							@Override
-							protected Void doInBackground(Void... params) {
-								try {
-									mCoreLogic.loadCamera(camera);
-								} catch (IOException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
-								return null;
+			openSelectDialog(sc1.item, R.string.menu_load_camera, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					final String camera = sc1.task.select(which);
+					new AsyncTask <Void, Void, Void>() {
+						@Override
+						protected Void doInBackground(Void... params) {
+							try {
+								mCoreLogic.loadCamera(camera);
+								mCoreLogic.storeState();
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
-							
-						}.execute();
-					}
-				});
+							return null;
+						}
+					}.execute();
+				}
+			});
 			break;
 
 		case (Menu.FIRST + 2):
 			final CoreLogic.Selection sc2 = mCoreLogic.getMediaSelector();
-			openSelectDialog(sc2.item, R.string.menu_load_music, R.string.setup_alert_music,
-				new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						final String media = sc2.task.select(which);
-						new AsyncTask <Void, Void, Void>() {
-							@Override
-							protected Void doInBackground(Void... params) {
-								mCoreLogic.loadMedia(media);
-								return null;
-							}
-							
-						}.execute();
-					}
-				});
+			openSelectDialog(sc2.item, R.string.menu_load_music, R.string.setup_alert_music, new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					final String media = sc2.task.select(which);
+					new AsyncTask <Void, Void, Void>() {
+						@Override
+						protected Void doInBackground(Void... params) {
+							mCoreLogic.loadMedia(media);
+							mCoreLogic.storeState();
+							return null;
+						}
+					}.execute();
+				}
+			});
 			break;
 			
 		case (Menu.FIRST + 3):
@@ -178,6 +198,11 @@ public class MikuMikuDroid extends Activity {
 			ad.setItems(item, task);
 		}
 		ad.show();
+	}
+	
+	@Override
+	public void onSaveInstanceState(Bundle bundle) {
+		mCoreLogic.storeState();
 	}
 
 	@Override

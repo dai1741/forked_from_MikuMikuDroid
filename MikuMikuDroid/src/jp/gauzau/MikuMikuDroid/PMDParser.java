@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import android.util.Log;
 
 public class PMDParser extends ParserBase {
+	private String  mFileName;
 	private boolean mIsPmd;
 	private String mModelName;
 	private String mDescription;
@@ -31,6 +32,7 @@ public class PMDParser extends ParserBase {
 
 	public PMDParser(String file) throws IOException {
 		super(file);
+		mFileName = file;
 		mIsPmd = false;
 		File f = new File(file);
 		String path = f.getParent() + "/";
@@ -525,6 +527,10 @@ public class PMDParser extends ParserBase {
 	
 	public ArrayList<Joint> getJoint() {
 		return mJoint;
+	}
+	
+	public String getFileName() {
+		return mFileName;
 	}
 
 	public void recycle() {

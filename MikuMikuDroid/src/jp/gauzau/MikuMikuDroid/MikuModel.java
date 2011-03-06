@@ -26,6 +26,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	private static final long serialVersionUID = -9127943692220369080L;
 	
 	// model configuration
+	public transient String mFileName;	
 	public transient boolean mAnimation;
 	public transient int mRenameNum;
 	public transient int mRenameBone;
@@ -53,7 +54,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 	public transient HashMap<String, TexBitmap> mTexture;
 	public transient ArrayList<TexBitmap> mToon;
-	
+
 	public MikuModel() {
 		
 	}
@@ -67,6 +68,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 	public void init(PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
+		mFileName       = pmd.getFileName();
 		mRenameNum		= rename_num;
 		mRenameBone		= rename_bone;
 		mAnimation		= animation;
@@ -475,6 +477,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 	
 	public void read(ObjectInputStream is) throws IOException, ClassNotFoundException {
+		mFileName  = is.readUTF();
 		mAnimation = is.readBoolean();
 		mRenameNum = is.readInt();
 		mRenameBone = is.readInt();
@@ -541,6 +544,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 	
 	public void write(ObjectOutputStream os) throws IOException {
+		os.writeUTF(mFileName);
 		os.writeBoolean(mAnimation);
 		os.writeInt(mRenameNum);
 		os.writeInt(mRenameBone);

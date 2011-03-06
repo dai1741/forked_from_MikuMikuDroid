@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 
 public class MikuMotion implements Serializable {
 	private static final long serialVersionUID = -7581376490687593200L;
+	public  transient String mFileName;
 	private transient int mMaxFrame;
 	private transient HashMap<String, ArrayList<MotionIndex>> mMotion;
 	private transient HashMap<String, ArrayList<FaceIndex>> mFace;
@@ -25,6 +26,7 @@ public class MikuMotion implements Serializable {
 	}
 	
 	public void attachVMD(VMDParser vmd) {
+		mFileName       = vmd.getFileName();
 		mMotion			= vmd.getMotion();
 		mFace			= vmd.getFace();
 		mCamera			= vmd.getCamera();
