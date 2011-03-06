@@ -389,6 +389,7 @@ public class PMDParser extends ParserBase {
 					material.texture = null;
 					material.sphere = null;
 				} else {
+					material.texture = material.texture.replace('\\', '/');
 					String sp[] = material.texture.split("\\*");
 					if (sp.length == 2) {
 						material.texture = path + sp[0];

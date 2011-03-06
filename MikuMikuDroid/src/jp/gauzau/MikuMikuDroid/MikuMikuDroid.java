@@ -23,7 +23,7 @@ public class MikuMikuDroid extends Activity {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		mCoreLogic = new CoreLogic(this.getApplicationContext());
+		mCoreLogic = new CoreLogic(this);
 		mCoreLogic.setScreenAngle(0);
 
 		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic);

@@ -16,6 +16,7 @@ import android.content.SharedPreferences.Editor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.opengl.Matrix;
+import android.os.PowerManager;
 
 public class CoreLogic {
 	// model / music data
@@ -183,6 +184,7 @@ public class CoreLogic {
 	public synchronized void loadMedia(String media) {
 		Uri uri = Uri.parse(media);
 		mMedia = MediaPlayer.create(mCtx, uri);
+		mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
 	}
 
 	public synchronized void loadCamera(String camera) throws IOException {
@@ -238,14 +240,17 @@ public class CoreLogic {
 		}		
 	}
 
-	public void toggleStartStop() {
+	public boolean toggleStartStop() {
 		if (mMedia != null) {
 			if (mMedia.isPlaying()) {
 				mMedia.pause();
+				return false;
 			} else {
 				mMedia.start();
+				return true;
 			}
-		}		
+		}
+		return false;
 	}
 
 	public void rewind() {

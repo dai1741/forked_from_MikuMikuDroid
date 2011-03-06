@@ -345,9 +345,9 @@ public class MikuModel implements Serializable, SerializableExt {
 					TexBitmap tb = new TexBitmap();
 	
 					tb.bmp = loadPicture(mat.texture, 2);
-					Log.d("Miku",
-							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
+//					Log.d("Miku",
+//							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
+//									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
 					mTexture.put(mat.texture, tb);
 	
 					// bind
@@ -393,9 +393,9 @@ public class MikuModel implements Serializable, SerializableExt {
 					TexBitmap tb = new TexBitmap();
 	
 					tb.bmp = loadPicture(mat.texture, 2);
-					Log.d("Miku",
-							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
+//					Log.d("Miku",
+//							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
+//									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
 					mTexture.put(mat.texture, tb);
 	
 					// bind
@@ -443,9 +443,9 @@ public class MikuModel implements Serializable, SerializableExt {
 		for (int i = 0; i < 11; i++) {
 			TexBitmap tb = new TexBitmap();
 			tb.bmp = loadPicture(mToonFileName.get(i), 1);
-			Log.d("Miku",
-					mToonFileName.get(i) + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-							+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
+//			Log.d("Miku",
+//					mToonFileName.get(i) + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
+//							+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
 			mToon.add(tb);
 		}
 	}
