@@ -17,6 +17,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.opengl.Matrix;
 import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
 import android.util.Log;
 
 public class CoreLogic {
@@ -25,6 +26,7 @@ public class CoreLogic {
 	private Miku				mMikuStage;
 	private MikuMotion			mCamera;
 	private MediaPlayer			mMedia;
+	private FakeMedia			mFakeMedia;
 	private String				mMediaName;
 	private long				mPrevTime;
 	private long				mStartTime;
@@ -52,11 +54,99 @@ public class CoreLogic {
 	interface StringSelecter {
 		public String select(int idx);
 	}
+	
+	private class FakeMedia {
+		private WakeLock mWakeLock;
+		private boolean mIsPlaying;
+		private long mCallTime;
+		private long mPos;
+		private boolean mIsFinished;
+		private long mMax;
+
+
+		public FakeMedia(Context ctx) {
+			PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+			mWakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "MikuMikuDroid");
+			mIsPlaying = false;
+			mIsFinished = false;
+			mPos = 0;
+			mMax = 0;
+		}
+		
+		public void toggleStartStop() {
+			updatePos();
+			if(mIsPlaying) {	// during play
+				stop();
+			} else {
+				start();
+			}
+		}
+		
+		public long getCurrentPosition() {
+			updatePos();
+			
+			return mPos;
+		}
+		
+		public void relaseLock() {
+			if(mIsPlaying) {
+				stop();
+			}
+			mIsFinished = false;
+			mPos = 0;
+			mMax = 0;
+		}
+		
+		private void updatePos() {
+			if(mIsPlaying) {
+				long cur = System.currentTimeMillis();
+				mPos += (cur - mCallTime);
+				mCallTime = cur;
+
+				if(mPos > mMax) {
+					mPos = mMax;
+					mIsFinished = true;
+					stop();
+				}
+			}
+		}
+		
+		private void start() {
+			mWakeLock.acquire();
+			mIsPlaying = true;
+			mCallTime  = System.currentTimeMillis();
+			if(mIsFinished) {
+				mIsFinished = false;
+				mPos = 0;
+			}
+		}
+		
+		private void stop() {
+			mWakeLock.release();
+			mIsPlaying = false;			
+		}
+
+		public void seekTo(long i) {
+			mPos = i;
+		}
+
+		public void pause() {
+			if(mIsPlaying = false) {
+				stop();				
+			}
+		}
+
+		public void setMax(long maxFrame) {
+			mMax = maxFrame * 1000 / 30;
+		}
+		
+	}
 
 	public CoreLogic(Context ctx) {
-		clearMember();
-		
 		mCtx = ctx;
+		mFakeMedia = new FakeMedia(ctx);
+		
+		clearMember();
 	}
 	
 	public void setGLConfig(int boneNum) {
@@ -166,6 +256,9 @@ public class CoreLogic {
 		
 		// add Miku
 		mMiku.add(miku);
+		
+		// set max dulation
+		mFakeMedia.setMax(motion.maxFrame());
 	}
 
 	public synchronized void loadStage(String file) throws IOException {
@@ -180,6 +273,13 @@ public class CoreLogic {
 	}
 
 	public synchronized void loadMedia(String media) {
+		if(mMedia != null) {
+			mMedia.stop();
+			mMedia.release();
+		} else {
+			mFakeMedia.relaseLock();
+		}
+		
 		mMediaName = media;
 		Uri uri = Uri.parse(media);
 		mMedia = MediaPlayer.create(mCtx, uri);
@@ -210,6 +310,8 @@ public class CoreLogic {
 		if(mMedia != null) {
 			mMedia.stop();
 			mMedia.release();			
+		} else {
+			mFakeMedia.relaseLock();
 		}
 		mMedia = null;
 		mAngle = 0;
@@ -242,7 +344,9 @@ public class CoreLogic {
 	public void pause() {
 		if (mMedia != null) {
 			mMedia.pause();
-		}		
+		} else {
+			mFakeMedia.pause();
+		}
 	}
 
 	public boolean toggleStartStop() {
@@ -254,6 +358,8 @@ public class CoreLogic {
 				mMedia.start();
 				return true;
 			}
+		} else {
+			mFakeMedia.toggleStartStop();
 		}
 		return false;
 	}
@@ -261,7 +367,9 @@ public class CoreLogic {
 	public void rewind() {
 		if (mMedia != null) {
 			mMedia.seekTo(0);
-		}		
+		} else {
+			mFakeMedia.seekTo(0);
+		}
 	}
 
 	public void storeState() {
@@ -466,23 +574,25 @@ public class CoreLogic {
 
 	protected double nowFrames(int max_frame) {
 		double frame;
+		long timeMedia;
 		if (mMedia != null) {
-			long timeMedia = mMedia.getCurrentPosition();
+			timeMedia = mMedia.getCurrentPosition();
 			long timeLocal = System.currentTimeMillis();
 			if (Math.abs(timeLocal - mStartTime - timeMedia) > 500 || mMedia.isPlaying() == false) {
 				mStartTime = timeLocal - timeMedia;
 			} else {
 				timeMedia = timeLocal - mStartTime;
 			}
-			frame = ((float) timeMedia * 30.0 / 1000.0);
-			if (frame > max_frame) {
-				frame = max_frame;
-			}
-			mFPS = 1000.0 / (timeMedia - mPrevTime);
-			mPrevTime = timeMedia;
 		} else {
-			frame = 0;
+			timeMedia = mFakeMedia.getCurrentPosition();
 		}
+
+		frame = ((float) timeMedia * 30.0 / 1000.0);
+		if (frame > max_frame) {
+			frame = max_frame;
+		}
+		mFPS = 1000.0 / (timeMedia - mPrevTime);
+		mPrevTime = timeMedia;
 
 		return frame;
 	}
