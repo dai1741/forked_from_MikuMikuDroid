@@ -171,7 +171,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	public void onDrawFrame(GL10 gl) {
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 
-		mCoreLogic.applyCurrentMotion();
+		int pos = mCoreLogic.applyCurrentMotion();
 
 		GLES20.glUseProgram(mProgram);
 
@@ -220,6 +220,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		}
 
 		GLES20.glFlush();
+		mCoreLogic.onDraw(pos);
 	}
 
 	@Override

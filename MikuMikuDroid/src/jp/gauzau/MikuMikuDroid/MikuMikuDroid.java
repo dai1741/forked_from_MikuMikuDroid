@@ -9,12 +9,20 @@ import android.content.DialogInterface;
 import android.content.res.Configuration;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.widget.RelativeLayout;
+import android.widget.RelativeLayout.LayoutParams;
+import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 
 public class MikuMikuDroid extends Activity {
 	// View
 	private MMGLSurfaceView mMMGLSurfaceView;
+	private RelativeLayout mRelativeLayout;
+	private SeekBar mSeekBar;
 	
 	// Model
 	private CoreLogic mCoreLogic;
@@ -33,20 +41,73 @@ public class MikuMikuDroid extends Activity {
 							@Override
 							protected boolean exec(CoreLogic target) {
 								mCoreLogic.restoreState();
+								final int max = target.getDulation();
+								mSeekBar.post(new Runnable() {
+									@Override
+									public void run() {
+										mSeekBar.setMax(max);
+									}
+								});
 								return true;
 							}
 						};
 						ae.setMax(1);
-						ae.setMessage("Restoreing Previous state...");
+						ae.setMessage("Restoring Previous state...");
 						ae.execute(mCoreLogic);
+					}
+				});
+			}
+			
+			@Override
+			public void onDraw(final int pos) {
+				MikuMikuDroid.this.mSeekBar.post(new Runnable() {
+					@Override
+					public void run() {
+						MikuMikuDroid.this.mSeekBar.setProgress(pos);
 					}
 				});
 			}
 		};
 		mCoreLogic.setScreenAngle(0);
 
+		mRelativeLayout = new RelativeLayout(this);
+		mRelativeLayout.setVerticalGravity(Gravity.BOTTOM);
 		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic);
-		setContentView(mMMGLSurfaceView);
+		LayoutParams p = new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT);
+		p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+		mSeekBar = new SeekBar(this);
+		mSeekBar.setLayoutParams(p);
+		mSeekBar.setVisibility(SeekBar.INVISIBLE);
+		mSeekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+			private boolean mIsPlaying = false;
+
+			@Override
+			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+				if(fromUser) {
+					mCoreLogic.seekTo(progress);
+				}
+			}
+
+			@Override
+			public void onStartTrackingTouch(SeekBar seekBar) {
+				if(mCoreLogic.isPlaying()) {
+					mCoreLogic.pause();
+					mIsPlaying = true;
+				}
+			}
+
+			@Override
+			public void onStopTrackingTouch(SeekBar seekBar) {
+				if(mIsPlaying) {
+					mCoreLogic.toggleStartStop();
+					mIsPlaying = false;
+				}
+			}
+			
+		});
+		mRelativeLayout.addView(mMMGLSurfaceView);
+		mRelativeLayout.addView(mSeekBar);
+		setContentView(mRelativeLayout);
 
 		if (mCoreLogic.checkFileIsPrepared() == false) {
 			Builder ad;
@@ -107,7 +168,14 @@ public class MikuMikuDroid extends Activity {
 										if(which == 0) {
 											target.loadStage(model);
 										} else {
-											target.loadModelMotion(model, motion);											
+											target.loadModelMotion(model, motion);
+											final int max = target.getDulation();
+											mSeekBar.post(new Runnable() {
+												@Override
+												public void run() {
+													mSeekBar.setMax(max);
+												}
+											});
 										}
 										mCoreLogic.storeState();
 									} catch (IOException e) {
@@ -139,6 +207,13 @@ public class MikuMikuDroid extends Activity {
 							try {
 								mCoreLogic.loadCamera(camera);
 								mCoreLogic.storeState();
+								final int max = mCoreLogic.getDulation();
+								mSeekBar.post(new Runnable() {
+									@Override
+									public void run() {
+										mSeekBar.setMax(max);
+									}
+								});
 							} catch (IOException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
@@ -161,6 +236,13 @@ public class MikuMikuDroid extends Activity {
 						protected Void doInBackground(Void... params) {
 							mCoreLogic.loadMedia(media);
 							mCoreLogic.storeState();
+							final int max = mCoreLogic.getDulation();
+							mSeekBar.post(new Runnable() {
+								@Override
+								public void run() {
+									mSeekBar.setMax(max);
+								}
+							});
 							return null;
 						}
 					}.execute();
@@ -198,6 +280,15 @@ public class MikuMikuDroid extends Activity {
 			ad.setItems(item, task);
 		}
 		ad.show();
+	}
+	
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		if(event.getAction() == MotionEvent.ACTION_UP) {
+			mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE ? SeekBar.INVISIBLE : SeekBar.VISIBLE);
+			mRelativeLayout.requestLayout();
+		}
+		return false;
 	}
 	
 	@Override

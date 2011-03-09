@@ -78,49 +78,35 @@ public class MikuMotion implements Serializable {
 	
 	public MotionPair findMotion(Bone b, float frame, MotionPair mp) {
 		if (b != null && b.motion != null) {
-			mp.m0 = null;
-			mp.m1 = null;
-			for (int i = b.current_motion; i < b.motion.size(); i++) {
-				MotionIndex m = b.motion.get(i);
-				if (m.frame_no == frame) {
-					mp.m0 = m;
-					mp.m1 = null;
-					b.current_motion = i;
-					return mp;
-				} else if (m.frame_no < frame) {
-					mp.m0 = m;
-					b.current_motion = i;
-				} else if (m.frame_no > frame) {
-					mp.m1 = m;
-					if (mp.m0 != null) {
-						return mp;
-					} else {
-						break;
-					}
-				}
-			}
-			if (mp.m0 != null && mp.m1 == null) { // the end of motion
-				return mp;
-			}
-			if (frame > b.motion.size()) {
-				mp.m0 = b.motion.get(b.motion.size() - 1);
+			int m0 = 0;
+			int m1 = b.motion.size() - 1;
+			mp.m0 = b.motion.get(m0);
+			mp.m1 = b.motion.get(m1);
+			if(frame >= mp.m1.frame_no) {
+				mp.m0 = mp.m1;
 				mp.m1 = null;
+				b.current_motion = m1;
 				return mp;
 			}
-			for (int i = 0; i < b.motion.size(); i++) {
-				MotionIndex m = b.motion.get(i);
 
-				if (m.frame_no == frame) {
+			while(true) {
+				int center = (m0 + m1) / 2;
+				if(center == m0) {
+					b.current_motion = center;
+					return mp;
+				}
+				MotionIndex m = b.motion.get(center);
+				if(m.frame_no == frame) {
 					mp.m0 = m;
 					mp.m1 = null;
-					b.current_motion = b.motion.indexOf(m);
+					b.current_motion = center;
 					return mp;
-				} else if (m.frame_no < frame) {
-					mp.m0 = m;
-					b.current_motion = b.motion.indexOf(m);
-				} else if (m.frame_no > frame) {
+				} else if(m.frame_no > frame) {
 					mp.m1 = m;
-					return mp;
+					m1 = center;
+				} else {
+					mp.m0 = m;
+					m0 = center;
 				}
 			}
 		}
@@ -160,57 +146,43 @@ public class MikuMotion implements Serializable {
 		}
 	}
 
-	public FacePair findFace(Face f, float frame, FacePair mp) {
-		if (f != null && f.motion != null) {
-			mp.m0 = null;
-			mp.m1 = null;
-			for (int i = f.current_motion; i < f.motion.size(); i++) {
-				FaceIndex m = f.motion.get(i);
-				if (m.frame_no == frame) {
-					mp.m0 = m;
-					mp.m1 = null;
-					f.current_motion = i;
-					return mp;
-				} else if (m.frame_no < frame) {
-					mp.m0 = m;
-					f.current_motion = i;
-				} else if (m.frame_no > frame) {
-					mp.m1 = m;
-					if (mp.m0 != null) {
-						return mp;
-					} else {
-						break;
-					}
-				}
-			}
-			if (mp.m0 != null && mp.m1 == null) { // the end of motion
-				return mp;
-			}
-			if (frame > f.motion.size()) {
-				mp.m0 = f.motion.get(f.motion.size() - 1);
+	public FacePair findFace(Face b, float frame, FacePair mp) {
+		if (b != null && b.motion != null) {
+			int m0 = 0;
+			int m1 = b.motion.size() - 1;
+			mp.m0 = b.motion.get(m0);
+			mp.m1 = b.motion.get(m1);
+			if(frame >= mp.m1.frame_no) {
+				mp.m0 = mp.m1;
 				mp.m1 = null;
+				b.current_motion = m1;
 				return mp;
 			}
-			for (int i = 0; i < f.motion.size(); i++) {
-				FaceIndex m = f.motion.get(i);
 
-				if (m.frame_no == frame) {
+			while(true) {
+				int center = (m0 + m1) / 2;
+				if(center == m0) {
+					b.current_motion = center;
+					return mp;
+				}
+				FaceIndex m = b.motion.get(center);
+				if(m.frame_no == frame) {
+					b.current_motion = center;
 					mp.m0 = m;
 					mp.m1 = null;
-					f.current_motion = f.motion.indexOf(m);
 					return mp;
-				} else if (m.frame_no < frame) {
-					mp.m0 = m;
-					f.current_motion = f.motion.indexOf(m);
-				} else if (m.frame_no > frame) {
+				} else if(m.frame_no > frame) {
 					mp.m1 = m;
-					return mp;
+					m1 = center;
+				} else {
+					mp.m0 = m;
+					m0 = center;
 				}
 			}
 		}
-
 		return null;
 	}
+
 
 	public FaceIndex interpolateLinear(FacePair mp, float frame, FaceIndex m) {
 		if (mp == null) {
@@ -230,55 +202,41 @@ public class MikuMotion implements Serializable {
 
 	public CameraPair findCamera(float frame, CameraPair mp) {
 		if (mCamera != null) {
-			mp.m0 = null;
-			mp.m1 = null;
-			for (int i = mCameraCurrent; i < mCamera.size(); i++) {
-				CameraIndex c = mCamera.get(i);
-				if (c.frame_no == frame) {
-					mp.m0 = c;
-					mp.m1 = null;
-					mCameraCurrent = i;
-					return mp;
-				} else if (c.frame_no < frame) {
-					mp.m0 = c;
-					mCameraCurrent = i;
-				} else if (c.frame_no > frame) {
-					mp.m1 = c;
-					if (mp.m0 != null) {
-						return mp;
-					} else {
-						break;
-					}
-				}
-			}
-			if (mp.m0 != null && mp.m1 == null) { // the end of motion
-				return mp;
-			}
-			if (frame > mCamera.size()) {
-				mp.m0 = mCamera.get(mCamera.size() - 1);
+			int m0 = 0;
+			int m1 = mCamera.size() - 1;
+			mp.m0 = mCamera.get(m0);
+			mp.m1 = mCamera.get(m1);
+			if(frame >= mp.m1.frame_no) {
+				mp.m0 = mp.m1;
 				mp.m1 = null;
+				mCameraCurrent = m1;
 				return mp;
 			}
 
-			for (int i = 0; i < mCamera.size(); i++) {
-				CameraIndex c = mCamera.get(i);
-				if (c.frame_no == frame) {
-					mp.m0 = c;
-					mp.m1 = null;
-					mCameraCurrent = mCamera.indexOf(c);
-					return mp;
-				} else if (c.frame_no < frame) {
-					mp.m0 = c;
-					mCameraCurrent = mCamera.indexOf(c);
-				} else if (c.frame_no > frame) {
-					mp.m1 = c;
+			while(true) {
+				int center = (m0 + m1) / 2;
+				if(center == m0) {
+					mCameraCurrent = center;
 					return mp;
 				}
+				CameraIndex m = mCamera.get(center);
+				if(m.frame_no == frame) {
+					mp.m0 = m;
+					mp.m1 = null;
+					mCameraCurrent = center;
+					return mp;
+				} else if(m.frame_no > frame) {
+					mp.m1 = m;
+					m1 = center;
+				} else {
+					mp.m0 = m;
+					m0 = center;
+				}
 			}
-
 		}
 		return null;
 	}
+
 
 	public CameraIndex interpolateLinear(CameraPair mp, float frame, CameraIndex m) {
 		if (mp == null) {

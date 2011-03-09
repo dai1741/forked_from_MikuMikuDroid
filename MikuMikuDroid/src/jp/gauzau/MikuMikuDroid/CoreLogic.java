@@ -59,9 +59,9 @@ public class CoreLogic {
 		private WakeLock mWakeLock;
 		private boolean mIsPlaying;
 		private long mCallTime;
-		private long mPos;
+		private int mPos;
 		private boolean mIsFinished;
-		private long mMax;
+		private int mMax;
 
 
 		public FakeMedia(Context ctx) {
@@ -82,7 +82,7 @@ public class CoreLogic {
 			}
 		}
 		
-		public long getCurrentPosition() {
+		public int getCurrentPosition() {
 			updatePos();
 			
 			return mPos;
@@ -126,18 +126,26 @@ public class CoreLogic {
 			mIsPlaying = false;			
 		}
 
-		public void seekTo(long i) {
+		public void seekTo(int i) {
 			mPos = i;
 		}
 
 		public void pause() {
-			if(mIsPlaying = false) {
+			if(mIsPlaying) {
 				stop();				
 			}
 		}
 
-		public void setMax(long maxFrame) {
+		public void setMax(int maxFrame) {
 			mMax = maxFrame * 1000 / 30;
+		}
+
+		public int getDuration() {
+			return mMax;
+		}
+
+		public boolean isPlaying() {
+			return mIsPlaying;
 		}
 		
 	}
@@ -326,7 +334,7 @@ public class CoreLogic {
 		}
 	}
 	
-	public synchronized void applyCurrentMotion() {
+	public synchronized int applyCurrentMotion() {
 		double frame;
 		frame = nowFrames(32767);
 
@@ -339,6 +347,7 @@ public class CoreLogic {
 			}
 		}
 		setCameraByVMDFrame(frame);
+		return (int) (frame * 1000 / 30);
 	}
 	
 	public void pause() {
@@ -363,14 +372,37 @@ public class CoreLogic {
 		}
 		return false;
 	}
-
-	public void rewind() {
-		if (mMedia != null) {
-			mMedia.seekTo(0);
+	
+	public boolean isPlaying() {
+		if(mMedia != null) {
+			return mMedia.isPlaying();
 		} else {
-			mFakeMedia.seekTo(0);
+			return mFakeMedia.isPlaying();
 		}
 	}
+
+	public void rewind() {
+		seekTo(0);
+	}
+	
+	public void seekTo(int pos) {
+		if (mMedia != null) {
+			mMedia.seekTo(pos);
+		} else {
+			mFakeMedia.seekTo(pos);
+		}
+	}
+	
+	public int getDulation() {
+		if(mMedia != null) {
+			return mMedia.getDuration();
+		} else {
+			return mFakeMedia.getDuration();
+		}
+	}
+	
+	public void onDraw(final int pos) {}
+
 
 	public void storeState() {
 		SharedPreferences sp = mCtx.getSharedPreferences("default", Context.MODE_PRIVATE);
@@ -401,7 +433,15 @@ public class CoreLogic {
 		// music
 		if(mMedia != null) {
 			ed.putString("Music", mMediaName);
-			ed.putInt("Position", mMedia.getCurrentPosition());
+			int cur = mMedia.getCurrentPosition();
+			if(cur + 100 < mMedia.getDuration()) {
+				ed.putInt("Position", cur);
+			}
+		} else {
+			int cur = mFakeMedia.getCurrentPosition();
+			if(cur + 100 < mFakeMedia.getDuration()) {
+				ed.putInt("Position", cur);
+			}
 		}
 		
 		ed.commit();
@@ -450,6 +490,8 @@ public class CoreLogic {
 				if(mMedia != null) {
 					mMedia.seekTo(pos);					
 				}
+			} else {
+				mFakeMedia.seekTo(pos);
 			}
 
 			// restore
@@ -577,11 +619,13 @@ public class CoreLogic {
 		long timeMedia;
 		if (mMedia != null) {
 			timeMedia = mMedia.getCurrentPosition();
-			long timeLocal = System.currentTimeMillis();
-			if (Math.abs(timeLocal - mStartTime - timeMedia) > 500 || mMedia.isPlaying() == false) {
-				mStartTime = timeLocal - timeMedia;
-			} else {
-				timeMedia = timeLocal - mStartTime;
+			if(mMedia.isPlaying()) {
+				long timeLocal = System.currentTimeMillis();
+				if (Math.abs(timeLocal - mStartTime - timeMedia) > 500 || mMedia.isPlaying() == false) {
+					mStartTime = timeLocal - timeMedia;
+				} else {
+					timeMedia = timeLocal - mStartTime;
+				}				
 			}
 		} else {
 			timeMedia = mFakeMedia.getCurrentPosition();
@@ -649,4 +693,5 @@ public class CoreLogic {
 			setCamera(-30f, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight);
 		}
 	}
+
 }

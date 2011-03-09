@@ -23,7 +23,7 @@ public class MikuRendererBase implements Renderer {
 	// Rendar Interfaces
 	@Override
 	public void onDrawFrame(GL10 gl) {
-
+		
 	}
 
 	@Override
