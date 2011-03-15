@@ -15,10 +15,20 @@ import android.util.Log;
 
 public class TgaBitmapFactory {
 
-	public static Bitmap decodeFileCached(String file, int scale) throws IOException {
-		String png = file.replaceFirst(".tga", "_mmcache.png");
-		File f = new File(png);
-		if (!f.exists()) {
+	public static Bitmap decodeFileCached(String base, String file, int scale) throws IOException {
+		
+		// delete previous cache
+		String df = file.replaceFirst(".tga", "_mmcache.png");
+		File d = new File(df);
+		if (d.exists()) {
+			d.delete();
+		}
+
+		// create cache
+		CacheFile c = new CacheFile(base, "png");
+		c.addFile(file);
+		String png = c.getCacheFileName();
+		if (!c.hasCache()) {
 			createCache(file, png);
 		}
 

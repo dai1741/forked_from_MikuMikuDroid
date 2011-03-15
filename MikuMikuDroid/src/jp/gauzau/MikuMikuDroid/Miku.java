@@ -49,27 +49,29 @@ public class Miku {
 
 	public void setBonePosByVMDFrame(float i) {
 		ArrayList<Bone> ba = mModel.mBone;
-		int max = ba.size();
+		if(ba != null) {
+			int max = ba.size();
 
-		for (int r = 0; r < max; r++) {
-			Bone b = ba.get(r);
-			setBoneMatrix(b, i);
-		}
+			for (int r = 0; r < max; r++) {
+				Bone b = ba.get(r);
+				setBoneMatrix(b, i);
+			}
 
-		if(mModel.mIK != null && mMotion.getIKMotion() == null) {
-			ccdIK();
-		}
-		// fakePhysics(i);
+			if(mModel.mIK != null && mMotion.getIKMotion() == null) {
+				ccdIK();
+			}
+			// fakePhysics(i);
 
-		for (int r = 0; r < max; r++) {
-			Bone b = ba.get(r);
-			updateBoneMatrix(b);
-		}
+			for (int r = 0; r < max; r++) {
+				Bone b = ba.get(r);
+				updateBoneMatrix(b);
+			}
 
-		for (int r = 0; r < max; r++) {
-			Bone b = ba.get(r);
-			Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
-			b.updated = false;
+			for (int r = 0; r < max; r++) {
+				Bone b = ba.get(r);
+				Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
+				b.updated = false;
+			}
 		}
 	}
 	

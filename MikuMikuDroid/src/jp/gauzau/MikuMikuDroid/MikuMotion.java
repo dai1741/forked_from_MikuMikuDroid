@@ -34,7 +34,7 @@ public class MikuMotion implements Serializable {
 	}
 	
 	public void attachModel(ArrayList<Bone> ba, ArrayList<Face> fa) {
-		if(ba != null) {
+		if(ba != null && mMotion != null) {
 			for(Bone b: ba) {
 				if(mIKMotion != null) {
 					b.motion = mIKMotion.get(b.name);
@@ -48,7 +48,7 @@ public class MikuMotion implements Serializable {
 			}
 		}
 		
-		if(fa != null) {
+		if(fa != null && mFace != null) {
 			for(Face f: fa) {
 				f.motion = mFace.get(f.name);
 				f.current_motion = 0;

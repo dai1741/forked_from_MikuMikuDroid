@@ -32,6 +32,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	public transient int mRenameBone;
 	public transient CubeArea mCube;
 	public transient boolean mIsTextureLoaded;
+	private transient String mBase;
 	
 	// model data
 	public transient FloatBuffer mToonCoordBuffer;
@@ -59,15 +60,16 @@ public class MikuModel implements Serializable, SerializableExt {
 		
 	}
 	
-	public MikuModel(PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
-		init(pmd, rename_num, rename_bone, animation);
+	public MikuModel(String base, PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
+		init(base, pmd, rename_num, rename_bone, animation);
 	}
 
-	public MikuModel(PMDParser pmd, int rename_num, int rename_bone) {
-		init(pmd, rename_num, rename_bone, true);
+	public MikuModel(String base, PMDParser pmd, int rename_num, int rename_bone) {
+		init(base, pmd, rename_num, rename_bone, true);
 	}
 
-	public void init(PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
+	public void init(String base, PMDParser pmd, int rename_num, int rename_bone, boolean animation) {
+		mBase			= base;
 		mFileName       = pmd.getFileName();
 		mRenameNum		= rename_num;
 		mRenameBone		= rename_bone;
@@ -457,7 +459,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		Bitmap bmp = null;
 		if (file.endsWith(".tga")) {
 			try {
-				bmp = TgaBitmapFactory.decodeFileCached(file, scale);
+				bmp = TgaBitmapFactory.decodeFileCached(mBase, file, scale);
 			} catch (IOException e) {
 				e.printStackTrace();
 				return null;

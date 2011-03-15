@@ -24,9 +24,11 @@ public class VMDParser extends ParserBase {
 		mFileName = file;
 		mMaxFrame = 0;
 		parseVMDHeader();
-		parseVMDFrame();
-		parseVMDFace();
-		parseVMDCamera();
+		if(mIsVmd) {
+			parseVMDFrame();
+			parseVMDFace();
+			parseVMDCamera();			
+		}
 	}
 	
 	private void parseVMDCamera() {

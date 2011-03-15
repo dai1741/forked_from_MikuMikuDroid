@@ -39,29 +39,30 @@ public class PMDParser extends ParserBase {
 
 		try {
 			parsePMDHeader();
-			parsePMDVertexList();
-			parsePMDIndexList();
-			parsePMDMaterialList(path);
-			parsePMDBoneList();
-			parsePMDIKList();
-			parsePMDFaceList();
-			parsePMDSkinDisp();
-			parsePMDBoneDispName();
-			parsePMDBoneDisp();
-			if (!isEof()) {
-				parsePMDEnglish();
-				parsePMDToonFileName(path);
-				parsePMDRigidBody();
-				parsePMDJoint();
-			} else {
-				mToonFileName = new ArrayList<String>(11);
-				mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
-				for (int i = 0; i < 10; i++) {
-					String str = String.format("/sdcard/MikuMikuDroid/Data/toon%02d.bmp", i + 1);
-//					Log.d("PMDParser", str);
-					mToonFileName.add(i + 1, str);
-				}
+			if(mIsPmd) {
+				parsePMDVertexList();
+				parsePMDIndexList();
+				parsePMDMaterialList(path);
+				parsePMDBoneList();
+				parsePMDIKList();
+				parsePMDFaceList();
+				parsePMDSkinDisp();
+				parsePMDBoneDispName();
+				parsePMDBoneDisp();
+				if (!isEof()) {
+					parsePMDEnglish();
+					parsePMDToonFileName(path);
+					parsePMDRigidBody();
+					parsePMDJoint();
+				} else {
+					mToonFileName = new ArrayList<String>(11);
+					mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
+					for (int i = 0; i < 10; i++) {
+						String str = String.format("/sdcard/MikuMikuDroid/Data/toon%02d.bmp", i + 1);
+						mToonFileName.add(i + 1, str);
+					}
 
+				}				
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

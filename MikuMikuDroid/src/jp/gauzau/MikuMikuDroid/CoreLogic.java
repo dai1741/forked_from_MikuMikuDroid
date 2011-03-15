@@ -36,6 +36,7 @@ public class CoreLogic {
 	private float[]				mMVMatrix = new float[16];
 	
 	// configurations
+	private String				mBase = "/sdcard/MikuMikuDroid/";
 	private int					mBoneNum = 0;
 	private Context				mCtx;
 	private int					mWidth;
@@ -171,7 +172,7 @@ public class CoreLogic {
 	public void loadModel(String modelf) throws IOException {
 		// model
 		PMDParser pmd = new PMDParser(modelf);
-		MikuModel model = new MikuModel(pmd, 256, mBoneNum, false);
+		MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, false);
 		
 		// Create Miku
 		Miku miku = new Miku(model);
@@ -211,68 +212,65 @@ public class CoreLogic {
 		}
 	}
 	
-	public synchronized void loadModelMotion(String modelf, String motionf) throws IOException {
-		// check cache
-		/*
-		String pmc = file.replaceFirst(".pmd", "_mmcache.pmc");
-		MikuModel model = null;
-		try {
-			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(pmc));
-			model = (MikuModel)oi.readObject();
-			oi.close();
-		} catch (Exception e) {
-			Log.d("MRB", e.toString());
-			e.printStackTrace();
-			PMDParser pmd = new PMDParser(file);
-			model = new MikuModel(pmd, 256, mBoneNum, true);
-			ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(pmc));
-			oi.writeObject(model);
-			oi.close();
-		}
-		*/
-
-		// model
+	public synchronized boolean loadModelMotion(String modelf, String motionf) throws IOException {
+		// read model/motion files
 		PMDParser pmd = new PMDParser(modelf);
-		MikuModel model = new MikuModel(pmd, 256, mBoneNum, true);
-		
-		// motion
 		VMDParser vmd = new VMDParser(motionf);
-		MikuMotion motion = null;
+		
+		if(pmd.isPmd() && vmd.isVmd()) {			
+			// construct model/motion data structure
+			MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, true);
+			MikuMotion motion = null;
+			
+			// delete previous cache
+			String vmc = motionf.replaceFirst(".vmd", "_mmcache.vmc");
+			File vmcf = new File(vmc);
+			if(vmcf.exists()) {
+				vmcf.delete();
+			}
 
-		// check IK cache
-		String vmc = motionf.replaceFirst(".vmd", "_mmcache.vmc");
-		try {
-			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
-			motion = (MikuMotion)oi.readObject();
-			motion.attachVMD(vmd);
-		} catch (Exception e) {
-			motion = new MikuMotion(vmd);
-		}
+			// check IK cache
+			CacheFile c = new CacheFile(mBase, "vmc");
+			c.addFile(modelf);
+			c.addFile(motionf);
+			vmc = c.getCacheFileName();
+			try {
+				ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
+				motion = (MikuMotion)oi.readObject();
+				motion.attachVMD(vmd);
+			} catch (Exception e) {
+				motion = new MikuMotion(vmd);
+			}
 
-		// Create Miku
-		Miku miku = new Miku(model);
-		miku.attachMotion(motion);
-		miku.setBonePosByVMDFrame(0);
-		miku.setFaceByVMDFrame(0);
-		
-		// store IK chache
-		File f = new File(vmc);
-		if(!f.exists()) {
-			ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmc));
-			oi.writeObject(motion);
+			// Create Miku
+			Miku miku = new Miku(model);
+			miku.attachMotion(motion);
+			miku.setBonePosByVMDFrame(0);
+			miku.setFaceByVMDFrame(0);
+			
+			// store IK chache
+			File f = new File(vmc);
+			if(!f.exists()) {
+				ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmc));
+				oi.writeObject(motion);
+			}
+			
+			// add Miku
+			mMiku.add(miku);
+			
+			// set max dulation
+			mFakeMedia.setMax(motion.maxFrame());
+			
+			return true;
+		} else {
+			return false;
 		}
-		
-		// add Miku
-		mMiku.add(miku);
-		
-		// set max dulation
-		mFakeMedia.setMax(motion.maxFrame());
 	}
 
 	public synchronized void loadStage(String file) throws IOException {
 		mMikuStage = null;
 		PMDParser pmd = new PMDParser(file);
-		MikuModel model = new MikuModel(pmd, 256, mBoneNum, false);
+		MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, false);
 		mMikuStage = new Miku(model);
 	}
 
@@ -532,16 +530,16 @@ public class CoreLogic {
 	}
 	
 	public boolean checkFileIsPrepared() {
-		File files = new File("/sdcard/MikuMikuDroid/Data/toon0.bmp");
+		File files = new File(mBase + "Data/toon0.bmp");
 		return files.exists();
 	}
 	
 	public Selection getModelSelector() {
 		final Selection sc = new Selection();
-		sc.item = listFiles("/sdcard/MikuMikuDroid/UserFile/Model/", ".pmd");
+		sc.item = listFiles(mBase + "UserFile/Model/", ".pmd");
 		sc.task = new StringSelecter() {
 			public String select(int idx) {
-				return "/sdcard/MikuMikuDroid/UserFile/Model/" + sc.item[idx] + ".pmd";
+				return mBase + "UserFile/Model/" + sc.item[idx] + ".pmd";
 			}
 		};
 		return sc;
@@ -549,7 +547,7 @@ public class CoreLogic {
 
 	public Selection getMotionSelector() {
 		final Selection sc = new Selection();
-		sc.item = listFiles("/sdcard/MikuMikuDroid/UserFile/Motion/", ".vmd");
+		sc.item = listFiles(mBase + "UserFile/Motion/", ".vmd");
 		String[] items;
 		if(sc.item == null) {
 			items = new String[1];
@@ -564,7 +562,7 @@ public class CoreLogic {
 
 		sc.task = new StringSelecter() {
 			public String select(int idx) {
-				return "/sdcard/MikuMikuDroid/UserFile/Motion/" + sc.item[idx] + ".vmd";
+				return mBase + "UserFile/Motion/" + sc.item[idx] + ".vmd";
 			}
 		};
 		return sc;
@@ -572,10 +570,10 @@ public class CoreLogic {
 
 	public Selection getCameraSelector() {
 		final Selection sc = new Selection();
-		sc.item = listFiles("/sdcard/MikuMikuDroid/UserFile/Motion/", ".vmd");
+		sc.item = listFiles(mBase + "UserFile/Motion/", ".vmd");
 		sc.task = new StringSelecter() {
 			public String select(int idx) {
-				return "/sdcard/MikuMikuDroid/UserFile/Motion/" + sc.item[idx] + ".vmd";
+				return mBase + "UserFile/Motion/" + sc.item[idx] + ".vmd";
 			}
 		};
 		return sc;
@@ -583,10 +581,10 @@ public class CoreLogic {
 	
 	public Selection getMediaSelector() {
 		final Selection sc = new Selection();
-		sc.item = listFiles("/sdcard/MikuMikuDroid/UserFile/Wave/", ".mp3");
+		sc.item = listFiles(mBase + "UserFile/Wave/", ".mp3");
 		sc.task = new StringSelecter() {
 			public String select(int idx) {
-				return "file:///sdcard/MikuMikuDroid/UserFile/Wave/" + sc.item[idx] + ".mp3";
+				return "file://" + mBase + "UserFile/Wave/" + sc.item[idx] + ".mp3";
 			}
 		};
 		return sc;
