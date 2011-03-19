@@ -92,12 +92,10 @@ public class Miku {
 	
 	private void initFace(Face f) {
 		for (int i = 0; i < f.face_vert_count; i++) {
-			FaceVertData fvd = f.face_vert_data.get(i);
-
-			fvd.base[0] = fvd.offset[0];
-			fvd.base[1] = fvd.offset[1];
-			fvd.base[2] = fvd.offset[2];
-			fvd.updated = false;
+			f.face_vert_base[i*3+0] = f.face_vert_offset[i*3+0];
+			f.face_vert_base[i*3+1] = f.face_vert_offset[i*3+1];
+			f.face_vert_base[i*3+2] = f.face_vert_offset[i*3+2];
+			f.face_vert_updated[i] = false;
 		}
 	}
 
@@ -106,25 +104,21 @@ public class Miku {
 		FaceIndex m = mMotion.interpolateLinear(mp, i, mFaceIndex);
 		if (m != null && m.weight > 0) {
 			for (int r = 0; r < f.face_vert_count; r++) {
-				FaceVertData fvd = f.face_vert_data.get(r);
-
-				FaceVertData base = mModel.mFaceBase.face_vert_data.get(fvd.face_vert_index);
-				base.base[0] += fvd.offset[0] * m.weight;
-				base.base[1] += fvd.offset[1] * m.weight;
-				base.base[2] += fvd.offset[2] * m.weight;
-				base.updated = true;
+				int baseidx = f.face_vert_index[r];
+				mModel.mFaceBase.face_vert_base[baseidx*3+0] += f.face_vert_offset[r*3+0] * m.weight;
+				mModel.mFaceBase.face_vert_base[baseidx*3+1] += f.face_vert_offset[r*3+1] * m.weight;
+				mModel.mFaceBase.face_vert_base[baseidx*3+2] += f.face_vert_offset[r*3+2] * m.weight;
+				mModel.mFaceBase.face_vert_updated[baseidx]   = true;
 			}
 		}
 	}
 
 	private void updateVertexFace(Face f) {
 		for (int r = 0; r < f.face_vert_count; r++) {
-			FaceVertData fvd = f.face_vert_data.get(r);
-
-			if (fvd.updated || !fvd.cleared) {
-				mModel.mAllBuffer.position(fvd.face_vert_index);
-				mModel.mAllBuffer.put(fvd.base, 0, 3);
-				fvd.cleared = !fvd.updated;
+			if (f.face_vert_updated[r] || !f.face_vert_cleared[r]) {
+				mModel.mAllBuffer.position(f.face_vert_index[r]);
+				mModel.mAllBuffer.put(f.face_vert_base, r*3, 3);
+				f.face_vert_cleared[r] = !f.face_vert_updated[r];
 			}
 		}
 		mModel.mAllBuffer.position(0);

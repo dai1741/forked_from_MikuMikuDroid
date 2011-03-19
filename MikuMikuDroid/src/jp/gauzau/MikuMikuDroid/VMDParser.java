@@ -29,6 +29,7 @@ public class VMDParser extends ParserBase {
 			parseVMDFace();
 			parseVMDCamera();			
 		}
+		close();
 	}
 	
 	private void parseVMDCamera() {

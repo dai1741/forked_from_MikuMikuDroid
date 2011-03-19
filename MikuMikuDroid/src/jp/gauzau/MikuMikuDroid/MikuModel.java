@@ -116,10 +116,15 @@ public class MikuModel implements Serializable, SerializableExt {
 			}
 	
 			// update base face
+			for(int i = 0; i < mFaceBase.face_vert_count; i++) {
+				mFaceBase.face_vert_index[i] = mIndexMaps[mFaceBase.face_vert_index[i]] * 8;
+			}
+			/*
 			for (FaceVertData fvd : mFaceBase.face_vert_data) {
 				// vertex is sorted by makeIndexSortedBuffers() in stride 8
 				fvd.face_vert_index = mIndexMaps[fvd.face_vert_index] * 8;
 			}
+			*/
 		}
 	}
 
@@ -180,12 +185,13 @@ public class MikuModel implements Serializable, SerializableExt {
 
 	void reconstructMaterial(PMDParser parser, int max_bone) {
 		mRendarList = new ArrayList<Material>();
+		HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ByteBuffer>();
 		for (Material mat : mMaterial) {
-			reconstructMaterial1(parser, mat, 0, max_bone);
+			reconstructMaterial1(parser, mat, 0, rename_pool, max_bone);
 		}
 	}
 	
-	void reconstructMaterial1(PMDParser pmd, Material mat, int offset, int max_bone) {
+	void reconstructMaterial1(PMDParser pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		Material mat_new = new Material(mat);
 		mat_new.face_vart_offset = mat.face_vart_offset + offset;
 
@@ -198,53 +204,111 @@ public class MikuModel implements Serializable, SerializableExt {
 			acc = renameBone1(pmd, rename, mat.face_vart_offset + j + 2, ver, acc);
 			if (acc > max_bone) {
 				mat_new.face_vert_count = j - offset;
-				mat_new.rename_hash = rename;
-				buildBoneRenameMap(mat_new, rename, max_bone);
-				buildBoneRenameInvMap(mat_new, rename, max_bone);
+				buildBoneRenameHash(pmd, mat_new, rename, rename_pool, max_bone);
+				/*
+				buildBoneRenameMap(mat_new, max_bone);
+				buildBoneRenameInvMap(mat_new, max_bone);
 				buildBoneRenameIndex(pmd, mat_new, max_bone);
+				*/
 				mRendarList.add(mat_new);
 
-//				Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
-//				for (Entry<Integer, Integer> b : rename.entrySet()) {
-//					Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
-//				}
+				Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
+				for (Entry<Integer, Integer> b : rename.entrySet()) {
+					Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
+				}
 
-				reconstructMaterial1(pmd, mat, j, max_bone);
+				reconstructMaterial1(pmd, mat, j, rename_pool, max_bone);
 				return;
 			}
 		}
 		mat_new.face_vert_count = mat.face_vert_count - offset;
-		mat_new.rename_hash = rename;
-		buildBoneRenameMap(mat_new, rename, max_bone);
-		buildBoneRenameInvMap(mat_new, rename, max_bone);
+		buildBoneRenameHash(pmd, mat_new, rename, rename_pool, max_bone);
+		/*
+		buildBoneRenameMap(mat_new, max_bone);
+		buildBoneRenameInvMap(mat_new, max_bone);
 		buildBoneRenameIndex(pmd, mat_new, max_bone);
+		*/
 		mRendarList.add(mat_new);
 
-//		Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
-//		for (Entry<Integer, Integer> b : rename.entrySet()) {
-//			Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
-//		}
+		Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
+		for (Entry<Integer, Integer> b : rename.entrySet()) {
+			Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
+		}
 	}
 
 
-	void buildBoneRenameMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
+	void buildBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
+		
+		// find unoverwrapped hash
+		for(Entry<HashMap<Integer, Integer>, ByteBuffer> pool: rename_pool.entrySet()) {
+			HashMap<Integer, Integer> map = pool.getKey();
+			ByteBuffer bb = pool.getValue();
+			
+			// check mapped
+			for(Entry<Integer, Integer> entry: rename.entrySet()) {
+				Integer i = map.get(entry.getKey());
+				if(i != null) {
+//					bb = null;
+				}
+				bb = null;
+			}
+			
+			// find free byte buffer
+			if(bb != null) {
+				rename_pool.remove(map);
+				
+				mat.rename_hash = rename;
+				mat.rename_index = bb;
+				buildBoneRenameMap(mat, max_bone);
+				buildBoneRenameInvMap(mat, max_bone);
+				buildBoneRenameIndex(pmd, mat, max_bone);
+				
+				map.putAll(rename);
+				rename_pool.put(map, bb);
+				Log.d("MikuModel", "Reuse buffer");
+				return ;
+			}
+		}
+		
+		// allocate new buffer
+		Log.d("MikuModel", "Allocate new buffer");
+		buildNewBoneRenameHash(pmd, mat, rename);
+		buildBoneRenameMap(mat, max_bone);
+		buildBoneRenameInvMap(mat, max_bone);
+		buildBoneRenameIndex(pmd, mat, max_bone);
+		
+		HashMap<Integer, Integer> new_map = new HashMap<Integer, Integer>(mat.rename_hash);
+		rename_pool.put(new_map, mat.rename_index);
+		
+		return ;
+	}
+	
+	void buildNewBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename) {
+		mat.rename_hash = rename;
+		
+		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
+		rbb.order(ByteOrder.nativeOrder());
+		mat.rename_index = rbb;
+	}
+	
+	void buildBoneRenameMap(Material mat, int max_bone) {
 		mat.rename_map = new int[mRenameNum];
 		for (int i = 0; i < mRenameNum; i++) {
 			mat.rename_map[i] = 0; // initialize
 		}
-		for (Entry<Integer, Integer> b : rename.entrySet()) {
+		for (Entry<Integer, Integer> b : mat.rename_hash.entrySet()) {
 			if (b.getValue() < max_bone) {
 				mat.rename_map[b.getKey()] = b.getValue();
 			}
 		}
 	}
 
-	void buildBoneRenameInvMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
+	void buildBoneRenameInvMap(Material mat, int max_bone) {
 		mat.rename_inv_map = new int[mRenameBone];
 		for (int i = 0; i < mRenameBone; i++) {
 			mat.rename_inv_map[i] = -1; // initialize
 		}
-		for (Entry<Integer, Integer> b : rename.entrySet()) {
+		for (Entry<Integer, Integer> b : mat.rename_hash.entrySet()) {
 			if (b.getValue() < max_bone) {
 				mat.rename_inv_map[b.getValue()] = b.getKey();
 			}
@@ -252,14 +316,11 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 	void buildBoneRenameIndex(PMDParser pmd, Material mat, int max_bone) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
-		rbb.order(ByteOrder.nativeOrder());
-		mat.rename_index = rbb;
-	
-		for (int i = 0; i < mIndexMaps.length; i++) {
-			Vertex ver = pmd.getVertex().get(i);
-			if (mIndexMaps[i] >= 0) {
-				mat.rename_index.position(mIndexMaps[i] * 3);
+		for (int i = mat.face_vart_offset; i < mat.face_vart_offset + mat.face_vert_count; i++) {
+			int pos = pmd.getIndex().get(i);
+			if (mIndexMaps[pos] >= 0) {
+				Vertex ver = pmd.getVertex().get(pos);
+				mat.rename_index.position(mIndexMaps[pos] * 3);
 				mat.rename_index.put((byte) mat.rename_map[ver.bone_num_0]);
 				mat.rename_index.put((byte) mat.rename_map[ver.bone_num_1]);
 				mat.rename_index.put(ver.bone_weight);

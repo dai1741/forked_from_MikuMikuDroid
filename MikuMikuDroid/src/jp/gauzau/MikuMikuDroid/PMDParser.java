@@ -268,6 +268,7 @@ public class PMDParser extends ParserBase {
 
 	private void parsePMDFaceList() {
 		short num = getShort();
+		int acc = 0;
 		Log.d("PMDParser", "Face: " + String.valueOf(num));
 		if (num > 0) {
 			mFace = new ArrayList<Face>(num);
@@ -278,20 +279,24 @@ public class PMDParser extends ParserBase {
 				face.face_vert_count = getInt();
 				face.face_type = getByte();
 
-				face.face_vert_data = new ArrayList<FaceVertData>(face.face_vert_count);
+//				face.face_vert_data = new ArrayList<FaceVertData>(face.face_vert_count);
+				acc += face.face_vert_count;
+				face.face_vert_index   = new int[face.face_vert_count];
+				face.face_vert_offset  = new float[face.face_vert_count*3];
+				face.face_vert_base    = new float[face.face_vert_count*3];
+				face.face_vert_cleared = new boolean[face.face_vert_count];
+				face.face_vert_updated = new boolean[face.face_vert_count];
 				for (int j = 0; j < face.face_vert_count; j++) {
-					FaceVertData fvd = new FaceVertData();
-					fvd.face_vert_index = getInt();
-					fvd.offset = new float[3];
-					fvd.base = new float[3];
-					fvd.cleared = true;
-					getFloat(fvd.offset);
-
-					face.face_vert_data.add(j, fvd);
+					face.face_vert_index[j] = getInt();
+					face.face_vert_offset[j * 3 + 0] = getFloat();
+					face.face_vert_offset[j * 3 + 1] = getFloat();
+					face.face_vert_offset[j * 3 + 2] = getFloat();
+					face.face_vert_cleared[j] = true;
 				}
 
 				mFace.add(i, face);
 			}
+			Log.d("PMDParser", String.format("Total Face Vert: %d", acc));
 		} else {
 			mFace = null;
 		}
@@ -426,7 +431,7 @@ public class PMDParser extends ParserBase {
 //						Log.d("PMDParser", String.format("Sphere map texture not found: %s", material.sphere));
 					}
 				}
-
+				
 				material.face_vart_offset = acc;
 
 				acc = acc + material.face_vert_count;
@@ -565,6 +570,7 @@ public class PMDParser extends ParserBase {
 		mEnglishBoneName = null;
 		mEnglishSkinName = null;
 		mEnglishBoneDispName = null;
+		close();
 	}
 
 	public void recycleVertex() {

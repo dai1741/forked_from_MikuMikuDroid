@@ -8,7 +8,11 @@ public class Face implements Serializable {
 	public String name;
 	public int face_vert_count;
 	public byte face_type;
-	public ArrayList<FaceVertData> face_vert_data;
+	public int[] face_vert_index;
+	public float[] face_vert_offset;
+	public float[] face_vert_base;
+	public boolean[] face_vert_cleared;
+	public boolean[] face_vert_updated;
 	
 	public transient ArrayList<FaceIndex> motion;
 	public transient int current_motion;

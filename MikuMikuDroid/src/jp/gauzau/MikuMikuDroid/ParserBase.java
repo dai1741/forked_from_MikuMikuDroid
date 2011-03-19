@@ -11,10 +11,11 @@ import java.nio.channels.FileChannel;
 public class ParserBase {
 	private byte buf[];
 	private MappedByteBuffer mBB;
+	private RandomAccessFile mRaf;
 
 	public ParserBase(String file) throws IOException {
-		RandomAccessFile raf = new RandomAccessFile(file, "r");
-		mBB = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, raf.length());
+		mRaf = new RandomAccessFile(file, "r");
+		mBB = mRaf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, mRaf.length());
 		mBB.position(0);
 		mBB.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -47,7 +48,7 @@ public class ParserBase {
 			f[i] = mBB.getFloat();
 		}
 	}
-
+	
 	protected int position() {
 		return mBB.position();
 	}
@@ -119,5 +120,15 @@ public class ParserBase {
 	protected boolean isExist(String file) {
 		File f = new File(file);
 		return f.exists();
+	}
+	
+	protected void close() {
+		try {
+			mRaf.close();
+			mBB = null;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }

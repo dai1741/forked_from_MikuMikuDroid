@@ -207,12 +207,13 @@ public class CoreLogic {
 	public synchronized boolean loadModelMotion(String modelf, String motionf) throws IOException {
 		// read model/motion files
 		PMDParser pmd = new PMDParser(modelf);
-		VMDParser vmd = new VMDParser(motionf);
 		
-		if(pmd.isPmd() && vmd.isVmd()) {			
+		
+		if(pmd.isPmd()) {			
 			// construct model/motion data structure
 			MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, true);
 			MikuMotion motion = null;
+			pmd = null;
 			
 			// delete previous cache
 			String vmc = motionf.replaceFirst(".vmd", "_mmcache.vmc");
@@ -221,39 +222,45 @@ public class CoreLogic {
 				vmcf.delete();
 			}
 
-			// check IK cache
-			CacheFile c = new CacheFile(mBase, "vmc");
-			c.addFile(modelf);
-			c.addFile(motionf);
-			vmc = c.getCacheFileName();
-			try {
-				ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
-				motion = (MikuMotion)oi.readObject();
-				motion.attachVMD(vmd);
-			} catch (Exception e) {
-				motion = new MikuMotion(vmd);
-			}
+			VMDParser vmd = new VMDParser(motionf);
+			if(vmd.isVmd()) {
+				// check IK cache
+				CacheFile c = new CacheFile(mBase, "vmc");
+				c.addFile(modelf);
+				c.addFile(motionf);
+				vmc = c.getCacheFileName();
+				try {
+					ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
+					motion = (MikuMotion)oi.readObject();
+					motion.attachVMD(vmd);
+				} catch (Exception e) {
+					motion = new MikuMotion(vmd);
+				}
+				vmd = null;
 
-			// Create Miku
-			Miku miku = new Miku(model);
-			miku.attachMotion(motion);
-			miku.setBonePosByVMDFrame(0);
-			miku.setFaceByVMDFrame(0);
-			
-			// store IK chache
-			File f = new File(vmc);
-			if(!f.exists()) {
-				ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmc));
-				oi.writeObject(motion);
+				// Create Miku
+				Miku miku = new Miku(model);
+				miku.attachMotion(motion);
+				miku.setBonePosByVMDFrame(0);
+				miku.setFaceByVMDFrame(0);
+				
+				// store IK chache
+				File f = new File(vmc);
+				if(!f.exists()) {
+					ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmc));
+					oi.writeObject(motion);
+				}
+				
+				// add Miku
+				mMiku.add(miku);
+				
+				// set max dulation
+				mFakeMedia.setMax(motion.maxFrame());
+				
+				return true;
+			} else {
+				return false;
 			}
-			
-			// add Miku
-			mMiku.add(miku);
-			
-			// set max dulation
-			mFakeMedia.setMax(motion.maxFrame());
-			
-			return true;
 		} else {
 			return false;
 		}
