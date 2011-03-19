@@ -131,10 +131,12 @@ public class Miku {
 	}
 
 	private void fakePhysics(float i) {
-		physicsFollowBone();
-		physicsFakeExec(i);
-		physicsCheckCollision();
-		physicsMoveBone();
+		if(mModel.mRigidBody != null) {
+			physicsFollowBone();
+			physicsFakeExec(i);
+			physicsCheckCollision();
+			physicsMoveBone();			
+		}
 	}
 	
 	private void physicsInitializer() {
@@ -142,29 +144,31 @@ public class Miku {
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;
 		
 		ArrayList<RigidBody> rba = mModel.mRigidBody;
-		for(int i = 0; i < rba.size(); i++) {
-			RigidBody rb = rba.get(i);
-			if(rb.bone_index >= 0) {
-				Bone base = mModel.mBone.get(rb.bone_index);
-				rb.cur_location[0] = base.head_pos[0] + rb.location[0];
-				rb.cur_location[1] = base.head_pos[1] + rb.location[1];
-				rb.cur_location[2] = base.head_pos[2] + rb.location[2];
-				rb.cur_location[3] = 1;
-				calcPendulumA(rb.cur_a, base, rb.cur_location, gravity, 1);
-				calcPendulumA(rb.tmp_a, base, rb.cur_location, gravity, 1);
-			} else {
-				rb.cur_location[0] = rb.location[0];
-				rb.cur_location[1] = rb.location[1];
-				rb.cur_location[2] = rb.location[2];
-				rb.cur_location[3] = 1;
-				Quaternion.setIndentity(rb.cur_a);
-				Quaternion.setIndentity(rb.tmp_a);
-			}
-			Quaternion.setIndentity(rb.cur_r);
-			Quaternion.setIndentity(rb.cur_v);
-			Quaternion.setIndentity(rb.tmp_r);
-			Quaternion.setIndentity(rb.tmp_v);
-			Quaternion.setIndentity(rb.prev_r);			
+		if(rba != null) {
+			for(int i = 0; i < rba.size(); i++) {
+				RigidBody rb = rba.get(i);
+				if(rb.bone_index >= 0) {
+					Bone base = mModel.mBone.get(rb.bone_index);
+					rb.cur_location[0] = base.head_pos[0] + rb.location[0];
+					rb.cur_location[1] = base.head_pos[1] + rb.location[1];
+					rb.cur_location[2] = base.head_pos[2] + rb.location[2];
+					rb.cur_location[3] = 1;
+					calcPendulumA(rb.cur_a, base, rb.cur_location, gravity, 1);
+					calcPendulumA(rb.tmp_a, base, rb.cur_location, gravity, 1);
+				} else {
+					rb.cur_location[0] = rb.location[0];
+					rb.cur_location[1] = rb.location[1];
+					rb.cur_location[2] = rb.location[2];
+					rb.cur_location[3] = 1;
+					Quaternion.setIndentity(rb.cur_a);
+					Quaternion.setIndentity(rb.tmp_a);
+				}
+				Quaternion.setIndentity(rb.cur_r);
+				Quaternion.setIndentity(rb.cur_v);
+				Quaternion.setIndentity(rb.tmp_r);
+				Quaternion.setIndentity(rb.tmp_v);
+				Quaternion.setIndentity(rb.prev_r);			
+			}			
 		}
 	}
 

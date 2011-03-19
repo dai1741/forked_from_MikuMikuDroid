@@ -167,9 +167,15 @@ public class PMDParser extends ParserBase {
 		mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
 		for (int i = 0; i < 10; i++) {
 			String str = getString(100);
+			str = str.replace('\\', '/');
 			if (isExist(path + str)) {
 				mToonFileName.add(i + 1, path + str);
 			} else {
+				String toon = "/sdcard/MikuMikuDroid/Data/" + str;
+				if(!isExist(toon)) {
+					mIsPmd = false;
+					Log.d("PMDParser", String.format("Toon texture not found: %s", str));
+				}
 				mToonFileName.add(i + 1, "/sdcard/MikuMikuDroid/Data/" + str);
 			}
 		}
@@ -405,6 +411,19 @@ public class PMDParser extends ParserBase {
 							material.texture = path + material.texture;
 							material.sphere = null;							
 						}
+					}
+				}
+				if(material.texture != null) {
+					if(!new File(material.texture).exists()) {
+						mIsPmd = false;
+						Log.d("PMDParser", String.format("Texture not found: %s", material.texture));
+					}
+				}
+				if(material.sphere != null) {
+					if(!new File(material.sphere).exists()) {
+						material.sphere = null;	// fake
+//						mIsPmd = false;
+//						Log.d("PMDParser", String.format("Sphere map texture not found: %s", material.sphere));
 					}
 				}
 

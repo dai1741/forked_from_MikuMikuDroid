@@ -1,5 +1,6 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.io.File;
 import java.io.IOException;
 
 import android.app.Activity;
@@ -151,16 +152,16 @@ public class MikuMikuDroid extends Activity {
 		switch (item.getItemId()) {
 
 		case (Menu.FIRST + 0):
-			final CoreLogic.Selection sc0 = mCoreLogic.getModelSelector();
-			openSelectDialog(sc0.item, R.string.menu_load_model, R.string.setup_alert_pmd, new DialogInterface.OnClickListener() {
+			final File[] sc0 = mCoreLogic.getModelSelector();
+			openSelectDialog(sc0, R.string.menu_load_model, R.string.setup_alert_pmd, new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					final String model = sc0.task.select(which);
-					final CoreLogic.Selection sc = mCoreLogic.getMotionSelector();
-					openSelectDialog(sc.item, R.string.menu_load_motion, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
+					final String model = sc0[which].getPath();
+					final File[] sc = mCoreLogic.getMotionSelector();
+					openMotionSelectDialog(sc, R.string.menu_load_motion, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
 						@Override
 						public void onClick(DialogInterface dialog, final int which) {
-							final String motion = sc.task.select(which);
+							final String motion = which == 0 ? null : sc[which-1].getPath();
 							AsyncExec<CoreLogic> ae = new AsyncExec<CoreLogic>(MikuMikuDroid.this) {
 								@Override
 								protected boolean exec(CoreLogic target) {
@@ -196,11 +197,11 @@ public class MikuMikuDroid extends Activity {
 			break;
 
 		case (Menu.FIRST + 1):
-			final CoreLogic.Selection sc1 = mCoreLogic.getCameraSelector();
-			openSelectDialog(sc1.item, R.string.menu_load_camera, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
+			final File[] sc1 = mCoreLogic.getCameraSelector();
+			openSelectDialog(sc1, R.string.menu_load_camera, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					final String camera = sc1.task.select(which);
+					final String camera = sc1[which].getPath();
 					new AsyncTask <Void, Void, Void>() {
 						@Override
 						protected Void doInBackground(Void... params) {
@@ -226,11 +227,11 @@ public class MikuMikuDroid extends Activity {
 			break;
 
 		case (Menu.FIRST + 2):
-			final CoreLogic.Selection sc2 = mCoreLogic.getMediaSelector();
-			openSelectDialog(sc2.item, R.string.menu_load_music, R.string.setup_alert_music, new DialogInterface.OnClickListener() {
+			final File[] sc2 = mCoreLogic.getMediaSelector();
+			openSelectDialog(sc2, R.string.menu_load_music, R.string.setup_alert_music, new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					final String media = sc2.task.select(which);
+					final String media = "file://" + sc2[which].getPath();
 					new AsyncTask <Void, Void, Void>() {
 						@Override
 						protected Void doInBackground(Void... params) {
@@ -269,7 +270,7 @@ public class MikuMikuDroid extends Activity {
 		return super.onOptionsItemSelected(item);
 	}
 	
-	private void openSelectDialog(String[] item, int title, int alert, DialogInterface.OnClickListener task) {
+	private void openSelectDialog(File[] item, int title, int alert, DialogInterface.OnClickListener task) {
 		Builder ad = new AlertDialog.Builder(this);
 		if (item == null) {
 			ad.setTitle(R.string.setup_alert_title);
@@ -277,11 +278,37 @@ public class MikuMikuDroid extends Activity {
 			ad.setPositiveButton(R.string.select_ok, null);
 		} else {
 			ad.setTitle(title);
-			ad.setItems(item, task);
+			String[] is = new String[item.length];
+			for(int i = 0; i < item.length; i++) {
+				is[i] = item[i].getName();
+				int idx = is[i].lastIndexOf(".");
+				is[i] = is[i].substring(0, idx);
+			}
+			ad.setItems(is, task);
 		}
 		ad.show();
 	}
-	
+
+	private void openMotionSelectDialog(File[] item, int title, int alert, DialogInterface.OnClickListener task) {
+		Builder ad = new AlertDialog.Builder(this);
+		if (item == null) {
+			ad.setTitle(R.string.setup_alert_title);
+			ad.setMessage(alert);
+			ad.setPositiveButton(R.string.select_ok, null);
+		} else {
+			ad.setTitle(title);
+			String[] is = new String[item.length+1];
+			is[0] = "Load as Background";
+			for(int i = 1; i < is.length; i++) {
+				is[i] = item[i-1].getName();
+				int idx = is[i].lastIndexOf(".");
+				is[i] = is[i].substring(0, idx);
+			}
+			ad.setItems(is, task);
+		}
+		ad.show();
+	}
+
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		if(event.getAction() == MotionEvent.ACTION_UP) {

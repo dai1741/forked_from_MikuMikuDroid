@@ -47,15 +47,7 @@ public class CoreLogic {
 	private CameraIndex			mCameraIndex = new CameraIndex();
 	private CameraPair			mCameraPair  = new CameraPair();
 	
-	class Selection {
-		public String []		item;
-		public StringSelecter	task;
-	}
-	
-	interface StringSelecter {
-		public String select(int idx);
-	}
-	
+
 	private class FakeMedia {
 		private WakeLock mWakeLock;
 		private boolean mIsPlaying;
@@ -270,8 +262,10 @@ public class CoreLogic {
 	public synchronized void loadStage(String file) throws IOException {
 		mMikuStage = null;
 		PMDParser pmd = new PMDParser(file);
-		MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, false);
-		mMikuStage = new Miku(model);
+		if(pmd.isPmd()) {
+			MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, false);
+			mMikuStage = new Miku(model);			
+		}
 	}
 
 	public double getFPS() {
@@ -534,78 +528,45 @@ public class CoreLogic {
 		return files.exists();
 	}
 	
-	public Selection getModelSelector() {
-		final Selection sc = new Selection();
-		sc.item = listFiles(mBase + "UserFile/Model/", ".pmd");
-		sc.task = new StringSelecter() {
-			public String select(int idx) {
-				return mBase + "UserFile/Model/" + sc.item[idx] + ".pmd";
-			}
-		};
-		return sc;
+	public File[] getModelSelector() {
+		return listFiles(mBase + "UserFile/Model/", ".pmd");
 	}
 
-	public Selection getMotionSelector() {
-		final Selection sc = new Selection();
-		sc.item = listFiles(mBase + "UserFile/Motion/", ".vmd");
-		String[] items;
-		if(sc.item == null) {
-			items = new String[1];
-		} else {
-			items = new String[sc.item.length + 1];
-		}
-		for (int i = 0; i < sc.item.length; i++) {
-			items[i + 1] = sc.item[i].replaceFirst(".vmd", "");
-		}
-		items[0] = "Load as Background";
-		sc.item = items;
-
-		sc.task = new StringSelecter() {
-			public String select(int idx) {
-				return mBase + "UserFile/Motion/" + sc.item[idx] + ".vmd";
-			}
-		};
-		return sc;
+	public File[] getMotionSelector() {
+		return listFiles(mBase + "UserFile/Motion/", ".vmd");
 	}
 
-	public Selection getCameraSelector() {
-		final Selection sc = new Selection();
-		sc.item = listFiles(mBase + "UserFile/Motion/", ".vmd");
-		sc.task = new StringSelecter() {
-			public String select(int idx) {
-				return mBase + "UserFile/Motion/" + sc.item[idx] + ".vmd";
-			}
-		};
-		return sc;
+	public File[] getCameraSelector() {
+		return listFiles(mBase + "UserFile/Motion/", ".vmd");
 	}
 	
-	public Selection getMediaSelector() {
-		final Selection sc = new Selection();
-		sc.item = listFiles(mBase + "UserFile/Wave/", ".mp3");
-		sc.task = new StringSelecter() {
-			public String select(int idx) {
-				return "file://" + mBase + "UserFile/Wave/" + sc.item[idx] + ".mp3";
-			}
-		};
-		return sc;
+	public File[] getMediaSelector() {
+		return listFiles(mBase + "UserFile/Wave/", ".mp3");
 	}
 
-	private String[] listFiles(String dir, final String ext) {
-		File files = new File(dir);
-		String[] item = files.list(new FilenameFilter() {
-			@Override
-			public boolean accept(File dir, String name) {
-				return name.endsWith(ext);
-			}
-		});
-		if(item != null) {
-			Arrays.sort(item);
-			for (int i = 0; i < item.length; i++) {
-				item[i] = item[i].replaceFirst(ext, "");
+
+	public File[] listFiles(String dir, String ext) {
+		File file = new File(dir);
+		ArrayList<File> list = listRecursive1(file, ext);
+		return (File[])list.toArray(new File[0]);
+	}
+	
+	private ArrayList<File> listRecursive1(File file, String ext) {
+		ArrayList<File> files = new ArrayList<File>();
+		if(file.exists()) {
+			if(file.isFile()) {
+				if(file.getName().endsWith(ext)) {
+					files.add(file);					
+				}
+			} else {
+				File[] list = file.listFiles();
+				for(int i = 0; i < list.length; i++) {
+					files.addAll(listRecursive1(list[i], ext));
+				}
 			}
 		}
 		
-		return item;
+		return files;
 	}
 	
 	// ///////////////////////////////////////////////////////////
