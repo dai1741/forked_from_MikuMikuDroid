@@ -242,9 +242,8 @@ public class MikuModel implements Serializable, SerializableExt {
 			for(Entry<Integer, Integer> entry: rename.entrySet()) {
 				Integer i = map.get(entry.getKey());
 				if(i != null) {
-//					bb = null;
+					bb = null;
 				}
-				bb = null;
 			}
 			
 			// find free byte buffer
