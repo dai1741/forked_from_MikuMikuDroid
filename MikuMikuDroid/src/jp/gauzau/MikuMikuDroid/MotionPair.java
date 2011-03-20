@@ -2,7 +2,7 @@ package jp.gauzau.MikuMikuDroid;
 
 public class MotionPair {
 
-	public MotionIndex m0;
-	public MotionIndex m1;
+	public int m0;
+	public int m1;
 
 }

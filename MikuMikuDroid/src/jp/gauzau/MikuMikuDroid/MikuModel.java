@@ -119,12 +119,6 @@ public class MikuModel implements Serializable, SerializableExt {
 			for(int i = 0; i < mFaceBase.face_vert_count; i++) {
 				mFaceBase.face_vert_index[i] = mIndexMaps[mFaceBase.face_vert_index[i]] * 8;
 			}
-			/*
-			for (FaceVertData fvd : mFaceBase.face_vert_data) {
-				// vertex is sorted by makeIndexSortedBuffers() in stride 8
-				fvd.face_vert_index = mIndexMaps[fvd.face_vert_index] * 8;
-			}
-			*/
 		}
 	}
 

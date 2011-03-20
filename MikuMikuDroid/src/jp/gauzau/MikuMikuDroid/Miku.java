@@ -406,9 +406,14 @@ public class Miku {
 			HashMap<Integer, Integer> frames = new HashMap<Integer, Integer>();
 			for (Entry<Integer, Bone> bones : parents.entrySet()) {
 				if (bones.getValue().motion != null) {
+					for(int i = 0; i < bones.getValue().motion.frame_no.length; i++) {
+						frames.put(bones.getValue().motion.frame_no[i], bones.getValue().motion.frame_no[i]);
+					}
+					/*
 					for (MotionIndex frame : bones.getValue().motion) {
 						frames.put(frame.frame_no, frame.frame_no);
 					}
+					*/
 				}
 			}
 
@@ -455,7 +460,7 @@ public class Miku {
 			// set motions to bones and motion
 			for (Entry<Short, ArrayList<MotionIndex>> entry : mhash.entrySet()) {
 				Bone b = mModel.mBone.get(entry.getKey());
-				b.motion = entry.getValue();
+				b.motion = MikuMotion.toMotionIndexA(entry.getValue());
 				b.current_motion = 0;
 				mhs.put(b.name, entry.getValue());
 			}
@@ -465,7 +470,7 @@ public class Miku {
 
 	private void setBoneMatrix(Bone b, float idx) {
 		MotionPair mp = mMotion.findMotion(b, idx, mMpWork);
-		Motion m = mMotion.interpolateLinear(mp, idx, mMwork);
+		Motion m = mMotion.interpolateLinear(mp, b.motion, idx, mMwork);
 		if (m != null) {
 			b.quaternion[0] = m.rotation[0];
 			b.quaternion[1] = m.rotation[1];

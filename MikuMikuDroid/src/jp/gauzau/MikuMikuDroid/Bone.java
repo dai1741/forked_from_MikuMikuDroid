@@ -1,7 +1,6 @@
 package jp.gauzau.MikuMikuDroid;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 
 public class Bone implements Serializable {
 	private static final long serialVersionUID = 7842056430910376644L;
@@ -14,7 +13,7 @@ public class Bone implements Serializable {
 	public float[] head_pos;
 	public boolean is_leg;
 	
-	public transient ArrayList<MotionIndex> motion;
+	public transient MotionIndexA motion;
 	public transient int current_motion;
 	public transient float[] matrix;
 	public transient float[] matrix_current;
