@@ -101,7 +101,7 @@ public class Miku {
 
 	private void setFace(Face f, float i) {
 		FacePair mp = mMotion.findFace(f, i, mFacePair);
-		FaceIndex m = mMotion.interpolateLinear(mp, i, mFaceIndex);
+		FaceIndex m = mMotion.interpolateLinear(mp, f.motion, i, mFaceIndex);
 		if (m != null && m.weight > 0) {
 			for (int r = 0; r < f.face_vert_count; r++) {
 				int baseidx = f.face_vert_index[r];

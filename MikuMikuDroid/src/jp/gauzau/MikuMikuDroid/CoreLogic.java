@@ -3,12 +3,10 @@ package jp.gauzau.MikuMikuDroid;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -229,12 +227,14 @@ public class CoreLogic {
 				c.addFile(modelf);
 				c.addFile(motionf);
 				vmc = c.getCacheFileName();
+				boolean vmc_success = true;
 				try {
 					ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
 					motion = (MikuMotion)oi.readObject();
 					motion.attachVMD(vmd);
 				} catch (Exception e) {
 					motion = new MikuMotion(vmd);
+					vmc_success = false;
 				}
 				vmd = null;
 
@@ -245,10 +245,13 @@ public class CoreLogic {
 				miku.setFaceByVMDFrame(0);
 				
 				// store IK chache
-				File f = new File(vmc);
-				if(!f.exists()) {
+				if(!vmc_success) {
+					File f = new File(vmc);
+					if(!f.exists()) {
+						f.delete();
+					}
 					ObjectOutputStream oi = new ObjectOutputStream(new FileOutputStream(vmc));
-					oi.writeObject(motion);
+					oi.writeObject(motion);					
 				}
 				
 				// add Miku

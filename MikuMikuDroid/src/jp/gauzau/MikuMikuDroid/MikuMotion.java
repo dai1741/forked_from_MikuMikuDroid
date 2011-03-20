@@ -8,18 +8,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import android.util.Log;
-
 public class MikuMotion implements Serializable {
-	private static final long serialVersionUID = -7581376490687593200L;
+	private static final long serialVersionUID = -6980450493306185580L;
+	
+	//	private static final long serialVersionUID = -7581376490687593200L;
 	public  transient String mFileName;
 	private transient int mMaxFrame;
 	private transient HashMap<String, MotionIndexA> mMotion;
-	private transient HashMap<String, ArrayList<FaceIndex>> mFace;
+	private transient HashMap<String, FaceIndexA> mFace;
 	private transient ArrayList<CameraIndex> mCamera;
 	private transient int mCameraCurrent;
 
-	private transient HashMap<String, ArrayList<MotionIndex>> mIKMotion;
+	private transient HashMap<String, MotionIndexA> mIKMotion;
 
 	public MikuMotion(VMDParser vmd) {
 		mCameraCurrent	= 0;
@@ -35,7 +35,10 @@ public class MikuMotion implements Serializable {
 			mMotion.put(m.getKey(), toMotionIndexA(m.getValue()));
 		}
 		
-		mFace			= vmd.getFace();
+		mFace = new HashMap<String, FaceIndexA>();
+		for(Entry<String, ArrayList<FaceIndex>> f: vmd.getFace().entrySet()) {
+			mFace.put(f.getKey(), toFaceIndexA(f.getValue()));
+		}
 		mCamera			= vmd.getCamera();
 		mMaxFrame		= vmd.maxFrame();		
 	}
@@ -44,7 +47,7 @@ public class MikuMotion implements Serializable {
 		if(ba != null && mMotion != null) {
 			for(Bone b: ba) {
 				if(mIKMotion != null) {
-					b.motion = toMotionIndexA(mIKMotion.get(b.name));
+					b.motion = mIKMotion.get(b.name);
 					if(b.motion == null) {
 						b.motion = mMotion.get(b.name);
 					}
@@ -88,6 +91,22 @@ public class MikuMotion implements Serializable {
 		}
 	}
 	
+	public static FaceIndexA toFaceIndexA(ArrayList<FaceIndex> m) {
+		if(m != null) {
+			FaceIndexA mia = new FaceIndexA(m.size());
+			
+			for(int i = 0; i < m.size(); i++) {
+				FaceIndex mi = m.get(i);
+				mia.frame_no[i] = mi.frame_no;
+				mia.weight[i]   = mi.weight;
+			}
+			
+			return mia;			
+		} else {
+			return null;
+		}
+	}
+	
 
 	public int maxFrame() {
 		return mMaxFrame;
@@ -97,16 +116,20 @@ public class MikuMotion implements Serializable {
 		return mMotion;
 	}
 	
-	public HashMap<String, ArrayList<FaceIndex>> getFace() {
+	public HashMap<String, FaceIndexA> getFace() {
 		return mFace;
 	}
 	
-	public HashMap<String, ArrayList<MotionIndex>> getIKMotion() {
+	public HashMap<String, MotionIndexA> getIKMotion() {
 		return mIKMotion;
 	}
 	
 	public void setIKMotion(HashMap<String, ArrayList<MotionIndex>> m) {
-		mIKMotion = m;
+		mIKMotion = new HashMap<String, MotionIndexA>();
+		for(Entry<String, ArrayList<MotionIndex>> mi: m.entrySet()) {
+			mIKMotion.put(mi.getKey(), toMotionIndexA(mi.getValue()));
+		}
+//		mIKMotion = toMotionIndexA(m);
 	}
 	
 	public MotionPair findMotion(Bone b, float frame, MotionPair mp) {
@@ -177,35 +200,31 @@ public class MikuMotion implements Serializable {
 
 	public FacePair findFace(Face b, float frame, FacePair mp) {
 		if (b != null && b.motion != null) {
-			int m0 = 0;
-			int m1 = b.motion.size() - 1;
-			mp.m0 = b.motion.get(m0);
-			mp.m1 = b.motion.get(m1);
-			if(frame >= mp.m1.frame_no) {
+			int[] frame_no = b.motion.frame_no;
+			mp.m0 = 0;
+			mp.m1 = b.motion.frame_no.length - 1;
+			if(frame >= frame_no[mp.m1]) {
 				mp.m0 = mp.m1;
-				mp.m1 = null;
-				b.current_motion = m1;
+				b.current_motion = mp.m1;
+				mp.m1 = -1;
 				return mp;
 			}
 
 			while(true) {
-				int center = (m0 + m1) / 2;
-				if(center == m0) {
+				int center = (mp.m0 + mp.m1) / 2;
+				if(center == mp.m0) {
 					b.current_motion = center;
 					return mp;
 				}
-				FaceIndex m = b.motion.get(center);
-				if(m.frame_no == frame) {
+				if(frame_no[center] == frame) {
+					mp.m0 = center;
+					mp.m1 = -1;
 					b.current_motion = center;
-					mp.m0 = m;
-					mp.m1 = null;
 					return mp;
-				} else if(m.frame_no > frame) {
-					mp.m1 = m;
-					m1 = center;
+				} else if(frame_no[center] > frame) {
+					mp.m1 = center;
 				} else {
-					mp.m0 = m;
-					m0 = center;
+					mp.m0 = center;
 				}
 			}
 		}
@@ -213,21 +232,24 @@ public class MikuMotion implements Serializable {
 	}
 
 
-	public FaceIndex interpolateLinear(FacePair mp, float frame, FaceIndex m) {
+	public FaceIndex interpolateLinear(FacePair mp, FaceIndexA mi, float frame, FaceIndex m) {
 		if (mp == null) {
 			return null;
-		} else if (mp.m1 == null) {
-			return mp.m0;
+		} else if (mp.m1 == -1) {
+			m.frame_no = mi.frame_no[mp.m0];
+			m.weight   = mi.weight[mp.m0];
+			return m;
 		} else {
-			int dif = mp.m1.frame_no - mp.m0.frame_no;
-			float a0 = frame - mp.m0.frame_no;
+			int dif = mi.frame_no[mp.m1] - mi.frame_no[mp.m0];
+			float a0 = frame - mi.frame_no[mp.m0];
 			float ratio = a0 / dif;
 
-			m.weight = mp.m0.weight + (mp.m1.weight - mp.m0.weight) * ratio;
+			m.weight = mi.weight[mp.m0] + (mi.weight[mp.m1] - mi.weight[mp.m0]) * ratio;
 
 			return m;
 		}
 	}
+
 
 	public CameraPair findCamera(float frame, CameraPair mp) {
 		if (mCamera != null) {
@@ -481,12 +503,9 @@ public class MikuMotion implements Serializable {
 			os.writeInt(0);
 		} else {
 			os.writeInt(mIKMotion.size());
-			for(Entry<String, ArrayList<MotionIndex>> i: mIKMotion.entrySet()) {
+			for(Entry<String, MotionIndexA> i: mIKMotion.entrySet()) {
 				os.writeUTF(i.getKey());
-				os.writeInt(i.getValue().size());
-				for(MotionIndex j: i.getValue()) {
-					j.write(os);
-				}
+				i.getValue().write(os);
 			}			
 		}
 	}
@@ -497,16 +516,11 @@ public class MikuMotion implements Serializable {
 		if(hsize == 0) {
 			mIKMotion = null;
 		} else {
-			mIKMotion = new HashMap<String, ArrayList<MotionIndex>>(hsize);
+			mIKMotion = new HashMap<String, MotionIndexA>(hsize);
 			for(int i = 0; i < hsize; i++) {
 				String name = is.readUTF();
-				int size = is.readInt();
-				ArrayList<MotionIndex> mi = new ArrayList<MotionIndex>(size);
-				for(int j = 0; j < size; j++) {
-					MotionIndex m = new MotionIndex();
-					m.read(is);
-					mi.add(m);
-				}
+				MotionIndexA mi = new MotionIndexA();
+				mi.read(is);
 				mIKMotion.put(name, mi);
 			}			
 		}

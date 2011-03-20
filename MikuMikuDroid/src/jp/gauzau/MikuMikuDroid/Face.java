@@ -14,7 +14,7 @@ public class Face implements Serializable {
 	public boolean[] face_vert_cleared;
 	public boolean[] face_vert_updated;
 	
-	public transient ArrayList<FaceIndex> motion;
+	public transient FaceIndexA motion;
 	public transient int current_motion;
 
 }
