@@ -1,11 +1,14 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.StringWriter;
 import java.util.ArrayList;
 
 import android.content.Context;
@@ -162,7 +165,7 @@ public class CoreLogic {
 	public void loadModel(String modelf) throws IOException {
 		// model
 		PMDParser pmd = new PMDParser(modelf);
-		MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, false);
+		MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
 		
 		// Create Miku
 		Miku miku = new Miku(model);
@@ -202,14 +205,14 @@ public class CoreLogic {
 		}
 	}
 	
-	public synchronized boolean loadModelMotion(String modelf, String motionf) throws IOException {
+	public synchronized boolean loadModelMotion(String modelf, String motionf) throws IOException, OutOfMemoryError {
 		// read model/motion files
 		PMDParser pmd = new PMDParser(modelf);
 		
 		
 		if(pmd.isPmd()) {			
 			// construct model/motion data structure
-			MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, true);
+			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, true);
 			MikuMotion motion = null;
 			pmd = null;
 			
@@ -269,11 +272,11 @@ public class CoreLogic {
 		}
 	}
 
-	public synchronized void loadStage(String file) throws IOException {
+	public synchronized void loadStage(String file) throws IOException, OutOfMemoryError {
 		mMikuStage = null;
 		PMDParser pmd = new PMDParser(file);
 		if(pmd.isPmd()) {
-			MikuModel model = new MikuModel(mBase, pmd, 256, mBoneNum, false);
+			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
 			mMikuStage = new Miku(model);			
 		}
 	}
@@ -577,6 +580,25 @@ public class CoreLogic {
 		}
 		
 		return files;
+	}
+	
+	public String getRawResourceString(int id) {
+		char[] buf = new char[1024];
+		StringWriter sw = new StringWriter();
+		
+		BufferedReader is = new BufferedReader(new InputStreamReader(mCtx.getResources().openRawResource(id)));
+		int n;
+		try {
+			while((n = is.read(buf)) != -1) {
+				sw.write(buf, 0, n);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+		
+		return sw.toString();
 	}
 	
 	// ///////////////////////////////////////////////////////////

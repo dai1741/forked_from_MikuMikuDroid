@@ -181,7 +181,7 @@ public class MikuRenderer extends MikuRendererBase {
 					}
 				}
 				// gl11.glBindBuffer(GL11.GL_ARRAY_BUFFER, 0);
-				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, mat.rename_index);
+				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_SHORT, 3, mat.rename_index);
 			}
 	
 			// Toon texture

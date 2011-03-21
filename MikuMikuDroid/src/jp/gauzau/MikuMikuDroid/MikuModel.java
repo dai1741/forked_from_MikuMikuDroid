@@ -179,13 +179,13 @@ public class MikuModel implements Serializable, SerializableExt {
 
 	void reconstructMaterial(PMDParser parser, int max_bone) {
 		mRendarList = new ArrayList<Material>();
-		HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ByteBuffer>();
+		HashMap<HashMap<Integer, Integer>, ShortBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ShortBuffer>();
 		for (Material mat : mMaterial) {
 			reconstructMaterial1(parser, mat, 0, rename_pool, max_bone);
 		}
 	}
 	
-	void reconstructMaterial1(PMDParser pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
+	void reconstructMaterial1(PMDParser pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ShortBuffer> rename_pool, int max_bone) {
 		Material mat_new = new Material(mat);
 		mat_new.face_vart_offset = mat.face_vart_offset + offset;
 
@@ -231,12 +231,12 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 
-	void buildBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
+	void buildBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ShortBuffer> rename_pool, int max_bone) {
 		
 		// find unoverwrapped hash
-		for(Entry<HashMap<Integer, Integer>, ByteBuffer> pool: rename_pool.entrySet()) {
+		for(Entry<HashMap<Integer, Integer>, ShortBuffer> pool: rename_pool.entrySet()) {
 			HashMap<Integer, Integer> map = pool.getKey();
-			ByteBuffer bb = pool.getValue();
+			ShortBuffer bb = pool.getValue();
 			
 			// check mapped
 			for(Entry<Integer, Integer> entry: rename.entrySet()) {
@@ -279,9 +279,9 @@ public class MikuModel implements Serializable, SerializableExt {
 	void buildNewBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename) {
 		mat.rename_hash = rename;
 		
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
+		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3 * 2);
 		rbb.order(ByteOrder.nativeOrder());
-		mat.rename_index = rbb;
+		mat.rename_index = rbb.asShortBuffer();
 	}
 	
 	void buildBoneRenameMap(Material mat, int max_bone) {
@@ -324,18 +324,19 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 	void buildBoneNoMotionRenameIndex(PMDParser pmd) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
+		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3 * 2);
 		rbb.order(ByteOrder.nativeOrder());
+		ShortBuffer sbb = rbb.asShortBuffer();
 	
 		for (int i = 0; i < pmd.getVertex().size(); i++) {
-			rbb.put((byte) 0);
-			rbb.put((byte) 0);
-			rbb.put((byte) 100);
+			sbb.put((byte) 0);
+			sbb.put((byte) 0);
+			sbb.put((byte) 100);
 		}
-		rbb.position(0);
+		sbb.position(0);
 	
 		for (Material m : mMaterial) {
-			m.rename_index = rbb;
+			m.rename_index = sbb;
 		}
 	}
 
@@ -442,56 +443,87 @@ public class MikuModel implements Serializable, SerializableExt {
 
 	public void readAndBindTextureGLES20() {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		mTexture = new HashMap<String, TexBitmap>();
+		if(mTexture == null) {
+			mTexture = new HashMap<String, TexBitmap>();			
+		}
 		for (int i = 0; i < mMaterial.size(); i++) {
 			Material mat = mMaterial.get(i);
 			if (mat.texture != null) {
-				if (mTexture.get(mat.texture) == null) {
-					// read
-					TexBitmap tb = new TexBitmap();
-	
-					tb.bmp = loadPicture(mat.texture, 2);
-//					Log.d("Miku",
-//							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-//									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-					mTexture.put(mat.texture, tb);
-	
-					// bind
-					int tex[] = new int[1];
-					GLES20.glGenTextures(1, tex, 0);
-					tb.tex = tex[0];
-	
-					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-					// GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
-					GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-					if (tb.bmp.hasAlpha()) { // workaround
-						ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
-						for (int y = 0; y < tb.bmp.getHeight(); y++) {
-							for (int x = 0; x < tb.bmp.getWidth(); x++) {
-								int pixel = tb.bmp.getPixel(x, y);
-								buf.put((byte) ((pixel >> 16) & 0xff));
-								buf.put((byte) ((pixel >> 8) & 0xff));
-								buf.put((byte) ((pixel >> 0) & 0xff));
-								buf.put((byte) ((pixel >> 24) & 0xff));
-							}
-						}
-						buf.position(0);
-						GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-						buf = null;
-					} else {
-						GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-					}
-					// GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-	
-					tb.bmp.recycle();
-					int err = GLES20.glGetError();
-					if (err != 0) {
-						Log.d("Miku", GLU.gluErrorString(err));
-					}
+				try {
+					readAndBindTexture1(mat.texture);
+				} catch (OutOfMemoryError e) {
+					continue;
 				}
+			}
+		}
+	}
+	
+	public void readAndBindSphereTextureGLES20() {
+		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+		if(mTexture == null) {
+			mTexture = new HashMap<String, TexBitmap>();			
+		}
+		for (int i = 0; i < mMaterial.size(); i++) {
+			Material mat = mMaterial.get(i);
+			if(mat.sphere != null) {
+				try {
+					readAndBindTexture1(mat.sphere);					
+				} catch (OutOfMemoryError e) {
+					continue;
+				}
+			}
+		}
+	}
+	
+	
+	private void readAndBindTexture1(String texture) {
+		if (mTexture.get(texture) == null) {
+			// read
+			TexBitmap tb = new TexBitmap();
+
+			tb.bmp = loadPicture(texture, 2);
+			if(tb.bmp != null) {
+//				Log.d("Miku",
+//				mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
+//						+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
+				mTexture.put(texture, tb);
+
+				// bind
+				int tex[] = new int[1];
+				GLES20.glGenTextures(1, tex, 0);
+				tb.tex = tex[0];
+
+				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
+				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+				// GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
+				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+				if (tb.bmp.hasAlpha()) { // workaround
+					ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
+					for (int y = 0; y < tb.bmp.getHeight(); y++) {
+						for (int x = 0; x < tb.bmp.getWidth(); x++) {
+							int pixel = tb.bmp.getPixel(x, y);
+							buf.put((byte) ((pixel >> 16) & 0xff));
+							buf.put((byte) ((pixel >> 8) & 0xff));
+							buf.put((byte) ((pixel >> 0) & 0xff));
+							buf.put((byte) ((pixel >> 24) & 0xff));
+						}
+					}
+					buf.position(0);
+					GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
+					buf = null;
+				} else {
+					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
+				}
+				// GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+
+				tb.bmp.recycle();
+				int err = GLES20.glGetError();
+				if (err != 0) {
+					Log.d("Miku", GLU.gluErrorString(err));
+				}
+				
 			}
 		}
 	}

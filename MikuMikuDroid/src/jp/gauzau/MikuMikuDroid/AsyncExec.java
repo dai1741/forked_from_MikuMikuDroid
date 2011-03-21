@@ -8,7 +8,7 @@ import android.os.AsyncTask;
 
 public abstract class AsyncExec<T> extends AsyncTask <T, Integer, Void> {
 	private ProgressDialog	mProg;
-	private ArrayList<T>	mFail;
+	protected ArrayList<T>	mFail;
 
 	public AsyncExec(Context ctx) {
 		mProg = new ProgressDialog(ctx);

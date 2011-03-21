@@ -17,12 +17,10 @@ public class MikuMotion implements Serializable {
 	private transient HashMap<String, MotionIndexA> mMotion;
 	private transient HashMap<String, FaceIndexA> mFace;
 	private transient ArrayList<CameraIndex> mCamera;
-	private transient int mCameraCurrent;
 
 	private transient HashMap<String, MotionIndexA> mIKMotion;
 
 	public MikuMotion(VMDParser vmd) {
-		mCameraCurrent	= 0;
 		mIKMotion		= null;
 		attachVMD(vmd);
 	}
@@ -30,15 +28,24 @@ public class MikuMotion implements Serializable {
 	public void attachVMD(VMDParser vmd) {
 		mFileName       = vmd.getFileName();
 		
-		mMotion = new HashMap<String, MotionIndexA>();
-		for(Entry<String, ArrayList<MotionIndex>> m: vmd.getMotion().entrySet()) {
-			mMotion.put(m.getKey(), toMotionIndexA(m.getValue()));
+		if(vmd.getMotion() != null) {
+			mMotion = new HashMap<String, MotionIndexA>();
+			for(Entry<String, ArrayList<MotionIndex>> m: vmd.getMotion().entrySet()) {
+				mMotion.put(m.getKey(), toMotionIndexA(m.getValue()));
+			}			
+		} else {
+			mMotion = null;
 		}
 		
-		mFace = new HashMap<String, FaceIndexA>();
-		for(Entry<String, ArrayList<FaceIndex>> f: vmd.getFace().entrySet()) {
-			mFace.put(f.getKey(), toFaceIndexA(f.getValue()));
+		if(vmd.getFace() != null) {
+			mFace = new HashMap<String, FaceIndexA>();
+			for(Entry<String, ArrayList<FaceIndex>> f: vmd.getFace().entrySet()) {
+				mFace.put(f.getKey(), toFaceIndexA(f.getValue()));
+			}
+		} else {
+			mFace = null;
 		}
+		
 		mCamera			= vmd.getCamera();
 		mMaxFrame		= vmd.maxFrame();		
 	}
@@ -260,21 +267,18 @@ public class MikuMotion implements Serializable {
 			if(frame >= mp.m1.frame_no) {
 				mp.m0 = mp.m1;
 				mp.m1 = null;
-				mCameraCurrent = m1;
 				return mp;
 			}
 
 			while(true) {
 				int center = (m0 + m1) / 2;
 				if(center == m0) {
-					mCameraCurrent = center;
 					return mp;
 				}
 				CameraIndex m = mCamera.get(center);
 				if(m.frame_no == frame) {
 					mp.m0 = m;
 					mp.m1 = null;
-					mCameraCurrent = center;
 					return mp;
 				} else if(m.frame_no > frame) {
 					mp.m1 = m;
@@ -326,88 +330,6 @@ public class MikuMotion implements Serializable {
 			}
 
 			return m;
-		}
-	}
-
-	private void lerp(float p[], float q[], float r[], float t) {
-		double qr = q[0] * r[0] + q[1] * r[1] + q[2] * r[2] + q[3] * r[3];
-		double ss = 1.0 - t;
-
-		if (qr > 0) {
-			p[0] = (float) (q[0] * ss + r[0] * t);
-			p[1] = (float) (q[1] * ss + r[1] * t);
-			p[2] = (float) (q[2] * ss + r[2] * t);
-			p[3] = (float) (q[3] * ss + r[3] * t);
-		} else {
-			p[0] = (float) (q[0] * ss - r[0] * t);
-			p[1] = (float) (q[1] * ss - r[1] * t);
-			p[2] = (float) (q[2] * ss - r[2] * t);
-			p[3] = (float) (q[3] * ss - r[3] * t);
-
-		}
-	}
-	
-	private void lerp(float p[], float q[], float r[], int m0, int m1, float t) {
-		double qr = q[m0 + 0] * r[m1 + 0] + q[m0 + 1] * r[m1 + 1] + q[m0 + 2] * r[m1 + 2] + q[m0 + 3] * r[m1 + 3];
-		double ss = 1.0 - t;
-
-		if (qr > 0) {
-			p[0] = (float) (q[m0 + 0] * ss + r[m1 + 0] * t);
-			p[1] = (float) (q[m0 + 1] * ss + r[m1 + 1] * t);
-			p[2] = (float) (q[m0 + 2] * ss + r[m1 + 2] * t);
-			p[3] = (float) (q[m0 + 3] * ss + r[m1 + 3] * t);
-		} else {
-			p[0] = (float) (q[m0 + 0] * ss - r[m1 + 0] * t);
-			p[1] = (float) (q[m0 + 1] * ss - r[m1 + 1] * t);
-			p[2] = (float) (q[m0 + 2] * ss - r[m1 + 2] * t);
-			p[3] = (float) (q[m0 + 3] * ss - r[m1 + 3] * t);
-
-		}
-	}
-
-	private void slerp(float p[], float q[], float r[], double t) {
-		double qr = q[0] * r[0] + q[1] * r[1] + q[2] * r[2] + q[3] * r[3];
-		double ss = 1.0 - qr * qr;
-
-		if (qr < 0) {
-			qr = -qr;
-
-			double sp = Math.sqrt(ss);
-			double ph = Math.acos(qr);
-			double pt = ph * t;
-			double t1 = Math.sin(pt) / sp;
-			double t0 = Math.sin(ph - pt) / sp;
-
-			if (Double.isNaN(t0) || Double.isNaN(t1)) {
-				p[0] = q[0];
-				p[1] = q[1];
-				p[2] = q[2];
-				p[3] = q[3];
-			} else {
-				p[0] = (float) (q[0] * t0 - r[0] * t1);
-				p[1] = (float) (q[1] * t0 - r[1] * t1);
-				p[2] = (float) (q[2] * t0 - r[2] * t1);
-				p[3] = (float) (q[3] * t0 - r[3] * t1);
-			}
-
-		} else {
-			double sp = Math.sqrt(ss);
-			double ph = Math.acos(qr);
-			double pt = ph * t;
-			double t1 = Math.sin(pt) / sp;
-			double t0 = Math.sin(ph - pt) / sp;
-
-			if (Double.isNaN(t0) || Double.isNaN(t1)) {
-				p[0] = q[0];
-				p[1] = q[1];
-				p[2] = q[2];
-				p[3] = q[3];
-			} else {
-				p[0] = (float) (q[0] * t0 + r[0] * t1);
-				p[1] = (float) (q[1] * t0 + r[1] * t1);
-				p[2] = (float) (q[2] * t0 + r[2] * t1);
-				p[3] = (float) (q[3] * t0 + r[3] * t1);
-			}
 		}
 	}
 	

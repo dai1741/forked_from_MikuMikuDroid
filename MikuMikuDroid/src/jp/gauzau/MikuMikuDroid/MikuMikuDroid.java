@@ -18,6 +18,7 @@ import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
+import android.widget.Toast;
 
 public class MikuMikuDroid extends Activity {
 	// View
@@ -179,6 +180,8 @@ public class MikuMikuDroid extends Activity {
 											});
 										}
 										mCoreLogic.storeState();
+									} catch (OutOfMemoryError e) {
+										return false;
 									} catch (IOException e) {
 										// TODO Auto-generated catch block
 										e.printStackTrace();
@@ -186,6 +189,13 @@ public class MikuMikuDroid extends Activity {
 									return true;
 								}
 								
+								@Override
+								public void post() {
+									if(mFail.size() != 0) {
+										Toast.makeText(MikuMikuDroid.this, "Out of Memory. Abort.", Toast.LENGTH_LONG).show();										
+									}
+									
+								}
 							};
 							ae.setMax(1);
 							ae.setMessage("Loading Model/Motion...");

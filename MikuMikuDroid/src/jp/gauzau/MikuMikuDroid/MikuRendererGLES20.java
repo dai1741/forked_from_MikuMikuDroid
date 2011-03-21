@@ -12,141 +12,109 @@ import android.util.Log;
 public class MikuRendererGLES20 extends MikuRendererBase {
 
 	private String TAG = "MikuRendarGLES20";
+	
+	class GLSL {
+		public int mProgram;
+		public int maPositionHandle;
+		public int maBlendHandle;
+		public int msTextureSampler;
+		public int msToonSampler;
+		public int msSphereSampler;
+		public int muTexEn;
+		public int muSpaEn;
+		public int muSphEn;
+		public int muColor;
+		public int muSpec;
+		public int muAmb;
+		public int muPow;
+		public int maNormalHandle;
+		public int muMBone;
 
-	private final String mVertexShader =
-		"precision mediump float;\n" + 
-		"attribute vec4 aPosition;\n" + 
-		"attribute vec4 aNormal;\n" + 
-		"attribute vec3 aBlend;\n" +
-		"uniform vec4 vLightPos;\n" +
-		"uniform mat4 uPMatrix;\n" +
-		"uniform mat4 uMBone[%d];\n" +
-		"uniform float uPow;\n" +
-		"varying vec4 vTexCoord;\n" +
-		"void main() {\n" +
-		"  float v;\n" +
-		"  float spec;\n" +
-		"  vec4 b1;\n" +
-		"  vec4 b2;\n" +
-		"  vec4 b;\n" +
-		"  vec3 n1;\n" +
-		"  vec3 n2;\n" +
-		"  vec3 n;\n" +
-		"  vec4 pos;\n" +
-		"  mat4 m1;\n" +
-		"  mat4 m2;\n" +
+		public int muPMatrix;
+		public int muLightPos;
+		
+		public GLSL(String v, String f) {
+			mProgram = createProgram(v, f);
+			if (mProgram == 0) {
+				return;
+			}
 
-		"  pos = vec4(aPosition.x, aPosition.y, aPosition.z, 1.0);\n" +
-		"  m1  = uMBone[int(aBlend.x)];\n" +
-		"  m2  = uMBone[int(aBlend.y)];\n" +
-		"  b1  = m1 * pos;\n" +
-		"  b2  = m2 * pos;\n" +
-		"  b   = mix(b2, b1, aBlend.z * 0.01);\n" +
-		"  gl_Position = uPMatrix * b;\n" +
+			GLES20.glUseProgram(mProgram);
+			checkGlError("glUseProgram");
 
-		"  n = mat3(m1[0].xyz, m1[1].xyz, m1[2].xyz) * vec3(aPosition.w, aNormal.xy);\n" +
-		"  v = dot(n, normalize(b.xyz - vLightPos.xyz)); \n" +
-		// "  v = dot(normalize(n), normalize(b.xyz - vLightPos.xyz));\n" +
-		"  spec = min(1.0, pow(max(-v, 0.0), uPow));\n" +
-		// "  spec = max(-v, 0.0) / uPow;\n" +
-		"  v = v * 0.5 + 0.5;\n" +
-		"  vTexCoord   = vec4(aNormal.zw, v, spec);\n" +
-		"}\n";
+			// attribute & uniform handles
+			maPositionHandle	= GLES20.glGetAttribLocation(mProgram, "aPosition");
+			maNormalHandle		= GLES20.glGetAttribLocation(mProgram, "aNormal");
+			maBlendHandle		= GLES20.glGetAttribLocation(mProgram, "aBlend");
 
-	private final String mVertexShaderNoMotion =
-		"precision mediump float;\n" +
-		"attribute vec4 aPosition;\n" +
-		"attribute vec4 aNormal;\n" +
-		"uniform vec4 vLightPos;\n" +
-		"uniform mat4 uPMatrix;\n" +
-		"varying vec3 vTexCoord;\n" +
-		"void main() {\n" +
-		"  float v;\n" +
-		"  vec3 n;\n" +
-		"  vec4 pos;\n" +
+			muPMatrix			= GLES20.glGetUniformLocation(mProgram, "uPMatrix");
+			msTextureSampler	= GLES20.glGetUniformLocation(mProgram, "sTex");
+			msToonSampler		= GLES20.glGetUniformLocation(mProgram, "sToon");
+			msSphereSampler		= GLES20.glGetUniformLocation(mProgram, "sSphere");
+			muTexEn				= GLES20.glGetUniformLocation(mProgram, "bTexEn");
+			muSpaEn				= GLES20.glGetUniformLocation(mProgram, "bSpaEn");
+			muSphEn				= GLES20.glGetUniformLocation(mProgram, "bSphEn");
+			muColor				= GLES20.glGetUniformLocation(mProgram, "vColor");
+			muSpec				= GLES20.glGetUniformLocation(mProgram, "vSpec");
+			muAmb				= GLES20.glGetUniformLocation(mProgram, "vAmb");
+			muPow				= GLES20.glGetUniformLocation(mProgram, "uPow");
+			muMBone				= GLES20.glGetUniformLocation(mProgram, "uMBone");
+			muLightPos			= GLES20.glGetUniformLocation(mProgram, "vLightPos");
+		}
+		
+		private int loadShader(int shaderType, String source) {
+			int shader = GLES20.glCreateShader(shaderType);
+			if (shader != 0) {
+				GLES20.glShaderSource(shader, source);
+				GLES20.glCompileShader(shader);
+				int[] compiled = new int[1];
+				GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+				if (compiled[0] == 0) {
+					Log.e(TAG, "Could not compile shader " + shaderType + ":");
+					Log.e(TAG, GLES20.glGetShaderInfoLog(shader));
+					Log.e(TAG, "message ends.");
+					GLES20.glDeleteShader(shader);
+					shader = 0;
+				}
+			}
+			return shader;
+		}
 
-		"  pos = vec4(aPosition.x, aPosition.y, aPosition.z, 1.0);\n" +
-		"  gl_Position = uPMatrix * pos;\n" +
+		private int createProgram(String vertexSource, String fragmentSource) {
+			int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexSource);
+			if (vertexShader == 0) {
+				return 0;
+			}
 
-		"  n = vec3(aPosition.w, aNormal.xy);\n" + "  v = dot(n, normalize(pos.xyz - vLightPos.xyz)); \n" +
-		// "  v = dot(normalize(n), normalize(pos.xyz - vLightPos.xyz)); \n" +
-		"  v = v * 0.5 + 0.5;\n" +
-		"  vTexCoord   = vec3(aNormal.zw, v);\n" +
-		"}\n";
+			int pixelShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentSource);
+			if (pixelShader == 0) {
+				return 0;
+			}
 
-	private final String mFragmentShader =
-		"precision mediump float;\n" +
-		"varying vec4 vTexCoord;\n" +
-		"uniform sampler2D sToon;\n" +
-		"uniform sampler2D sTex;\n"	+
-		"uniform bool bTexEn;\n" +
-		"uniform vec4 vColor;\n" +
-		"uniform vec4 vSpec;\n" +
-		"uniform vec4 vAmb;\n" +
-		"void main() {\n" +
-		"  vec4 toon;\n" +
-		"  vec4 tex;\n" +
-		"  vec4 spec;\n" +
-		"  vec4 tmp;\n" +
-		"  toon = texture2D(sToon, vec2(0.5, vTexCoord.z));\n" +
-		"  if(bTexEn) {" +
-		"    tex  = texture2D(sTex,  vTexCoord.xy);\n" +
-		"  } else {\n" +
-		"    tex  = vec4(1, 1, 1, 1);\n" +
-		"  }\n" +
-		"  spec = vSpec  * vTexCoord.w;\n" +
-		"  tmp  = vColor * toon + vAmb;\n" +
-		"  gl_FragColor = tex * tmp + spec;\n" +
-		"}\n";
+			int program = GLES20.glCreateProgram();
+			if (program != 0) {
+				GLES20.glAttachShader(program, vertexShader);
+				checkGlError("glAttachShader");
+				GLES20.glAttachShader(program, pixelShader);
+				checkGlError("glAttachShader");
+				GLES20.glLinkProgram(program);
+				int[] linkStatus = new int[1];
+				GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
+				if (linkStatus[0] != GLES20.GL_TRUE) {
+					Log.e(TAG, "Could not link program: ");
+					Log.e(TAG, GLES20.glGetProgramInfoLog(program));
+					GLES20.glDeleteProgram(program);
+					program = 0;
+				}
+			}
+			return program;
+		}
+		
+		
+	};
 
-	private final String mFragmentShaderNoMotion =
-		"precision mediump float;\n" +
-		"varying vec3 vTexCoord;\n" +
-		"uniform sampler2D sToon;\n" +
-		"uniform sampler2D sTex;\n" +
-		"uniform bool bTexEn;\n" +
-		"uniform vec4 vColor;\n" +
-		"uniform vec4 vAmb;\n" +
-		"void main() {\n" +
-		"  vec4 toon;\n" +
-		"  vec4 tex;\n" +
-		"  vec4 tmp;\n" +
-		"  toon = texture2D(sToon, vec2(0.5, vTexCoord.z));\n" +
-		"  if(bTexEn) {" +
-		"    tex  = texture2D(sTex,  vTexCoord.xy);\n" +
-		"  } else {\n" +
-		"    tex  = vec4(1, 1, 1, 1);\n" +
-		"  }\n" +
-		"  tmp  = vColor * toon + vAmb;\n" +
-		"  gl_FragColor = tex * tmp;\n" +
-		"}\n";
-
-	private int mProgram;
-	private int maPositionHandle;
-	private int maBlendHandle;
-	private int muTextureSampler;
-	private int msToonSampler;
-	private int muTexEn;
-	private int muColor;
-	private int muSpec;
-	private int muAmb;
-	private int muPow;
-	private int maNormalHandle;
-	private int muMBone;
-
-	private int muPMatrix;
-	private int muLightPos;
-
-	private int mProgramStage;
-	private int maPositionHandleStage;
-	private int maNormalHandleStage;
-	private int muPMatrixStage;
-	private int muTextureSamplerStage;
-	private int msToonSamplerStage;
-	private int muTexEnStage;
-	private int muColorStage;
-	private int muAmbStage;
-	private int muLightPosStage;
+	private GLSL mGLSL;
+	private GLSL mGLSLBG;
 	
 	public float mBoneMatrix[];
 
@@ -156,34 +124,23 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		clear();
 	}
 
-	public void initializeTextures(Miku miku) {
-		// toon shading
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		miku.mModel.readToonTexture();
-		bindToonTextureGLES20(miku.mModel);
-
-		// Texture
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-		miku.mModel.readAndBindTextureGLES20();
-	}
-
 	@Override
 	public void onDrawFrame(GL10 gl) {
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 
 		int pos = mCoreLogic.applyCurrentMotion();
 
-		GLES20.glUseProgram(mProgram);
+		GLES20.glUseProgram(mGLSL.mProgram);
 
 		// Projection Matrix
-		GLES20.glUniformMatrix4fv(muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
+		GLES20.glUniformMatrix4fv(mGLSL.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
 
 		// LightPosition
-		GLES20.glUniform4f(muLightPos, 0, 0, -35f, 1f);
-		// GLES20.glUniform4f(muLightPos, -10f, 10f, 0f, 1f);
+		GLES20.glUniform4f(mGLSL.muLightPos, 0.5f, 20f, 1f, 1f);	// in right-handed region
 
-		GLES20.glUniform1i(msToonSampler, 0);
-		GLES20.glUniform1i(muTextureSampler, 1);
+		GLES20.glUniform1i(mGLSL.msToonSampler, 0);
+		GLES20.glUniform1i(mGLSL.msTextureSampler, 1);
+		GLES20.glUniform1i(mGLSL.msSphereSampler, 2);
 		checkGlError("on onDrawFrame");
 
 		if (mCoreLogic.getMiku() != null) {
@@ -192,31 +149,31 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 					initializeTextures(miku);
 					miku.mModel.mIsTextureLoaded = true;
 				}
-				bindBufferGLES20(miku.mModel, maPositionHandle, maNormalHandle);
-				drawGLES20(miku.mModel, muMBone, maBlendHandle, muTexEn, muColor, muSpec, muPow, muAmb);
+				bindBufferGLES20(miku.mModel, mGLSL);
+				drawGLES20(miku.mModel, mGLSL);
 			}
 		}
 
 		if (mCoreLogic.getMikuStage() != null) {
-			GLES20.glUseProgram(mProgramStage);
+			GLES20.glUseProgram(mGLSLBG.mProgram);
 
 			// Projection, Model, View Matrix
-			GLES20.glUniformMatrix4fv(muPMatrixStage, 1, false, mCoreLogic.getProjectionMatrix(), 0);
+			GLES20.glUniformMatrix4fv(mGLSLBG.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
 			// GLES20.glUniformMatrix4fv(muMVMatrixStage, 1, false, mMVMatrix, 0);
 
 			// LightPosition
-			GLES20.glUniform4f(muLightPosStage, 0, 0, -35f, 1f);
+			GLES20.glUniform4f(mGLSLBG.muLightPos, 0.5f, 20f, 1f, 1f);	// in right-handed region
 
-			GLES20.glUniform1i(msToonSamplerStage, 0);
-			GLES20.glUniform1i(muTextureSamplerStage, 1);
+			GLES20.glUniform1i(mGLSLBG.msToonSampler, 0);
+			GLES20.glUniform1i(mGLSLBG.msTextureSampler, 1);
 			checkGlError("on onDrawFrame");
 
 			if(mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
 				initializeTextures(mCoreLogic.getMikuStage());
 				mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
 			}				
-			bindBufferGLES20(mCoreLogic.getMikuStage().mModel, maPositionHandleStage, maNormalHandleStage);
-			drawGLES20(mCoreLogic.getMikuStage().mModel, 0, 0, muTexEnStage, muColorStage, -1, -1, muAmbStage);
+			bindBufferGLES20(mCoreLogic.getMikuStage().mModel, mGLSLBG);
+			drawGLES20(mCoreLogic.getMikuStage().mModel, mGLSLBG);
 		}
 
 		GLES20.glFlush();
@@ -239,7 +196,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 		// GLUtils.texImage2D generates premultiplied-alpha texture. so we use GL_CONSTANT_ALPHA instead of GL_ALPHA
 		GLES20.glEnable(GLES20.GL_BLEND);
-		// GLES20.glBlendFunc( GLES20.GL_CONSTANT_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
+//		GLES20.glBlendFunc( GLES20.GL_CONSTANT_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
+//		GLES20.glBlendFunc(GL10.GL_ONE, GL10.GL_ONE_MINUS_SRC_ALPHA);
 		GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
 		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
@@ -249,30 +207,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		// sharder program
 		int bonenum = 48;
 		mCoreLogic.setGLConfig(bonenum);
-		mProgram = createProgram(String.format(mVertexShader, bonenum), mFragmentShader);
-		if (mProgram == 0) {
-			return;
-		}
-
-		GLES20.glUseProgram(mProgram);
-		checkGlError("glUseProgram");
-
-		// attribute & uniform handles
-		maPositionHandle = getAttribLocation(mProgram, "aPosition");
-		maNormalHandle = getAttribLocation(mProgram, "aNormal");
-		maBlendHandle = getAttribLocation(mProgram, "aBlend");
-
-		muPMatrix = getUniformLocation(mProgram, "uPMatrix");
-		muTextureSampler = getUniformLocation(mProgram, "sTex");
-		msToonSampler = getUniformLocation(mProgram, "sToon");
-		muTexEn = getUniformLocation(mProgram, "bTexEn");
-		muColor = getUniformLocation(mProgram, "vColor");
-		muSpec = getUniformLocation(mProgram, "vSpec");
-		muAmb = getUniformLocation(mProgram, "vAmb");
-		muPow = getUniformLocation(mProgram, "uPow");
-		muMBone = getUniformLocation(mProgram, "uMBone");
-		muLightPos = getUniformLocation(mProgram, "vLightPos");
-
+		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
+//		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_sph));		
+//		mGLSLSpa = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_spa));
+//		mGLSLSph = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_sph));		
 		if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
 				initializeTextures(miku);
@@ -280,33 +218,15 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		}
 
 		// sharder program in no animation
-		mProgramStage = createProgram(mVertexShaderNoMotion, mFragmentShaderNoMotion);
-		if (mProgramStage == 0) {
-			return;
-		}
-
-		GLES20.glUseProgram(mProgramStage);
-		checkGlError("glUseProgram mProgramStage");
-
-		// attribute & uniform handles
-		maPositionHandleStage = getAttribLocation(mProgramStage, "aPosition");
-		maNormalHandleStage = getAttribLocation(mProgramStage, "aNormal");
-
-		muPMatrixStage = getUniformLocation(mProgramStage, "uPMatrix");
-		muTextureSamplerStage = getUniformLocation(mProgramStage, "sTex");
-		msToonSamplerStage = getUniformLocation(mProgramStage, "sToon");
-		muTexEnStage = getUniformLocation(mProgramStage, "bTexEn");
-		muColorStage = getUniformLocation(mProgramStage, "vColor");
-		// muSpecStage = getUniformLocation(mProgramStage, "vSpec");
-		muAmbStage = getUniformLocation(mProgramStage, "vAmb");
-		muLightPosStage = getUniformLocation(mProgramStage, "vLightPos");
-
+		mGLSLBG = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm));
 		if (mCoreLogic.getMikuStage() != null) {
 			initializeTextures(mCoreLogic.getMikuStage());
 		}
 	}
 	
-	public void drawGLES20(MikuModel miku, int bone, int blend, int texen, int color, int spec, int pow, int amb) {
+	
+	// for GLES20
+	private void drawGLES20(MikuModel miku, GLSL glsl) {
 		ArrayList<Material> rendar = miku.mAnimation ? miku.mRendarList : miku.mMaterial;
 		ArrayList<Bone> bs = miku.mBone;
 	
@@ -321,10 +241,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 						System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
 					}
 				}
-				GLES20.glUniformMatrix4fv(bone, mat.rename_hash_size, false, mBoneMatrix, 0);
+				GLES20.glUniformMatrix4fv(glsl.muMBone, mat.rename_hash_size, false, mBoneMatrix, 0);
 	
-				GLES20.glEnableVertexAttribArray(blend);
-				GLES20.glVertexAttribPointer(blend, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.rename_index);
+				GLES20.glEnableVertexAttribArray(glsl.maBlendHandle);
+				GLES20.glVertexAttribPointer(glsl.maBlendHandle, 3, GLES20.GL_UNSIGNED_SHORT, false, 0, mat.rename_index);
 				checkGlError("drawGLES20 VertexAttribPointer blend");
 			}
 	
@@ -344,22 +264,46 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index).tex);
 	
 			if (mat.texture != null) {
-				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.texture).tex);
-				GLES20.glUniform1i(texen, 1);
+				TexBitmap tb = miku.mTexture.get(mat.texture);
+				if(tb != null) {
+					GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.texture).tex);
+					GLES20.glUniform1i(glsl.muTexEn, 1);					
+				} else {	// avoid crash
+					GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+					GLES20.glUniform1i(glsl.muTexEn, 0);					
+				}
 			} else {
 				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-				GLES20.glUniform1i(texen, 0);
+				GLES20.glUniform1i(glsl.muTexEn, 0);
 			}
+			if(glsl.muSphEn != -1) {
+				if (mat.sphere != null) {
+					GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
+					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.sphere).tex);
+					if(mat.sphere.endsWith(".spa")) {
+						GLES20.glUniform1i(glsl.muSpaEn, 1);					
+						GLES20.glUniform1i(glsl.muSphEn, 0);
+					} else {
+						GLES20.glUniform1i(glsl.muSpaEn, 0);					
+						GLES20.glUniform1i(glsl.muSphEn, 1);					
+					}
+				} else {
+					GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
+					GLES20.glUniform1i(glsl.muSpaEn, 0);
+					GLES20.glUniform1i(glsl.muSphEn, 0);
+				}
+			}
+
 			checkGlError("on DrawGLES20");
 			
 			float w = 0.6f;
 			float wi = 0.6f;
-			GLES20.glUniform4f(color, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
-			GLES20.glUniform4f(amb, mat.emmisive_color[0] * w, mat.emmisive_color[1] * w, mat.emmisive_color[2] * w, mat.emmisive_color[3]);
-			if (pow >= 0) {
-				GLES20.glUniform4f(spec, mat.specular_color[0] * w, mat.specular_color[1] * w, mat.specular_color[2] * w, mat.specular_color[3]);
-				GLES20.glUniform1f(pow, mat.power);
+			GLES20.glUniform4f(glsl.muColor, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
+			GLES20.glUniform4f(glsl.muAmb, mat.emmisive_color[0] * w, mat.emmisive_color[1] * w, mat.emmisive_color[2] * w, mat.emmisive_color[3]);
+			if (glsl.muPow >= 0) {
+				GLES20.glUniform4f(glsl.muSpec, mat.specular_color[0] * w, mat.specular_color[1] * w, mat.specular_color[2] * w, mat.specular_color[3]);
+				GLES20.glUniform1f(glsl.muPow, mat.power);
 			}
 			// GLES20.glBlendColor(0, 0, 0, mat.face_color[3]);
 			miku.mIndexBuffer.position(mat.face_vart_offset);
@@ -369,87 +313,35 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		miku.mIndexBuffer.position(0);
 	}
 
-	private int getAttribLocation(int program, String string) {
-		int ret = GLES20.glGetAttribLocation(program, string);
-		checkGlError("glGetAttribLocation " + string);
-		if (ret == -1) {
-			throw new RuntimeException("Could not get attrib location for " + string);
-		}
-		return ret;
+	private void initializeTextures(Miku miku) {
+		// toon shading
+		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+		miku.mModel.readToonTexture();
+		bindToonTextureGLES20(miku.mModel);
+
+		// Texture
+		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+		miku.mModel.readAndBindTextureGLES20();
+		
+		// Sphere
+		GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
+		miku.mModel.readAndBindSphereTextureGLES20();
 	}
 
-	private int getUniformLocation(int program, String string) {
-		int ret = GLES20.glGetUniformLocation(program, string);
-		checkGlError("glGetUniformLocation " + string);
-		if (ret == -1) {
-			throw new RuntimeException("Could not get attrib location for " + string);
-		}
-		return ret;
-	}
-
-	// for GLES20
-	private int loadShader(int shaderType, String source) {
-		int shader = GLES20.glCreateShader(shaderType);
-		if (shader != 0) {
-			GLES20.glShaderSource(shader, source);
-			GLES20.glCompileShader(shader);
-			int[] compiled = new int[1];
-			GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
-			if (compiled[0] == 0) {
-				Log.e(TAG, "Could not compile shader " + shaderType + ":");
-				Log.e(TAG, GLES20.glGetShaderInfoLog(shader));
-				Log.e(TAG, "message ends.");
-				GLES20.glDeleteShader(shader);
-				shader = 0;
-			}
-		}
-		return shader;
-	}
-
-	private int createProgram(String vertexSource, String fragmentSource) {
-		int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexSource);
-		if (vertexShader == 0) {
-			return 0;
-		}
-
-		int pixelShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentSource);
-		if (pixelShader == 0) {
-			return 0;
-		}
-
-		int program = GLES20.glCreateProgram();
-		if (program != 0) {
-			GLES20.glAttachShader(program, vertexShader);
-			checkGlError("glAttachShader");
-			GLES20.glAttachShader(program, pixelShader);
-			checkGlError("glAttachShader");
-			GLES20.glLinkProgram(program);
-			int[] linkStatus = new int[1];
-			GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
-			if (linkStatus[0] != GLES20.GL_TRUE) {
-				Log.e(TAG, "Could not link program: ");
-				Log.e(TAG, GLES20.glGetProgramInfoLog(program));
-				GLES20.glDeleteProgram(program);
-				program = 0;
-			}
-		}
-		return program;
-	}
-	
-	public void bindBufferGLES20(MikuModel miku, int vertex, int normal) {
-		GLES20.glEnableVertexAttribArray(vertex);
+	private void bindBufferGLES20(MikuModel miku, GLSL glsl) {
+		GLES20.glEnableVertexAttribArray(glsl.maPositionHandle);
 		miku.mAllBuffer.position(0);
-		GLES20.glVertexAttribPointer(vertex, 4, GLES20.GL_FLOAT, false, 8 * 4, miku.mAllBuffer);
+		GLES20.glVertexAttribPointer(glsl.maPositionHandle, 4, GLES20.GL_FLOAT, false, 8 * 4, miku.mAllBuffer);
 		checkGlError("drawGLES20 VertexAttribPointer vertex");
 
-		GLES20.glEnableVertexAttribArray(normal);
+		GLES20.glEnableVertexAttribArray(glsl.maNormalHandle);
 		miku.mAllBuffer.position(4);
-		GLES20.glVertexAttribPointer(normal, 4, GLES20.GL_FLOAT, false, 8 * 4, miku.mAllBuffer);
+		GLES20.glVertexAttribPointer(glsl.maNormalHandle, 4, GLES20.GL_FLOAT, false, 8 * 4, miku.mAllBuffer);
 		checkGlError("drawGLES20 VertexAttribPointer normal");
 		miku.mAllBuffer.position(0);
 	}
 	
-	public void bindToonTextureGLES20(MikuModel miku) {
+	private void bindToonTextureGLES20(MikuModel miku) {
 		int tex[] = new int[11];
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		GLES20.glGenTextures(11, tex, 0);
@@ -472,7 +364,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		int error;
 		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
 			Log.e(TAG, op + ": glError " + error);
-			throw new RuntimeException(op + ": glError " + error);
+//			throw new RuntimeException(op + ": glError " + error);
 		}
 	}
 }

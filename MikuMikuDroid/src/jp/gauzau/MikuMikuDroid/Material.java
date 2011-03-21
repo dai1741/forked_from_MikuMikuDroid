@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
 import java.util.HashMap;
 
 public class Material implements Serializable, SerializableExt {
@@ -25,7 +26,7 @@ public class Material implements Serializable, SerializableExt {
 	public transient int[] rename_map;
 	public transient HashMap<Integer, Integer> rename_hash;
 	public transient int rename_hash_size;
-	public transient ByteBuffer rename_index;
+	public transient ShortBuffer rename_index;
 	public transient int[] rename_inv_map;
 	
 	public Material(Material mat) {
@@ -88,7 +89,7 @@ public class Material implements Serializable, SerializableExt {
 			os.writeInt(rename_index.capacity());
 			rename_index.position(0);
 			for(int i = 0; i < rename_index.capacity(); i++) {
-				os.writeByte(rename_index.get());
+				os.writeShort(rename_index.get());
 			}
 			rename_index.position(0);
 		}
@@ -118,10 +119,11 @@ public class Material implements Serializable, SerializableExt {
 		if(len == 0) {
 			rename_index = null;
 		} else {
-			rename_index = ByteBuffer.allocateDirect(len);
-			rename_index.order(ByteOrder.nativeOrder());
+			ByteBuffer bb = ByteBuffer.allocateDirect(len/2);
+			bb.order(ByteOrder.nativeOrder());
+			rename_index = bb.asShortBuffer();
 			for(int i = 0; i < rename_index.capacity(); i++) {
-				rename_index.put(is.readByte());
+				rename_index.put(is.readShort());
 			}
 			rename_index.position(0);
 		}
