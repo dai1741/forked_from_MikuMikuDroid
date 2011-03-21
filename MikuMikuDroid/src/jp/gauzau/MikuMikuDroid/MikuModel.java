@@ -443,9 +443,7 @@ public class MikuModel implements Serializable, SerializableExt {
 
 	public void readAndBindTextureGLES20() {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		if(mTexture == null) {
-			mTexture = new HashMap<String, TexBitmap>();			
-		}
+		mTexture = new HashMap<String, TexBitmap>();			
 		for (int i = 0; i < mMaterial.size(); i++) {
 			Material mat = mMaterial.get(i);
 			if (mat.texture != null) {
@@ -460,9 +458,6 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 	public void readAndBindSphereTextureGLES20() {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		if(mTexture == null) {
-			mTexture = new HashMap<String, TexBitmap>();			
-		}
 		for (int i = 0; i < mMaterial.size(); i++) {
 			Material mat = mMaterial.get(i);
 			if(mat.sphere != null) {
