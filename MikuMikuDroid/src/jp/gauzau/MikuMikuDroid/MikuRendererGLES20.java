@@ -140,7 +140,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		GLES20.glUniformMatrix4fv(mGLSL.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
 
 		// LightPosition
-		GLES20.glUniform3fv(mGLSL.muLightDir, 1, mLightDir, 0);		
+		GLES20.glUniform3fv(mGLSL.muLightDir, 1, mLightDir, 0);
 
 		GLES20.glUniform1i(mGLSL.msToonSampler, 0);
 		GLES20.glUniform1i(mGLSL.msTextureSampler, 1);

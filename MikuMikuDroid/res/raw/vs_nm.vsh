@@ -12,7 +12,7 @@ void main() {
   pos = vec4(aPosition.xyz, 1.0);
   gl_Position = uPMatrix * pos;
 
-  n = vec3(aPosition.w, aPosition.x, -aNormal.y);
+  n = vec3(aPosition.w, aNormal.x, -aNormal.y);
   v = dot(n, uLightDir);
   v = v * 0.5 + 0.5;
   vTexCoord = vec3(aNormal.zw, v);

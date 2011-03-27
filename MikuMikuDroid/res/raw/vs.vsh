@@ -28,8 +28,8 @@ void main() {
   b   = mix(b2, b1, aBlend.z * 0.01);
   gl_Position = uPMatrix * b;
 
-//  n = mat3(m1[0].xyz, m1[1].xyz, m1[2].xyz) * vec3(aPosition.wx, -aNormal.y);
-  n = mat3(m1[0].x, m1[1].x, m1[2].x, m1[0].y, m1[1].y, m1[2].y, m1[0].z, m1[1].z, m1[2].z) * vec3(aPosition.wx, -aNormal.y);
+//  n = mat3(m1[0].xyz, m1[1].xyz, m1[2].xyz) * vec3(aPosition.w, aNormal.x, -aNormal.y);
+  n = mat3(m1[0].x, m1[1].x, m1[2].x, m1[0].y, m1[1].y, m1[2].y, m1[0].z, m1[1].z, m1[2].z) * vec3(aPosition.w, aNormal.x, -aNormal.y);
   v = dot(n, uLightDir);
   spec = min(1.0, pow(max(v, 0.0), uPow));
   v = v * 0.5 + 0.5;
