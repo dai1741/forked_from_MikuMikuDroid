@@ -210,9 +210,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		int bonenum = 48;
 		mCoreLogic.setGLConfig(bonenum);
 		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
-//		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_sph));		
-//		mGLSLSpa = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_spa));
-//		mGLSLSph = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_sph));		
+//		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_simple), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_simple));
+//		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_sph), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_sph));
 		if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
 				initializeTextures(miku);
@@ -260,7 +259,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			// Toon texture
 			GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index).tex);
-	
+
 			if (mat.texture != null) {
 				TexBitmap tb = miku.mTexture.get(mat.texture);
 				if(tb != null) {
@@ -274,8 +273,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			} else {
 				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
 				GLES20.glUniform1i(glsl.muTexEn, 0);
-			}
-			if(glsl.muSphEn != -1) {
+			}				
+			if(glsl.muSphEn >= 0) {
 				if (mat.sphere != null) {
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
 					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.sphere).tex);
@@ -296,8 +295,15 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			checkGlError("on DrawGLES20");
 			
 			float wi = 0.6f;	// light color = (0.6, 0.6, 0.6)
-			GLES20.glUniform4f(glsl.muDif, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
-			GLES20.glUniform4f(glsl.muAmb, mat.emmisive_color[0], mat.emmisive_color[1], mat.emmisive_color[2], 0);
+			if(glsl.muAmb >= 0) {
+				GLES20.glUniform4f(glsl.muDif, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
+				GLES20.glUniform4f(glsl.muAmb, mat.emmisive_color[0], mat.emmisive_color[1], mat.emmisive_color[2], 0);				
+			} else {
+				GLES20.glUniform4f(glsl.muDif, 
+						 (mat.diffuse_color[0] * wi + mat.emmisive_color[0]),
+					     (mat.diffuse_color[1] * wi + mat.emmisive_color[1]),
+					     (mat.diffuse_color[2] * wi + mat.emmisive_color[2]), mat.diffuse_color[3]);
+			}
 			if (glsl.muPow >= 0) {
 				GLES20.glUniform4f(glsl.muSpec, mat.specular_color[0], mat.specular_color[1], mat.specular_color[2], 0);
 				GLES20.glUniform1f(glsl.muPow, mat.power);

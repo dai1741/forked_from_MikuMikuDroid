@@ -4,8 +4,6 @@ uniform sampler2D sToon;
 uniform sampler2D sTex;
 uniform bool bTexEn;
 uniform vec4 uDif;
-uniform vec4 uSpec;
-uniform vec4 uAmb;
 void main() {
   vec4 toon;
   vec4 tex;
@@ -14,8 +12,8 @@ void main() {
   if(bTexEn) {
     tex  = texture2D(sTex,  vTexCoord.xy);
   } else {
-    tex  = vec4(uDif.a, uDif.a, uDif.a, 1.0);	// premultiplied alpha for workaround GLUtils.texImage2D
+    tex  = vec4(uDif.a, uDif.a, uDif.a, 1);	// premultiplied alpha for workaround GLUtils.texImage2D
   }
-  difamb = uDif * toon + uAmb;
+  difamb = uDif * toon;
   gl_FragColor = tex * min(difamb, 1.0);
 }
