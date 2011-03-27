@@ -246,7 +246,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				GLES20.glUniformMatrix4fv(glsl.muMBone, mat.rename_hash_size, false, mBoneMatrix, 0);
 	
 				GLES20.glEnableVertexAttribArray(glsl.maBlendHandle);
-				GLES20.glVertexAttribPointer(glsl.maBlendHandle, 3, GLES20.GL_UNSIGNED_SHORT, false, 0, mat.rename_index);
+				GLES20.glVertexAttribPointer(glsl.maBlendHandle, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.rename_index);
 				checkGlError("drawGLES20 VertexAttribPointer blend");
 			}
 	

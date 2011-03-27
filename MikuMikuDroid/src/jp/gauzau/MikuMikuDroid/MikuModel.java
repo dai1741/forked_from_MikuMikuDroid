@@ -179,13 +179,13 @@ public class MikuModel implements Serializable, SerializableExt {
 
 	void reconstructMaterial(PMDParser parser, int max_bone) {
 		mRendarList = new ArrayList<Material>();
-		HashMap<HashMap<Integer, Integer>, ShortBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ShortBuffer>();
+		HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ByteBuffer>();
 		for (Material mat : mMaterial) {
 			reconstructMaterial1(parser, mat, 0, rename_pool, max_bone);
 		}
 	}
 	
-	void reconstructMaterial1(PMDParser pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ShortBuffer> rename_pool, int max_bone) {
+	void reconstructMaterial1(PMDParser pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		Material mat_new = new Material(mat);
 		mat_new.face_vart_offset = mat.face_vart_offset + offset;
 
@@ -224,12 +224,12 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 
-	void buildBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ShortBuffer> rename_pool, int max_bone) {
+	void buildBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		
 		// find unoverwrapped hash
-		for(Entry<HashMap<Integer, Integer>, ShortBuffer> pool: rename_pool.entrySet()) {
+		for(Entry<HashMap<Integer, Integer>, ByteBuffer> pool: rename_pool.entrySet()) {
 			HashMap<Integer, Integer> map = pool.getKey();
-			ShortBuffer bb = pool.getValue();
+			ByteBuffer bb = pool.getValue();
 			
 			// check mapped
 			for(Entry<Integer, Integer> entry: rename.entrySet()) {
@@ -274,7 +274,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		
 		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3 * 2);
 		rbb.order(ByteOrder.nativeOrder());
-		mat.rename_index = rbb.asShortBuffer();
+		mat.rename_index = rbb;
 	}
 	
 	void buildBoneRenameMap(Material mat, int max_bone) {
@@ -319,17 +319,16 @@ public class MikuModel implements Serializable, SerializableExt {
 	void buildBoneNoMotionRenameIndex(PMDParser pmd) {
 		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3 * 2);
 		rbb.order(ByteOrder.nativeOrder());
-		ShortBuffer sbb = rbb.asShortBuffer();
 	
 		for (int i = 0; i < pmd.getVertex().size(); i++) {
-			sbb.put((byte) 0);
-			sbb.put((byte) 0);
-			sbb.put((byte) 100);
+			rbb.put((byte) 0);
+			rbb.put((byte) 0);
+			rbb.put((byte) 100);
 		}
-		sbb.position(0);
+		rbb.position(0);
 	
 		for (Material m : mMaterial) {
-			m.rename_index = sbb;
+			m.rename_index = rbb;
 		}
 	}
 
@@ -390,23 +389,7 @@ public class MikuModel implements Serializable, SerializableExt {
 					gl.glGenTextures(1, tex, 0);
 					tb.tex = tex[0];
 					gl.glBindTexture(GL10.GL_TEXTURE_2D, tb.tex);
-					if (tb.bmp.hasAlpha()) { // workaround
-						ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
-						for (int y = 0; y < tb.bmp.getHeight(); y++) {
-							for (int x = 0; x < tb.bmp.getWidth(); x++) {
-								int pixel = tb.bmp.getPixel(x, y);
-								buf.put((byte) ((pixel >> 16) & 0xff));
-								buf.put((byte) ((pixel >> 8) & 0xff));
-								buf.put((byte) ((pixel >> 0) & 0xff));
-								buf.put((byte) ((pixel >> 24) & 0xff));
-							}
-						}
-						buf.position(0);
-						gl.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-						buf = null;
-					} else {
-						GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-					}
+					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
 	
 					int err = gl.glGetError();
 					if (err != 0) {

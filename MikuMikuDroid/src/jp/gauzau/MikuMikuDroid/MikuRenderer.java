@@ -9,6 +9,7 @@ import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.opengles.GL11;
 import javax.microedition.khronos.opengles.GL11Ext;
 
+import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.util.Log;
 
@@ -155,13 +156,15 @@ public class MikuRenderer extends MikuRendererBase {
 		gl.glFrontFace(GL10.GL_CW);
 		gl.glShadeModel(GL10.GL_SMOOTH);
 		gl.glEnable(GL10.GL_DEPTH_TEST);
+		gl.glDepthFunc(GL10.GL_LEQUAL);
+
 		// gl.glEnable(GL10.GL_LIGHTING);
 		// gl.glEnable(GL10.GL_LIGHT0);
 
 		// GLUtils.texImage2D generates premultiplied-alpha texture. so we use GL_ONE instead of GL_ALPHA
 		gl.glEnable(GL10.GL_BLEND);
-//		gl.glBlendFunc(GL10.GL_ONE, GL10.GL_ONE_MINUS_SRC_ALPHA);
-		gl.glBlendFunc(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
+		gl.glBlendFunc(GL10.GL_ONE, GL10.GL_ONE_MINUS_SRC_ALPHA);
+//		gl.glBlendFunc(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
 
 		gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
 
@@ -206,25 +209,17 @@ public class MikuRenderer extends MikuRendererBase {
 					}
 				}
 
-				/*
-				for (Entry<Integer, Integer> ren : mat.rename_hash.entrySet()) {
-					if (ren.getValue() < miku.mRenameBone) {
-						gl11Ext.glCurrentPaletteMatrixOES(ren.getValue());
-						gl11Ext.glLoadPaletteFromModelViewMatrixOES();
-						gl.glMultMatrixf(miku.mBone.get(ren.getKey()).matrix, 0);
-					}
-				}
-				*/
 				// gl11.glBindBuffer(GL11.GL_ARRAY_BUFFER, 0);
-				ByteBuffer bb = ByteBuffer.allocateDirect(mat.rename_index.capacity());
-				bb.order(ByteOrder.nativeOrder());
-				for(int i = 0; i < bb.capacity(); i++) {
-					bb.put((byte) mat.rename_index.get());
-				}
-				bb.position(0);
-				mat.rename_index.position(0);
-				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, bb);
+				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, mat.rename_index);
 			}
+			
+			// don't cull face that has alpha value 0.99
+			if(mat.diffuse_color[3] == 0.99f) {
+				gl.glDisable(GL10.GL_CULL_FACE);
+			} else {
+				gl.glEnable(GL10.GL_CULL_FACE);
+			}
+
 	
 			// Toon texture
 			gl.glActiveTexture(GL10.GL_TEXTURE0);
@@ -235,6 +230,7 @@ public class MikuRenderer extends MikuRendererBase {
 			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
 			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
 			gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index).tex);
+			float wi = 0.6f;
 	
 			if (mat.texture != null) {
 				gl.glActiveTexture(GL10.GL_TEXTURE1);
@@ -245,9 +241,13 @@ public class MikuRenderer extends MikuRendererBase {
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
 				gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mTexture.get(mat.texture).tex);
+				gl.glColor4f(mat.diffuse_color[0] * wi + mat.emmisive_color[0], mat.diffuse_color[1] * wi + mat.emmisive_color[1], mat.diffuse_color[2] * wi + mat.emmisive_color[2], mat.diffuse_color[3]);
 			} else {
 				gl.glActiveTexture(GL10.GL_TEXTURE1);
 				gl.glDisable(GL10.GL_TEXTURE_2D);
+				gl.glColor4f((mat.diffuse_color[0] * wi + mat.emmisive_color[0]) * mat.diffuse_color[3],
+						     (mat.diffuse_color[1] * wi + mat.emmisive_color[1]) * mat.diffuse_color[3],
+						     (mat.diffuse_color[2] * wi + mat.emmisive_color[2]) * mat.diffuse_color[3], mat.diffuse_color[3]);
 			}
 	
 			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_DIFFUSE, mat.face_color, 0);
@@ -255,8 +255,6 @@ public class MikuRenderer extends MikuRendererBase {
 			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_AMBIENT, mat.emmisive_color, 0);
 			// gl.glMaterialf(GL10.GL_FRONT_AND_BACK, GL10.GL_SHININESS, mat.power);
 	
-			float wi = 0.6f;
-			gl.glColor4f(mat.diffuse_color[0] * wi + mat.emmisive_color[0], mat.diffuse_color[1] * wi + mat.emmisive_color[1], mat.diffuse_color[2] * wi + mat.emmisive_color[2], mat.diffuse_color[3]);
 			miku.mIndexBuffer.position(mat.face_vart_offset);
 			gl.glDrawElements(GL10.GL_TRIANGLES, mat.face_vert_count, GL10.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 		}
