@@ -1,7 +1,7 @@
 precision mediump float;
 attribute vec4 aPosition;
 attribute vec4 aNormal;
-uniform vec4 vLightPos;
+uniform vec3 uLightDir;
 uniform mat4 uPMatrix;
 varying vec3 vTexCoord;
 void main() {
@@ -12,9 +12,8 @@ void main() {
   pos = vec4(aPosition.xyz, 1.0);
   gl_Position = uPMatrix * pos;
 
-  n = vec3(aPosition.w, aNormal.x, aNormal.y * -1.0);
-  v = dot(n, normalize(pos.xyz - vLightPos.xyz));
-//  v = dot(normalize(n), normalize(pos.xyz - vLightPos.xyz));
+  n = vec3(aPosition.w, aPosition.x, -aNormal.y);
+  v = dot(n, uLightDir);
   v = v * 0.5 + 0.5;
   vTexCoord = vec3(aNormal.zw, v);
 }

@@ -3,21 +3,21 @@ varying vec4 vTexCoord;
 uniform sampler2D sToon;
 uniform sampler2D sTex;
 uniform bool bTexEn;
-uniform vec4 vColor;
-uniform vec4 vSpec;
-uniform vec4 vAmb;
+uniform vec4 uDif;
+uniform vec4 uSpec;
+uniform vec4 uAmb;
 void main() {
   vec4 toon;
   vec4 tex;
   vec4 spec;
-  vec4 tmp;
+  vec4 difamb;
   toon = texture2D(sToon, vec2(0.5, vTexCoord.z));
   if(bTexEn) {
     tex  = texture2D(sTex,  vTexCoord.xy);
   } else {
-    tex  = vec4(1, 1, 1, 1);
+    tex  = vec4(uDif.a, uDif.a, uDif.a, 1);	// premultiplied alpha for workaround GLUtils.texImage2D
   }
-  spec = vSpec  * vTexCoord.w;
-  tmp  = vColor * toon + vAmb;
-  gl_FragColor = tex * tmp + spec;
+  spec   = uSpec * vTexCoord.w;
+  difamb = uDif  * toon + uAmb;
+  gl_FragColor = tex * min(difamb, 1.0) + spec;
 }

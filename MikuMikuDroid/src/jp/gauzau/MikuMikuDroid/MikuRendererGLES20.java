@@ -23,7 +23,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		public int muTexEn;
 		public int muSpaEn;
 		public int muSphEn;
-		public int muColor;
+		public int muDif;
 		public int muSpec;
 		public int muAmb;
 		public int muPow;
@@ -31,7 +31,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		public int muMBone;
 
 		public int muPMatrix;
-		public int muLightPos;
+		public int muLightDir;
 		
 		public GLSL(String v, String f) {
 			mProgram = createProgram(v, f);
@@ -54,12 +54,12 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			muTexEn				= GLES20.glGetUniformLocation(mProgram, "bTexEn");
 			muSpaEn				= GLES20.glGetUniformLocation(mProgram, "bSpaEn");
 			muSphEn				= GLES20.glGetUniformLocation(mProgram, "bSphEn");
-			muColor				= GLES20.glGetUniformLocation(mProgram, "vColor");
-			muSpec				= GLES20.glGetUniformLocation(mProgram, "vSpec");
-			muAmb				= GLES20.glGetUniformLocation(mProgram, "vAmb");
+			muDif				= GLES20.glGetUniformLocation(mProgram, "uDif");
+			muSpec				= GLES20.glGetUniformLocation(mProgram, "uSpec");
+			muAmb				= GLES20.glGetUniformLocation(mProgram, "uAmb");
 			muPow				= GLES20.glGetUniformLocation(mProgram, "uPow");
 			muMBone				= GLES20.glGetUniformLocation(mProgram, "uMBone");
-			muLightPos			= GLES20.glGetUniformLocation(mProgram, "vLightPos");
+			muLightDir			= GLES20.glGetUniformLocation(mProgram, "uLightDir");
 		}
 		
 		private int loadShader(int shaderType, String source) {
@@ -117,6 +117,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private GLSL mGLSLBG;
 	
 	public float mBoneMatrix[];
+	private float[] mLightDir = new float[3];
 
 	public MikuRendererGLES20(CoreLogic cl) {
 		super(cl);
@@ -126,6 +127,9 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 	@Override
 	public void onDrawFrame(GL10 gl) {
+		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
+		Vector.normalize(mLightDir);
+		
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 
 		int pos = mCoreLogic.applyCurrentMotion();
@@ -136,7 +140,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		GLES20.glUniformMatrix4fv(mGLSL.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
 
 		// LightPosition
-		GLES20.glUniform4f(mGLSL.muLightPos, 0.5f, 20f, 1f, 1f);	// in right-handed region
+		GLES20.glUniform3fv(mGLSL.muLightDir, 1, mLightDir, 0);		
 
 		GLES20.glUniform1i(mGLSL.msToonSampler, 0);
 		GLES20.glUniform1i(mGLSL.msTextureSampler, 1);
@@ -159,10 +163,9 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 			// Projection, Model, View Matrix
 			GLES20.glUniformMatrix4fv(mGLSLBG.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
-			// GLES20.glUniformMatrix4fv(muMVMatrixStage, 1, false, mMVMatrix, 0);
 
 			// LightPosition
-			GLES20.glUniform4f(mGLSLBG.muLightPos, 0.5f, 20f, 1f, 1f);	// in right-handed region
+			GLES20.glUniform3fv(mGLSLBG.muLightDir, 1, mLightDir, 0);		
 
 			GLES20.glUniform1i(mGLSLBG.msToonSampler, 0);
 			GLES20.glUniform1i(mGLSLBG.msTextureSampler, 1);
@@ -194,11 +197,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		GLES20.glFrontFace(GLES20.GL_CW);
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
-		// GLUtils.texImage2D generates premultiplied-alpha texture. so we use GL_CONSTANT_ALPHA instead of GL_ALPHA
+		// GLUtils.texImage2D generates premultiplied-alpha texture. so we use GL_ONE instead of GL_ALPHA
 		GLES20.glEnable(GLES20.GL_BLEND);
-//		GLES20.glBlendFunc( GLES20.GL_CONSTANT_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
-//		GLES20.glBlendFunc(GL10.GL_ONE, GL10.GL_ONE_MINUS_SRC_ALPHA);
-		GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+		GLES20.glBlendFunc(GL10.GL_ONE, GL10.GL_ONE_MINUS_SRC_ALPHA);
+//		GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
 		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
 //		GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
@@ -248,16 +250,12 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				checkGlError("drawGLES20 VertexAttribPointer blend");
 			}
 	
-			// alpha & cull
-			/*
-			if(mat.diffuse_color[3] < 1) {
+			// don't cull face that has alpha value 0.99
+			if(mat.diffuse_color[3] == 0.99f) {
 				GLES20.glDisable(GLES20.GL_CULL_FACE);
-				GLES20.glEnable(GLES20.GL_BLEND);
 			} else {
 				GLES20.glEnable(GLES20.GL_CULL_FACE);
-				GLES20.glDisable(GLES20.GL_BLEND);
 			}
-			*/
 	
 			// Toon texture
 			GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -297,15 +295,13 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 			checkGlError("on DrawGLES20");
 			
-			float w = 0.6f;
-			float wi = 0.6f;
-			GLES20.glUniform4f(glsl.muColor, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
-			GLES20.glUniform4f(glsl.muAmb, mat.emmisive_color[0] * w, mat.emmisive_color[1] * w, mat.emmisive_color[2] * w, mat.emmisive_color[3]);
+			float wi = 0.6f;	// light color = (0.6, 0.6, 0.6)
+			GLES20.glUniform4f(glsl.muDif, mat.diffuse_color[0] * wi, mat.diffuse_color[1] * wi, mat.diffuse_color[2] * wi, mat.diffuse_color[3]);
+			GLES20.glUniform4f(glsl.muAmb, mat.emmisive_color[0], mat.emmisive_color[1], mat.emmisive_color[2], 0);
 			if (glsl.muPow >= 0) {
-				GLES20.glUniform4f(glsl.muSpec, mat.specular_color[0] * w, mat.specular_color[1] * w, mat.specular_color[2] * w, mat.specular_color[3]);
+				GLES20.glUniform4f(glsl.muSpec, mat.specular_color[0], mat.specular_color[1], mat.specular_color[2], 0);
 				GLES20.glUniform1f(glsl.muPow, mat.power);
 			}
-			// GLES20.glBlendColor(0, 0, 0, mat.face_color[3]);
 			miku.mIndexBuffer.position(mat.face_vart_offset);
 			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 			checkGlError("glDrawElements");

@@ -2,7 +2,7 @@ precision mediump float;
 attribute vec4 aPosition;
 attribute vec4 aNormal;
 attribute vec3 aBlend;
-uniform vec4 vLightPos;
+uniform vec3 uLightDir;
 uniform mat4 uPMatrix;
 uniform mat4 uMBone[%d];
 uniform float uPow;
@@ -28,11 +28,10 @@ void main() {
   b   = mix(b2, b1, aBlend.z * 0.01);
   gl_Position = uPMatrix * b;
 
-  n = mat3(m1[0].xyz, m1[1].xyz, m1[2].xyz) * vec3(aPosition.w, aNormal.xy);
-  v = dot(n, normalize(b.xyz - vLightPos.xyz));
-//  v = dot(normalize(n), normalize(b.xyz - vLightPos.xyz));
-  spec = min(1.0, pow(max(-v, 0.0), uPow));
-// spec = max(-v, 0.0) / uPow;
+//  n = mat3(m1[0].xyz, m1[1].xyz, m1[2].xyz) * vec3(aPosition.wx, -aNormal.y);
+  n = mat3(m1[0].x, m1[1].x, m1[2].x, m1[0].y, m1[1].y, m1[2].y, m1[0].z, m1[1].z, m1[2].z) * vec3(aPosition.wx, -aNormal.y);
+  v = dot(n, uLightDir);
+  spec = min(1.0, pow(max(v, 0.0), uPow));
   v = v * 0.5 + 0.5;
   vTexCoord   = vec4(aNormal.zw, v, spec);
 }

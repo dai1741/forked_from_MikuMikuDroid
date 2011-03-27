@@ -7,33 +7,32 @@ uniform sampler2D sSphere;
 uniform bool bTexEn;
 uniform bool bSpaEn;
 uniform bool bSphEn;
-uniform vec4 vColor;
-uniform vec4 vSpec;
-uniform vec4 vAmb;
+uniform vec4 uDif;
+uniform vec4 uSpec;
+uniform vec4 uAmb;
+
 void main() {
   vec4 toon;
   vec4 tex;
   vec4 spec;
-  vec4 spa;
   vec4 sph;
-  vec4 tmp;
+  vec4 difamb;
   toon = texture2D(sToon, vec2(0.5, vTexCoord.z));
-  if(bSpaEn) {
-	  spa = texture2D(sSphere, vSphereCoord);
-  } else {
-      spa = vec4(0, 0, 0, 0);
-  }
-  if(bSphEn) {
-	  sph = texture2D(sSphere, vSphereCoord);
-  } else {
-      sph = vec4(1.0, 1.0, 1.0, 1.0);
+  if(bSpaEn || bSphEn) {
+    sph  = texture2D(sSphere, vSphereCoord);
   }
   if(bTexEn) {
     tex  = texture2D(sTex,  vTexCoord.xy);
   } else {
-    tex  = vec4(1.0, 1.0, 1.0, 1.0);
+    tex  = vec4(uDif.a, uDif.a, uDif.a, 1);	// premultiplied alpha for workaround GLUtils.texImage2D
   }
-  spec = vSpec  * vTexCoord.w;
-  tmp  = (vColor + spa) * toon + vAmb;
-  gl_FragColor = tex * tmp * sph + spec;
+  if(bSpaEn) {
+	  difamb  = uDif * toon       + sph + uAmb;
+  } else if (bSphEn) {
+	  difamb  = uDif * toon * sph       + uAmb;
+  } else {
+	  difamb  = uDif * toon             + uAmb;
+  }
+  spec = uSpec  * vTexCoord.w;
+  gl_FragColor = tex * min(difamb, 1.0) + spec;
 }

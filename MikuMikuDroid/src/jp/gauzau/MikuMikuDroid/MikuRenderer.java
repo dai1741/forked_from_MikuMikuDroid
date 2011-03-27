@@ -1,7 +1,8 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Map.Entry;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -9,24 +10,25 @@ import javax.microedition.khronos.opengles.GL11;
 import javax.microedition.khronos.opengles.GL11Ext;
 
 import android.opengl.GLUtils;
+import android.util.Log;
 
 public class MikuRenderer extends MikuRendererBase {
-	private boolean mBufferInitialized;
-	private boolean mStageBufferInitialized;
+	private float[] mLightDir = new float[3];
 
 	public MikuRenderer(CoreLogic cl) {
 		super(cl);
 		mCoreLogic = cl;
 		clear();
-		mBufferInitialized = false;
-		mStageBufferInitialized = false;
 	}
 
 	public void initializeBuffers(GL10 gl) {
+		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
+		Vector.normalize(mLightDir);
+		
 		for (Miku miku : mCoreLogic.getMiku()) {
 			// toon shading
 			gl.glActiveTexture(GL10.GL_TEXTURE0);
-			miku.mModel.calcToonTexCoord(0, -10f, -9f);
+			miku.mModel.calcToonTexCoord(mLightDir);
 			miku.mModel.readToonTexture();
 			bindToonTexture(miku.mModel, gl);
 
@@ -38,11 +40,29 @@ public class MikuRenderer extends MikuRendererBase {
 			bindBuffer(miku.mModel, gl);
 		}
 	}
-
-	public void initializeStageBuffers(GL10 gl) {
+	
+	public void initializeBuffers(GL10 gl, Miku miku) {
+		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
+		Vector.normalize(mLightDir);
+		
 		// toon shading
 		gl.glActiveTexture(GL10.GL_TEXTURE0);
-		mCoreLogic.getMikuStage().mModel.calcToonTexCoord(0, -10f, -9f);
+		miku.mModel.calcToonTexCoord(mLightDir);
+		miku.mModel.readToonTexture();
+		bindToonTexture(miku.mModel, gl);
+
+		// Texture
+		gl.glActiveTexture(GL10.GL_TEXTURE1);
+		miku.mModel.readAndBindTexture(gl);
+	}
+
+	public void initializeStageBuffers(GL10 gl) {
+		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
+		Vector.normalize(mLightDir);
+		
+		// toon shading
+		gl.glActiveTexture(GL10.GL_TEXTURE0);
+		mCoreLogic.getMikuStage().mModel.calcToonTexCoord(mLightDir);
 		mCoreLogic.getMikuStage().mModel.readToonTexture();
 		bindToonTexture(mCoreLogic.getMikuStage().mModel, gl);
 
@@ -61,14 +81,16 @@ public class MikuRenderer extends MikuRendererBase {
 
 		gl.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 
-		mCoreLogic.applyCurrentMotion();
+		int pos = mCoreLogic.applyCurrentMotion();
 
 		if (mCoreLogic.getMiku() != null) {
-			if (mBufferInitialized == false) {
-				initializeBuffers(gl);
-				mBufferInitialized = true;
+			for (Miku miku : mCoreLogic.getMiku()) {
+				if(miku.mModel.mIsTextureLoaded == false) {
+					initializeBuffers(gl, miku);
+					miku.mModel.mIsTextureLoaded = true;
+				}
 			}
-
+			
 			gl.glMatrixMode(GL10.GL_PROJECTION);
 			gl.glLoadMatrixf(mCoreLogic.getProjectionMatrix(), 0);
 
@@ -97,9 +119,9 @@ public class MikuRenderer extends MikuRendererBase {
 		}
 
 		if (mCoreLogic.getMikuStage() != null) {
-			if (mStageBufferInitialized == false) {
+			if (mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
 				initializeStageBuffers(gl);
-				mStageBufferInitialized = true;
+				mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
 			}
 			gl.glDisable(GL11Ext.GL_MATRIX_PALETTE_OES);
 			gl11.glDisableClientState(GL11Ext.GL_MATRIX_INDEX_ARRAY_OES);
@@ -110,6 +132,7 @@ public class MikuRenderer extends MikuRendererBase {
 		gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
 
 		gl.glFlush();
+		mCoreLogic.onDraw(pos);
 	}
 
 	@Override
@@ -135,8 +158,9 @@ public class MikuRenderer extends MikuRendererBase {
 		// gl.glEnable(GL10.GL_LIGHTING);
 		// gl.glEnable(GL10.GL_LIGHT0);
 
-		// GLUtils.texImage2D generates premultiplied-alpha texture, but OpenGL ES1.3 on android 2.1 is not support GL_CONSTANT_ALPHA...
+		// GLUtils.texImage2D generates premultiplied-alpha texture. so we use GL_ONE instead of GL_ALPHA
 		gl.glEnable(GL10.GL_BLEND);
+//		gl.glBlendFunc(GL10.GL_ONE, GL10.GL_ONE_MINUS_SRC_ALPHA);
 		gl.glBlendFunc(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
 
 		gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
@@ -159,12 +183,11 @@ public class MikuRenderer extends MikuRendererBase {
 	@Override
 	public void clear() {
 		super.clear();
-		mBufferInitialized = false;
-		mStageBufferInitialized = false;
 	}
 	
-	public void draw(GL10 gl, MikuModel miku) {
+	private void draw(GL10 gl, MikuModel miku) {
 		GL11Ext gl11Ext = (GL11Ext) gl;
+		ArrayList<Bone> bs = miku.mBone;
 	
 		if (miku.mAnimation) {
 			gl.glMatrixMode(GL11Ext.GL_MATRIX_PALETTE_OES);
@@ -173,6 +196,17 @@ public class MikuRenderer extends MikuRendererBase {
 		ArrayList<Material> rendar = miku.mAnimation ? miku.mRendarList : miku.mMaterial;
 		for (Material mat : rendar) {
 			if (miku.mAnimation) {
+				for (int j = 0; j < miku.mRenameBone; j++) {
+					int inv = mat.rename_inv_map[j];
+					if (inv >= 0) {
+						Bone b = bs.get(inv);
+						gl11Ext.glCurrentPaletteMatrixOES(j);
+						gl11Ext.glLoadPaletteFromModelViewMatrixOES();
+						gl.glMultMatrixf(b.matrix, 0);
+					}
+				}
+
+				/*
 				for (Entry<Integer, Integer> ren : mat.rename_hash.entrySet()) {
 					if (ren.getValue() < miku.mRenameBone) {
 						gl11Ext.glCurrentPaletteMatrixOES(ren.getValue());
@@ -180,8 +214,16 @@ public class MikuRenderer extends MikuRendererBase {
 						gl.glMultMatrixf(miku.mBone.get(ren.getKey()).matrix, 0);
 					}
 				}
+				*/
 				// gl11.glBindBuffer(GL11.GL_ARRAY_BUFFER, 0);
-				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_SHORT, 3, mat.rename_index);
+				ByteBuffer bb = ByteBuffer.allocateDirect(mat.rename_index.capacity());
+				bb.order(ByteOrder.nativeOrder());
+				for(int i = 0; i < bb.capacity(); i++) {
+					bb.put((byte) mat.rename_index.get());
+				}
+				bb.position(0);
+				mat.rename_index.position(0);
+				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, bb);
 			}
 	
 			// Toon texture
@@ -213,7 +255,8 @@ public class MikuRenderer extends MikuRendererBase {
 			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_AMBIENT, mat.emmisive_color, 0);
 			// gl.glMaterialf(GL10.GL_FRONT_AND_BACK, GL10.GL_SHININESS, mat.power);
 	
-			gl.glColor4f(mat.diffuse_color[0], mat.diffuse_color[1], mat.diffuse_color[2], mat.diffuse_color[3]);
+			float wi = 0.6f;
+			gl.glColor4f(mat.diffuse_color[0] * wi + mat.emmisive_color[0], mat.diffuse_color[1] * wi + mat.emmisive_color[1], mat.diffuse_color[2] * wi + mat.emmisive_color[2], mat.diffuse_color[3]);
 			miku.mIndexBuffer.position(mat.face_vart_offset);
 			gl.glDrawElements(GL10.GL_TRIANGLES, mat.face_vert_count, GL10.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 		}
@@ -221,7 +264,7 @@ public class MikuRenderer extends MikuRendererBase {
 	}
 
 
-	public void bindBuffer(MikuModel miku, GL10 gl) {
+	private void bindBuffer(MikuModel miku, GL10 gl) {
 		GL11Ext gl11Ext = (GL11Ext) gl;
 	
 		miku.mAllBuffer.position(0);
@@ -244,7 +287,7 @@ public class MikuRenderer extends MikuRendererBase {
 	}
 	
 
-	public void bindToonTexture(MikuModel miku, GL10 gl) {
+	private void bindToonTexture(MikuModel miku, GL10 gl) {
 		int tex[] = new int[11];
 		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
 		gl.glGenTextures(11, tex, 0);

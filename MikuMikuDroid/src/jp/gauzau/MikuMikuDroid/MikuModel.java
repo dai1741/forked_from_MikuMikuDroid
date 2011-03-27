@@ -199,17 +199,13 @@ public class MikuModel implements Serializable, SerializableExt {
 			if (acc > max_bone) {
 				mat_new.face_vert_count = j - offset;
 				buildBoneRenameHash(pmd, mat_new, rename, rename_pool, max_bone);
-				/*
-				buildBoneRenameMap(mat_new, max_bone);
-				buildBoneRenameInvMap(mat_new, max_bone);
-				buildBoneRenameIndex(pmd, mat_new, max_bone);
-				*/
 				mRendarList.add(mat_new);
-
+				/*
 				Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
 				for (Entry<Integer, Integer> b : rename.entrySet()) {
 					Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
 				}
+				*/
 
 				reconstructMaterial1(pmd, mat, j, rename_pool, max_bone);
 				return;
@@ -217,17 +213,14 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 		mat_new.face_vert_count = mat.face_vert_count - offset;
 		buildBoneRenameHash(pmd, mat_new, rename, rename_pool, max_bone);
-		/*
-		buildBoneRenameMap(mat_new, max_bone);
-		buildBoneRenameInvMap(mat_new, max_bone);
-		buildBoneRenameIndex(pmd, mat_new, max_bone);
-		*/
 		mRendarList.add(mat_new);
 
+		/*
 		Log.d("Miku", "rename Bone for Material #" + String.valueOf(mat_new.face_vart_offset) + ", bones " + String.valueOf(acc));
 		for (Entry<Integer, Integer> b : rename.entrySet()) {
 			Log.d("Miku", String.format("ID %d: bone %d", b.getValue(), b.getKey()));
 		}
+		*/
 	}
 
 
@@ -258,13 +251,13 @@ public class MikuModel implements Serializable, SerializableExt {
 				
 				map.putAll(rename);
 				rename_pool.put(map, bb);
-				Log.d("MikuModel", "Reuse buffer");
+//				Log.d("MikuModel", "Reuse buffer");
 				return ;
 			}
 		}
 		
 		// allocate new buffer
-		Log.d("MikuModel", "Allocate new buffer");
+//		Log.d("MikuModel", "Allocate new buffer");
 		buildNewBoneRenameHash(pmd, mat, rename);
 		buildBoneRenameMap(mat, max_bone);
 		buildBoneRenameInvMap(mat, max_bone);
@@ -355,7 +348,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		return acc;
 	}
 
-	public void calcToonTexCoord(float x, float y, float z) {
+	public void calcToonTexCoord(float[] light_dir) {
 		ByteBuffer tbb = ByteBuffer.allocateDirect(mAllBuffer.capacity() / 8 * 2 * 4);
 		tbb.order(ByteOrder.nativeOrder());
 		mToonCoordBuffer = tbb.asFloatBuffer();
@@ -365,24 +358,7 @@ public class MikuModel implements Serializable, SerializableExt {
 			mAllBuffer.position(i * 8);
 			mAllBuffer.get(vn);
 
-			float dx, dy, dz, a;
-
-			// Calculate translate effects: assume that light is at (0, 0, 0)
-			dx = x + vn[0];
-			dy = y + vn[1];
-			dz = z + vn[2];
-
-			// normalize
-			a = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-			dx /= a;
-			dy /= a;
-			dz /= a;
-
-			// calculate an inner product as a texture coordinate
-			float p = (vn[3] * dx + vn[4] * dy + vn[5] * dz);
-			// Log.d("Miku", String.format("Vertex=%2.2fx%2.2fx%2.2f, Normal=%2.2fx%2.2fx%2.2f", dx, dy, dz, n.x, n.y, n.z));
-			// Log.d("Miku", "V: " + String.valueOf(p));
-
+			float p = (vn[3] * light_dir[0] + vn[4] * light_dir[1] + vn[5] * light_dir[2]);
 			mToonCoordBuffer.put(0.5f); // u
 			mToonCoordBuffer.put(p); // v
 		}
@@ -492,33 +468,18 @@ public class MikuModel implements Serializable, SerializableExt {
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-				// GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
+				//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-				if (tb.bmp.hasAlpha()) { // workaround
-					ByteBuffer buf = ByteBuffer.allocateDirect(tb.bmp.getWidth() * tb.bmp.getHeight() * 4);
-					for (int y = 0; y < tb.bmp.getHeight(); y++) {
-						for (int x = 0; x < tb.bmp.getWidth(); x++) {
-							int pixel = tb.bmp.getPixel(x, y);
-							buf.put((byte) ((pixel >> 16) & 0xff));
-							buf.put((byte) ((pixel >> 8) & 0xff));
-							buf.put((byte) ((pixel >> 0) & 0xff));
-							buf.put((byte) ((pixel >> 24) & 0xff));
-						}
-					}
-					buf.position(0);
-					GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, tb.bmp.getWidth(), tb.bmp.getHeight(), 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-					buf = null;
-				} else {
-					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-				}
-				// GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
+				//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
 
 				tb.bmp.recycle();
 				int err = GLES20.glGetError();
 				if (err != 0) {
 					Log.d("Miku", GLU.gluErrorString(err));
 				}
-				
+			} else {
+				Log.d("MikuModel", String.format("Texture read fails: %s", texture));
 			}
 		}
 	}

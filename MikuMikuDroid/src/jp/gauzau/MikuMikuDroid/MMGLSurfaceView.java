@@ -18,7 +18,7 @@ public class MMGLSurfaceView extends GLSurfaceView {
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
 			mMikuRendarer = new MikuRendererGLES20(cl);
-			// mMikuRendarer = new MikuRenderer();
+			//mMikuRendarer = new MikuRenderer(cl);
 		} else {
 			mMikuRendarer = new MikuRenderer(cl);
 		}
