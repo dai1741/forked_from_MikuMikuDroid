@@ -24,6 +24,12 @@ public class Vector {
 	public static float dot(float[] v1, float[] v2) {
 		return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 	}
+	
+	public static void min(float[] v, float min) {
+		for(int i = 0; i < v.length; i++) {
+			v[i] = v[i] < min ? v[i] : min;
+		}
+	}
 
 	public static boolean invertM(float[] mInv, int mInvOffset, float[] m, int mOffset) {
 		// Invert a 4 x 4 matrix using Cramer's Rule

@@ -30,13 +30,13 @@ void main() {
   b   = mix(b2, b1, aBlend.z * 0.01);
   gl_Position = uPMatrix * b;
 
-  n = mat3(m1[0].x, m1[1].x, m1[2].x, m1[0].y, m1[1].y, m1[2].y, m1[0].z, m1[1].z, m1[2].z) * vec3(aPosition.wx, -aNormal.y);
+  n = mat3(m1[0].x, m1[1].x, m1[2].x, m1[0].y, m1[1].y, m1[2].y, m1[0].z, m1[1].z, m1[2].z) * vec3(aPosition.w, aNormal.x, -aNormal.y);
   v = dot(n, uLightDir);
   spec = min(1.0, pow(max(v, 0.0), uPow));
   v = v * 0.5 + 0.5;
   vTexCoord   = vec4(aNormal.zw, v, spec);
   
-  r = reflect(normalize(b.xzy), n);
-  s = 2.0 * length(r + vec3(0.0, 0.0, 1.0));
-  vSphereCoord = vec2(r.x / s + 0.5, r.y / s + 0.5);
+//  r = reflect(normalize(b.xzy), n);
+//  s = 2.0 * length(r + vec3(0.0, 0.0, 1.0));
+  vSphereCoord = vec2(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5);
 }

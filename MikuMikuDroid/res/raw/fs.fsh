@@ -2,7 +2,6 @@ precision mediump float;
 varying vec4 vTexCoord;
 uniform sampler2D sToon;
 uniform sampler2D sTex;
-uniform bool bTexEn;
 uniform vec4 uDif;
 uniform vec4 uSpec;
 void main() {
@@ -11,12 +10,8 @@ void main() {
   vec4 spec;
   vec4 difamb;
   toon = texture2D(sToon, vec2(0.5, vTexCoord.z));
-  if(bTexEn) {
-    tex  = texture2D(sTex,  vTexCoord.xy);
-  } else {
-    tex  = vec4(uDif.a, uDif.a, uDif.a, 1);	// premultiplied alpha for workaround GLUtils.texImage2D
-  }
+  tex  = texture2D(sTex,  vTexCoord.xy);
   spec   = uSpec * vTexCoord.w;
   difamb = uDif  * toon;
-  gl_FragColor = tex * min(difamb, 1.0) + spec;
+  gl_FragColor = tex * difamb + spec;
 }
