@@ -8,9 +8,7 @@ import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.opengles.GL11;
 import javax.microedition.khronos.opengles.GL11Ext;
 
-import android.opengl.GLES20;
 import android.opengl.GLU;
-import android.opengl.GLUtils;
 import android.util.Log;
 
 public class MikuRenderer extends MikuRendererBase {
