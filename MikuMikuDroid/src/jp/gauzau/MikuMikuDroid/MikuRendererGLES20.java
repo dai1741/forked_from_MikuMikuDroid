@@ -1,12 +1,13 @@
 package jp.gauzau.MikuMikuDroid;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 import android.opengl.GLES20;
-import android.opengl.GLUtils;
+import android.opengl.GLU;
 import android.util.Log;
 
 public class MikuRendererGLES20 extends MikuRendererBase {
@@ -119,7 +120,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		
 		
 	};
-
+	
 	private GLSL mGLSL;
 	private GLSL mGLSLBG;
 	
@@ -268,24 +269,24 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			
 			// Toon texture
 			GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index).tex);
+			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index));
 
 			// texture
 			if (mat.texture != null) {
-				TexBitmap tb = miku.mTexture.get(mat.texture);
+				Integer tb = miku.mTexture.get(mat.texture);
 				if(tb != null) {
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.texture).tex);
+					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb);
 				} else {	// avoid crash
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(0).tex);	// white texture using toon0.bmp
+					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(0));	// white texture using toon0.bmp
 					for(int i = 0; i < 3; i++) {	// for emulate premultiplied alpha
 						mDifAmb[i] *= mat.diffuse_color[3];
 					}
 				}
 			} else {
 				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(0).tex);	// white texture using toon0.bmp
+				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mToon.get(0));	// white texture using toon0.bmp
 				for(int i = 0; i < 3; i++) {	// for emulate premultiplied alpha
 					mDifAmb[i] *= mat.diffuse_color[3];
 				}
@@ -295,7 +296,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			if(glsl.muSphEn >= 0) {
 				if (mat.sphere != null) {
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
-					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.sphere).tex);
+					GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, miku.mTexture.get(mat.sphere));
 					if(mat.sphere.endsWith(".spa")) {
 						GLES20.glUniform1i(glsl.muSpaEn, 1);					
 						GLES20.glUniform1i(glsl.muSphEn, 0);
@@ -338,16 +339,15 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private void initializeTextures(Miku miku) {
 		// toon shading
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		miku.mModel.readToonTexture();
-		bindToonTextureGLES20(miku.mModel);
+		readAndBindToonTextureGLES20(miku.mModel);
 
 		// Texture
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-		miku.mModel.readAndBindTextureGLES20();
+		readAndBindTextureGLES20(miku.mModel);
 		
 		// Sphere
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
-		miku.mModel.readAndBindSphereTextureGLES20();
+		readAndBindSphereTextureGLES20(miku.mModel);
 	}
 
 	private void bindBufferGLES20(MikuModel miku, GLSL glsl) {
@@ -363,22 +363,79 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		miku.mAllBuffer.position(0);
 	}
 	
-	private void bindToonTextureGLES20(MikuModel miku) {
+	public void readAndBindTextureGLES20(MikuModel model) {
+		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+		
+		Log.d("MikuModel", "Loading textures...");
+		model.mTexture = new HashMap<String, Integer>();
+		for (int i = 0; i < model.mMaterial.size(); i++) {
+			Material mat = model.mMaterial.get(i);
+			if (mat.texture != null) {
+				try {
+					readAndBindTexture1(model, mat.texture);
+				} catch (OutOfMemoryError e) {
+					continue;
+				}
+			}
+		}
+	}
+	
+	public void readAndBindSphereTextureGLES20(MikuModel model) {
+		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+		for (int i = 0; i < model.mMaterial.size(); i++) {
+			Material mat = model.mMaterial.get(i);
+			if(mat.sphere != null) {
+				try {
+					readAndBindTexture1(model, mat.sphere);					
+				} catch (OutOfMemoryError e) {
+					continue;
+				}
+			}
+		}
+	}
+	
+	
+	private void readAndBindTexture1(MikuModel model, String texture) {
+		if (model.mTexture.get(texture) == null) {
+			// bind
+			int tex[] = new int[1];
+			GLES20.glGenTextures(1, tex, 0);
+
+			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[0]);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+			//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+			TextureFile.loadTexture(model.mBase, texture, 1);
+			model.mTexture.put(texture, tex[0]);
+			//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+
+			int err = GLES20.glGetError();
+			if (err != 0) {
+				Log.d("MikuRendererGLES20", GLU.gluErrorString(err));
+				Log.d("MikuRendererGLES20", texture);
+			} else {
+				Log.d("MikuRendererGLES20", texture);
+			}
+		}
+	}
+
+	
+	private void readAndBindToonTextureGLES20(MikuModel model) {
 		int tex[] = new int[11];
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		GLES20.glGenTextures(11, tex, 0);
 	
+		model.mToon = new ArrayList<Integer>();
 		for (int i = 0; i < 11; i++) {
-			TexBitmap tb = miku.mToon.get(i);
-			tb.tex = tex[i];
-	
-			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
+			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[i]);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-			tb.bmp.recycle();
+			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1);
+			model.mToon.add(tex[i]);
 		}
 	}
 	

@@ -1,13 +1,17 @@
 package jp.gauzau.MikuMikuDroid;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.opengles.GL11;
 import javax.microedition.khronos.opengles.GL11Ext;
 
+import android.opengl.GLES20;
+import android.opengl.GLU;
 import android.opengl.GLUtils;
+import android.util.Log;
 
 public class MikuRenderer extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
@@ -26,12 +30,11 @@ public class MikuRenderer extends MikuRendererBase {
 			// toon shading
 			gl.glActiveTexture(GL10.GL_TEXTURE0);
 			miku.mModel.calcToonTexCoord(mLightDir);
-			miku.mModel.readToonTexture();
-			bindToonTexture(miku.mModel, gl);
+			readAndBindToonTexture(gl, miku.mModel);
 
 			// Texture
 			gl.glActiveTexture(GL10.GL_TEXTURE1);
-			miku.mModel.readAndBindTexture(gl);
+			readAndBindTexture(gl, miku.mModel);
 
 			// buffer bindings
 			bindBuffer(miku.mModel, gl);
@@ -45,12 +48,11 @@ public class MikuRenderer extends MikuRendererBase {
 		// toon shading
 		gl.glActiveTexture(GL10.GL_TEXTURE0);
 		miku.mModel.calcToonTexCoord(mLightDir);
-		miku.mModel.readToonTexture();
-		bindToonTexture(miku.mModel, gl);
+		readAndBindToonTexture(gl, miku.mModel);
 
 		// Texture
 		gl.glActiveTexture(GL10.GL_TEXTURE1);
-		miku.mModel.readAndBindTexture(gl);
+		readAndBindTexture(gl, miku.mModel);
 	}
 
 	public void initializeStageBuffers(GL10 gl) {
@@ -60,12 +62,11 @@ public class MikuRenderer extends MikuRendererBase {
 		// toon shading
 		gl.glActiveTexture(GL10.GL_TEXTURE0);
 		mCoreLogic.getMikuStage().mModel.calcToonTexCoord(mLightDir);
-		mCoreLogic.getMikuStage().mModel.readToonTexture();
-		bindToonTexture(mCoreLogic.getMikuStage().mModel, gl);
+		readAndBindToonTexture(gl, mCoreLogic.getMikuStage().mModel);
 
 		// Texture
 		gl.glActiveTexture(GL10.GL_TEXTURE1);
-		mCoreLogic.getMikuStage().mModel.readAndBindTexture(gl);
+		readAndBindTexture(gl, mCoreLogic.getMikuStage().mModel);
 
 		// buffer bindings
 		bindBuffer(mCoreLogic.getMikuStage().mModel, gl);
@@ -225,7 +226,7 @@ public class MikuRenderer extends MikuRendererBase {
 			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
 			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
 			gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
-			gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index).tex);
+			gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mToon.get(mat.toon_index));
 			float wi = 0.6f;
 	
 			if (mat.texture != null) {
@@ -236,7 +237,7 @@ public class MikuRenderer extends MikuRendererBase {
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
-				gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mTexture.get(mat.texture).tex);
+				gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mTexture.get(mat.texture));
 				gl.glColor4f(mat.diffuse_color[0] * wi + mat.emmisive_color[0], mat.diffuse_color[1] * wi + mat.emmisive_color[1], mat.diffuse_color[2] * wi + mat.emmisive_color[2], mat.diffuse_color[3]);
 			} else {
 				gl.glActiveTexture(GL10.GL_TEXTURE1);
@@ -280,18 +281,39 @@ public class MikuRenderer extends MikuRendererBase {
 	
 	}
 	
+	public void readAndBindTexture(GL10 gl, MikuModel model) {
+		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
+	
+		model.mTexture = new HashMap<String, Integer>();
+		for (int i = 0; i < model.mMaterial.size(); i++) {
+			Material mat = model.mMaterial.get(i);
+			if (mat.texture != null) {
+				if (model.mTexture.get(mat.texture) == null) {
+					int tex[] = new int[1];
+					gl.glGenTextures(1, tex, 0);
+					gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[0]);
+					TextureFile.loadTexture(model.mBase, mat.texture, 1);
+	
+					int err = gl.glGetError();
+					if (err != 0) {
+						Log.d("MikuModel", GLU.gluErrorString(err));
+					}
+					model.mTexture.put(mat.texture, tex[0]);
+				}
+			}
+		}
+	}
 
-	private void bindToonTexture(MikuModel miku, GL10 gl) {
+	private void readAndBindToonTexture(GL10 gl, MikuModel model) {
 		int tex[] = new int[11];
 		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
 		gl.glGenTextures(11, tex, 0);
-	
+
+		model.mToon = new ArrayList<Integer>();
 		for (int i = 0; i < 11; i++) {
-			TexBitmap tb = miku.mToon.get(i);
-			tb.tex = tex[i];
-	
-			gl.glBindTexture(GL10.GL_TEXTURE_2D, tb.tex);
-			GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, tb.bmp, 0);
+			gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[i]);
+			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1);
+			model.mToon.add(tex[i]);
 		}
 	}
 

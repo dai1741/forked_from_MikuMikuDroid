@@ -12,16 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import javax.microedition.khronos.opengles.GL10;
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.BitmapFactory.Options;
-import android.opengl.GLES20;
-import android.opengl.GLU;
-import android.opengl.GLUtils;
-import android.util.Log;
-
 public class MikuModel implements Serializable, SerializableExt {
 	private static final long serialVersionUID = -9127943692220369080L;
 	
@@ -32,7 +22,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	public transient int mRenameBone;
 	public transient CubeArea mCube;
 	public transient boolean mIsTextureLoaded;
-	private transient String mBase;
+	public transient String mBase;
 	
 	// model data
 	public transient FloatBuffer mToonCoordBuffer;
@@ -53,8 +43,8 @@ public class MikuModel implements Serializable, SerializableExt {
 	public transient int[] mIndexMaps;
 	public transient Face mFaceBase;
 	
-	public transient HashMap<String, TexBitmap> mTexture;
-	public transient ArrayList<TexBitmap> mToon;
+	public transient HashMap<String, Integer> mTexture;
+	public transient ArrayList<Integer> mToon;
 
 	public MikuModel() {
 		
@@ -364,134 +354,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		mToonCoordBuffer.position(0);
 		mAllBuffer.position(0);
 	}
-	
 
-	
-	public void readAndBindTexture(GL10 gl) {
-		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
-	
-		mTexture = new HashMap<String, TexBitmap>();
-		for (int i = 0; i < mMaterial.size(); i++) {
-			Material mat = mMaterial.get(i);
-			if (mat.texture != null) {
-				if (mTexture.get(mat.texture) == null) {
-					// read
-					TexBitmap tb = new TexBitmap();
-	
-					tb.bmp = loadPicture(mat.texture, 2);
-//					Log.d("Miku",
-//							mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-//									+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-					mTexture.put(mat.texture, tb);
-	
-					// bind
-					int tex[] = new int[1];
-					gl.glGenTextures(1, tex, 0);
-					tb.tex = tex[0];
-					gl.glBindTexture(GL10.GL_TEXTURE_2D, tb.tex);
-					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-	
-					int err = gl.glGetError();
-					if (err != 0) {
-						Log.d("MikuModel", GLU.gluErrorString(err));
-					}
-				}
-			}
-		}
-	}
-
-	public void readAndBindTextureGLES20() {
-		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		
-		Log.d("MikuModel", "Loading textures...");
-		mTexture = new HashMap<String, TexBitmap>();
-		for (int i = 0; i < mMaterial.size(); i++) {
-			Material mat = mMaterial.get(i);
-			if (mat.texture != null) {
-				try {
-					readAndBindTexture1(mat.texture);
-				} catch (OutOfMemoryError e) {
-					continue;
-				}
-			}
-		}
-	}
-	
-	public void readAndBindSphereTextureGLES20() {
-		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		for (int i = 0; i < mMaterial.size(); i++) {
-			Material mat = mMaterial.get(i);
-			if(mat.sphere != null) {
-				try {
-					readAndBindTexture1(mat.sphere);					
-				} catch (OutOfMemoryError e) {
-					continue;
-				}
-			}
-		}
-	}
-	
-	
-	private void readAndBindTexture1(String texture) {
-		if (mTexture.get(texture) == null) {
-			// bind
-			TexBitmap tb = new TexBitmap();
-			int tex[] = new int[1];
-			GLES20.glGenTextures(1, tex, 0);
-			tb.tex = tex[0];
-
-			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-			//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-			TextureFile.loadTexture(mBase, texture, 1);
-			mTexture.put(texture, tb);
-			//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-
-			int err = GLES20.glGetError();
-			if (err != 0) {
-				Log.d("MikuModel", GLU.gluErrorString(err));
-				Log.d("MikuModel", texture);
-			} else {
-				Log.d("MikuModel", texture);
-			}
-		}
-	}
-
-	public void readToonTexture() {
-		mToon = new ArrayList<TexBitmap>();
-		for (int i = 0; i < 11; i++) {
-			TexBitmap tb = new TexBitmap();
-			tb.bmp = loadPicture(mToonFileName.get(i), 1);
-//			Log.d("Miku",
-//					mToonFileName.get(i) + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-//							+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-			mToon.add(tb);
-		}
-	}
-
-
-	public Bitmap loadPicture(String file, int scale) {
-		Bitmap bmp = null;
-		if (file.endsWith(".tga")) {
-			try {
-				bmp = TgaBitmapFactory.decodeFileCached(mBase, file, scale);
-			} catch (IOException e) {
-				e.printStackTrace();
-				return null;
-			}
-		} else {
-			Options opt = new Options();
-			// opt.inPreferredConfig = Bitmap.Config.ARGB_8888;
-			opt.inSampleSize = scale;
-			bmp = BitmapFactory.decodeFile(file, opt);
-		}
-	
-		return bmp;
-	}
-	
 	public MikuModel create() {
 		return new MikuModel();
 	}
