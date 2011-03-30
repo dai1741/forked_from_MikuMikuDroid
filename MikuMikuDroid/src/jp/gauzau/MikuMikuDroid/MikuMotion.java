@@ -172,7 +172,7 @@ public class MikuMotion implements Serializable {
 		return null;
 	}
 
-	public Motion interpolateLinear(MotionPair mp, MotionIndexA mi, float frame, Motion m) {
+	public MotionIndex interpolateLinear(MotionPair mp, MotionIndexA mi, float frame, MotionIndex m) {
 		if (mp == null) {
 			return null;
 		} else if (mp.m1 == -1) {

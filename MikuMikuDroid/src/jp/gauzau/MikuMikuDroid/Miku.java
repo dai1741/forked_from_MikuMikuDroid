@@ -18,7 +18,7 @@ public class Miku {
 
 	// temporary data
 	private MotionPair mMpWork = new MotionPair();
-	private Motion mMwork = new Motion();
+	private MotionIndex mMwork = new MotionIndex();
 	private float effecterVecs[] = new float[4];
 	private float effecterInvs[] = new float[4];
 	private float targetVecs[] = new float[4];
@@ -470,7 +470,7 @@ public class Miku {
 
 	private void setBoneMatrix(Bone b, float idx) {
 		MotionPair mp = mMotion.findMotion(b, idx, mMpWork);
-		Motion m = mMotion.interpolateLinear(mp, b.motion, idx, mMwork);
+		MotionIndex m = mMotion.interpolateLinear(mp, b.motion, idx, mMwork);
 		if (m != null) {
 			b.quaternion[0] = m.rotation[0];
 			b.quaternion[1] = m.rotation[1];
