@@ -209,8 +209,10 @@ public class CoreLogic {
 		// read model/motion files
 		PMDParser pmd = new PMDParser(modelf);
 		
-		
-		if(pmd.isPmd()) {			
+		if(pmd.isPmd()) {
+			// create texture cache
+			createTextureCache(pmd);
+			
 			// construct model/motion data structure
 			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, true);
 			MikuMotion motion = null;
@@ -276,6 +278,7 @@ public class CoreLogic {
 		mMikuStage = null;
 		PMDParser pmd = new PMDParser(file);
 		if(pmd.isPmd()) {
+			createTextureCache(pmd);
 			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
 			mMikuStage = new Miku(model);			
 		}
@@ -604,6 +607,17 @@ public class CoreLogic {
 	// ///////////////////////////////////////////////////////////
 	// Some common methods
 
+	private void createTextureCache(PMDParser pmd) {
+		// create texture cache
+		for(Material mat: pmd.getMaterial()) {
+			if(mat.texture != null) {
+				TextureFile.createCache(mBase, mat.texture, 1);
+			}
+			if(mat.sphere != null) {
+				TextureFile.createCache(mBase, mat.sphere, 1);
+			}
+		}
+	}
 
 	protected double nowFrames(int max_frame) {
 		double frame;

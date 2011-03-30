@@ -393,7 +393,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 					int err = gl.glGetError();
 					if (err != 0) {
-						Log.d("Miku", GLU.gluErrorString(err));
+						Log.d("MikuModel", GLU.gluErrorString(err));
 					}
 				}
 			}
@@ -402,7 +402,9 @@ public class MikuModel implements Serializable, SerializableExt {
 
 	public void readAndBindTextureGLES20() {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
-		mTexture = new HashMap<String, TexBitmap>();			
+		
+		Log.d("MikuModel", "Loading textures...");
+		mTexture = new HashMap<String, TexBitmap>();
 		for (int i = 0; i < mMaterial.size(); i++) {
 			Material mat = mMaterial.get(i);
 			if (mat.texture != null) {
@@ -432,37 +434,28 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 	private void readAndBindTexture1(String texture) {
 		if (mTexture.get(texture) == null) {
-			// read
+			// bind
 			TexBitmap tb = new TexBitmap();
+			int tex[] = new int[1];
+			GLES20.glGenTextures(1, tex, 0);
+			tb.tex = tex[0];
 
-			tb.bmp = loadPicture(texture, 2);
-			if(tb.bmp != null) {
-//				Log.d("Miku",
-//				mat.texture + ": " + String.valueOf(tb.bmp.getWidth()) + "x" + String.valueOf(tb.bmp.getHeight()) + " at row size "
-//						+ String.valueOf(tb.bmp.getRowBytes()) + "byte in " + tb.bmp.getConfig().name());
-				mTexture.put(texture, tb);
+			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+			//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+			TextureFile.loadTexture(mBase, texture, 1);
+			mTexture.put(texture, tb);
+			//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
 
-				// bind
-				int tex[] = new int[1];
-				GLES20.glGenTextures(1, tex, 0);
-				tb.tex = tex[0];
-
-				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tb.tex);
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-				//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
-				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, tb.bmp, 0);
-				//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-
-				tb.bmp.recycle();
-				int err = GLES20.glGetError();
-				if (err != 0) {
-					Log.d("Miku", GLU.gluErrorString(err));
-				}
+			int err = GLES20.glGetError();
+			if (err != 0) {
+				Log.d("MikuModel", GLU.gluErrorString(err));
+				Log.d("MikuModel", texture);
 			} else {
-				Log.d("MikuModel", String.format("Texture read fails: %s", texture));
+				Log.d("MikuModel", texture);
 			}
 		}
 	}

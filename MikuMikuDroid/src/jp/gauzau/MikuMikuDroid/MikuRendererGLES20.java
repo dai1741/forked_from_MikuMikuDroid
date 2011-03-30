@@ -255,7 +255,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			}
 	
 			// don't cull face that has alpha value 0.99
-			if(mat.diffuse_color[3] == 0.99f) {
+			if(mat.diffuse_color[3] < 1) {
 				GLES20.glDisable(GLES20.GL_CULL_FACE);
 			} else {
 				GLES20.glEnable(GLES20.GL_CULL_FACE);

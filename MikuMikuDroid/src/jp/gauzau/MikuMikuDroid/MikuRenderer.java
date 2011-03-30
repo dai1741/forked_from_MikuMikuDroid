@@ -1,7 +1,5 @@
 package jp.gauzau.MikuMikuDroid;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -9,9 +7,7 @@ import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.opengles.GL11;
 import javax.microedition.khronos.opengles.GL11Ext;
 
-import android.opengl.GLES20;
 import android.opengl.GLUtils;
-import android.util.Log;
 
 public class MikuRenderer extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
