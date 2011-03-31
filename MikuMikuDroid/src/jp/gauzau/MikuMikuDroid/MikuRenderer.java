@@ -209,7 +209,7 @@ public class MikuRenderer extends MikuRendererBase {
 			}
 			
 			// don't cull face that has alpha value 0.99
-			if(mat.diffuse_color[3] == 0.99f) {
+			if(mat.diffuse_color[3] < 1) {
 				gl.glDisable(GL10.GL_CULL_FACE);
 			} else {
 				gl.glEnable(GL10.GL_CULL_FACE);

@@ -479,6 +479,14 @@ public class PMDParser extends ParserBase {
 				vertex.bone_weight = getByte();
 				vertex.edge_flag = getByte();
 
+				// wrap texture (GL_REPEAT looks bad for NPOT texture with GPU that has no support for it)
+				if(vertex.uv[0] < 0) {
+					vertex.uv[0] += 1.0f;
+				}
+				if(vertex.uv[1] < 0) {
+					vertex.uv[1] += 1.0f;
+				}
+
 				if (vertex.bone_weight < 50) { // swap to make bone_num_0 as main bone
 					short tmp = vertex.bone_num_0;
 					vertex.bone_num_0 = vertex.bone_num_1;
