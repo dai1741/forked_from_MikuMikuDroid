@@ -32,30 +32,31 @@ public class TextureFile {
 		}
 	}
 	
-	static public void loadTexture(String base, String file, int scale) {
+	static public void loadTexture(String base, String file, int scale, int max) {
 		if (file.endsWith(".tga")) {
-			loadTgaTextureCached(base, file, scale);
+			loadTgaTextureCached(base, file, scale, max);
 		} else {
-			loadBitmapTextureCached(base, file, scale);
+			loadBitmapTextureCached(base, file, scale, max);
 		}
 	}
 	
-	static private void loadTgaTextureCached(String base, String file, int scale) {
+	static private void loadTgaTextureCached(String base, String file, int scale, int max) {
 		CacheFile cp = new CacheFile(base, "png");
 		cp.addFile(file);
 		
 		if(cp.hasCache()) {
-			Bitmap bmp = loadBitmap(cp.getCacheFileName(), scale);
-			if(bmp != null) {
-				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-				bmp.recycle();				
-			}
+			loadBitmapTextureCached(base, cp.getCacheFileName(), scale, max);
 		}
 	}
 	
-	static private void loadBitmapTextureCached(String base, String file, int scale) {
+	static private void loadBitmapTextureCached(String base, String file, int scale, int max) {
 		Bitmap bmp = loadBitmap(file, scale);
 		if(bmp != null) {
+			int wh = Math.max(bmp.getWidth(), bmp.getHeight());
+			if(wh > max) {
+				bmp.recycle();
+				bmp = loadBitmap(file, (int)(scale * Math.ceil(wh / max)));
+			}
 			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
 			bmp.recycle();			
 		}

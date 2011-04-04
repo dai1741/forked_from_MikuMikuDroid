@@ -124,13 +124,13 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private GLSL mGLSL;
 	private GLSL mGLSLBG;
 	
-	public float mBoneMatrix[];
+	public float[]  mBoneMatrix = new float[16 * 256];	// ad-hock number: will be fixed to mBoneNum
 	private float[] mLightDir = new float[3];
 	private float[] mDifAmb = new float[4];
+	private int[] mTexSize = new int[1];
 
 	public MikuRendererGLES20(CoreLogic cl) {
 		super(cl);
-		mBoneMatrix		= new float[16 * 256];	// ad-hock number: will be fixed to mBoneNum
 		clear();
 	}
 
@@ -216,6 +216,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		
 		// sharder program
 		int bonenum = 48;
+		GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, mTexSize, 0);
 		mCoreLogic.setGLConfig(bonenum);
 		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
 		if (mCoreLogic.getMiku() != null) {
@@ -407,7 +408,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-			TextureFile.loadTexture(model.mBase, texture, 1);
+			TextureFile.loadTexture(model.mBase, texture, 2, mTexSize[0]);
 			model.mTexture.put(texture, tex[0]);
 			//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
 
@@ -434,7 +435,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1);
+			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0]);
 			model.mToon.add(tex[i]);
 		}
 	}

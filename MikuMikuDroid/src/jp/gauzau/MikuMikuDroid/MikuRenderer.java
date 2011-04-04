@@ -13,6 +13,7 @@ import android.util.Log;
 
 public class MikuRenderer extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
+	private int[] mTexSize = new int[1];
 
 	public MikuRenderer(CoreLogic cl) {
 		super(cl);
@@ -163,6 +164,8 @@ public class MikuRenderer extends MikuRendererBase {
 
 		gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
 
+		gl.glGetIntegerv(GL11.GL_MAX_TEXTURE_SIZE, mTexSize, 0);
+
 		int matnum[] = new int[1];
 		gl.glGetIntegerv(GL11Ext.GL_MAX_PALETTE_MATRICES_OES, matnum, 0);
 		mCoreLogic.setGLConfig(matnum[0]);
@@ -290,7 +293,7 @@ public class MikuRenderer extends MikuRendererBase {
 					int tex[] = new int[1];
 					gl.glGenTextures(1, tex, 0);
 					gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[0]);
-					TextureFile.loadTexture(model.mBase, mat.texture, 1);
+					TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0]);
 	
 					int err = gl.glGetError();
 					if (err != 0) {
@@ -310,7 +313,7 @@ public class MikuRenderer extends MikuRendererBase {
 		model.mToon = new ArrayList<Integer>();
 		for (int i = 0; i < 11; i++) {
 			gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[i]);
-			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1);
+			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0]);
 			model.mToon.add(tex[i]);
 		}
 	}
