@@ -45,11 +45,22 @@ public class TextureFile {
 		cp.addFile(file);
 		
 		if(cp.hasCache()) {
-			loadBitmapTextureCached(base, cp.getCacheFileName(), scale, max);
+			loadBitmapTexture(base, cp.getCacheFileName(), scale, max);
 		}
 	}
 	
 	static private void loadBitmapTextureCached(String base, String file, int scale, int max) {
+		CacheFile cp = new CacheFile(base, "png");
+		cp.addFile(file);
+		
+		if(cp.hasCache()) {
+			loadBitmapTexture(base, cp.getCacheFileName(), scale, max);
+		} else {
+			loadBitmapTexture(base, file, scale, max);
+		}
+	}
+	
+	static private void loadBitmapTexture(String base, String file, int scale, int max) {
 		Bitmap bmp = loadBitmap(file, scale);
 		if(bmp != null) {
 			int wh = Math.max(bmp.getWidth(), bmp.getHeight());
@@ -58,7 +69,7 @@ public class TextureFile {
 				bmp = loadBitmap(file, (int)(scale * Math.ceil(wh / max)));
 			}
 			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-			bmp.recycle();			
+			bmp.recycle();
 		}
 	}
 
@@ -170,6 +181,86 @@ public class TextureFile {
 	}
 
 	static private void createBitmapCache(String base, String file, int scale) {
+		createAlphaBmpCache(base, file, scale);
+	}
+	
+	static private void createAlphaBmpCache(String base, String file, int scale) {
+		CacheFile cp = new CacheFile(base, "png");
+		cp.addFile(file);
+
+		if (!cp.hasCache()) {
+			try {
+				RandomAccessFile raf = new RandomAccessFile(file, "r");
+				MappedByteBuffer m = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, raf.length());
+				m.position(0);
+				m.order(ByteOrder.LITTLE_ENDIAN);
+
+				// read header
+				m.position(10);
+				int data = m.getInt();
+				
+				m.position(18);
+				int w = m.getInt();
+				int h = m.getInt();
+				m.position(m.position() + 2);
+				short depth = m.getShort();
+				if(depth == 32) {
+					Log.d("TextureFile", String.format("32bit bmp found.: %s", file));
+					m.position(data);
+					Bitmap bmp = createBitmapfromAlphaBitmap(m, w, h);
+					if(bmp != null) {
+						OutputStream os = new FileOutputStream(cp.getCacheFileName());
+						bmp.compress(Bitmap.CompressFormat.PNG, 100, os);
+						os.close();
+					}
+				}
+				
+				raf.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				Log.d("TextureFile", String.format("fail to create png from tga: %s", file));
+			}
+		}
+	}
+	
+	private static Bitmap createBitmapfromAlphaBitmap(MappedByteBuffer m, int w, int h) {
+		Bitmap bmp = null;
+		bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+		
+		if(bmp != null) {
+			if(h > 0) {
+				for(int y = h - 1; y >= 0; y--) {
+					for(int x = 0; x < w; x++) {
+						int blue  = m.get();
+						int green = m.get();
+						int red   = m.get();
+						int alpha = m.get();
+						int color = alpha;
+						color = (color << 8) | (0x000000ff & red);
+						color = (color << 8) | (0x000000ff & green);
+						color = (color << 8) | (0x000000ff & blue);
+						bmp.setPixel(x, y, color);
+					}
+				}
+			} else {
+				for(int y = 0; y < h; y++) {
+					for(int x = 0; x < w; x++) {
+						int blue  = m.get();
+						int green = m.get();
+						int red   = m.get();
+						int alpha = m.get();
+						int color = alpha;
+						color = (color << 8) | (0x000000ff & red);
+						color = (color << 8) | (0x000000ff & green);
+						color = (color << 8) | (0x000000ff & blue);
+						bmp.setPixel(x, y, color);
+					}
+				}
+				
+			}
+		}
+		
+		return bmp;
 	}
 	
 	private static void setPixel(Bitmap bmp, int pos, short w, short h, int mode, int color, int scale) {
