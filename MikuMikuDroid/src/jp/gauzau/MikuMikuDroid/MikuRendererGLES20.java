@@ -128,6 +128,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
 	private float[] mDifAmb = new float[4];
 	private int[] mTexSize = new int[1];
+	private boolean mNpot;
 
 	public MikuRendererGLES20(CoreLogic cl) {
 		super(cl);
@@ -200,6 +201,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 	@Override
 	public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+		mNpot = GLES20.glGetString(GLES20.GL_EXTENSIONS).contains("GL_OES_texture_npot");
+		
 		GLES20.glClearColor(1, 1, 1, 1);
 
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
@@ -403,20 +406,24 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glGenTextures(1, tex, 0);
 
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[0]);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);				
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-			//GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);
-			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-			TextureFile.loadTexture(model.mBase, texture, 2, mTexSize[0]);
+			if(mNpot) {
+				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST_MIPMAP_NEAREST);				
+			} else {
+				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);				
+			}
+			TextureFile.loadTexture(model.mBase, texture, 2, mTexSize[0], mNpot);
+			if(mNpot) {
+				GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+			}
+
 			model.mTexture.put(texture, tex[0]);
-			//GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
 
 			int err = GLES20.glGetError();
 			if (err != 0) {
 				Log.d("MikuRendererGLES20", GLU.gluErrorString(err));
-				Log.d("MikuRendererGLES20", texture);
-			} else {
 				Log.d("MikuRendererGLES20", texture);
 			}
 		}
@@ -435,7 +442,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0]);
+			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0], mNpot);
 			model.mToon.add(tex[i]);
 		}
 	}

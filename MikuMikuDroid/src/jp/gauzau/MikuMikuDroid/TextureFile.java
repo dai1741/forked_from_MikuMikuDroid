@@ -32,44 +32,68 @@ public class TextureFile {
 		}
 	}
 	
-	static public void loadTexture(String base, String file, int scale, int max) {
+	static public void loadTexture(String base, String file, int scale, int max, boolean npot) {
 		if (file.endsWith(".tga")) {
-			loadTgaTextureCached(base, file, scale, max);
+			loadTgaTextureCached(base, file, scale, max, npot);
 		} else {
-			loadBitmapTextureCached(base, file, scale, max);
+			loadBitmapTextureCached(base, file, scale, max, npot);
 		}
 	}
 	
-	static private void loadTgaTextureCached(String base, String file, int scale, int max) {
+	static private void loadTgaTextureCached(String base, String file, int scale, int max, boolean npot) {
 		CacheFile cp = new CacheFile(base, "png");
 		cp.addFile(file);
 		
 		if(cp.hasCache()) {
-			loadBitmapTexture(base, cp.getCacheFileName(), scale, max);
+			loadBitmapTexture(base, cp.getCacheFileName(), scale, max, npot);
 		}
 	}
 	
-	static private void loadBitmapTextureCached(String base, String file, int scale, int max) {
+	static private void loadBitmapTextureCached(String base, String file, int scale, int max, boolean npot) {
 		CacheFile cp = new CacheFile(base, "png");
 		cp.addFile(file);
 		
 		if(cp.hasCache()) {
-			loadBitmapTexture(base, cp.getCacheFileName(), scale, max);
+			loadBitmapTexture(base, cp.getCacheFileName(), scale, max, npot);
 		} else {
-			loadBitmapTexture(base, file, scale, max);
+			loadBitmapTexture(base, file, scale, max, npot);
 		}
 	}
 	
-	static private void loadBitmapTexture(String base, String file, int scale, int max) {
-		Bitmap bmp = loadBitmap(file, scale);
-		if(bmp != null) {
-			int wh = Math.max(bmp.getWidth(), bmp.getHeight());
-			if(wh > max) {
-				bmp.recycle();
-				bmp = loadBitmap(file, (int)(scale * Math.ceil(wh / max)));
+	static private void loadBitmapTexture(String base, String file, int scale, int max, boolean npot) {
+		// check texture size
+		Bitmap info = loadBitmap(file, scale);
+		if(info != null) {
+			Log.d("TextureFile", String.format("Load Bitmap %s: %d x %d", file, info.getWidth(), info.getHeight()));
+			if(npot || isPot(info.getWidth()) && isPot(info.getHeight())) {	// support npot or pot texture
+				int wh = Math.max(info.getWidth(), info.getHeight());
+				info.recycle();
+				Bitmap bmp;
+				if(wh > max) {
+					bmp = loadBitmap(file, toPotScale(max, wh));
+				} else {
+					bmp = loadBitmap(file, scale);
+				}
+				if(bmp != null) {
+					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+					bmp.recycle();					
+				}
+			} else {	// no support npot
+				// rescaling
+				int w = toPotAlign(info.getWidth());
+				int h = toPotAlign(info.getHeight());
+				info.recycle();
+				Bitmap bmp = loadScaledBitmap(file, w, h);
+				if(bmp != null) {
+					Log.d("TextureFile", String.format("Scaled Bitmap %s: %d x %d", file, bmp.getWidth(), bmp.getHeight()));
+					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+					bmp.recycle();					
+				} else {
+					Log.d("TextureFile", String.format("fail to scale Bitmap %s", file));
+				}
 			}
-			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-			bmp.recycle();
+		} else {
+			Log.d("TextureFile", String.format("fail to get info %s", file));			
 		}
 	}
 
@@ -181,7 +205,9 @@ public class TextureFile {
 	}
 
 	static private void createBitmapCache(String base, String file, int scale) {
-		createAlphaBmpCache(base, file, scale);
+		if(file.endsWith(".bmp")) {
+			createAlphaBmpCache(base, file, scale);			
+		}
 	}
 	
 	static private void createAlphaBmpCache(String base, String file, int scale) {
@@ -304,4 +330,24 @@ public class TextureFile {
 		return BitmapFactory.decodeFile(file, opt);		
 	}
 	
+	static private Bitmap loadScaledBitmap(String file, int w, int h) {
+		Bitmap bmp = BitmapFactory.decodeFile(file);
+		Bitmap res = Bitmap.createScaledBitmap(bmp, w, h, true);
+		bmp.recycle();
+		return res;
+	}
+
+	static private boolean isPot(int x) {
+		return (x & (x - 1)) == 0;
+	}
+	
+	static private int toPotScale(int max, int x) {
+		int maxt = (int) Math.sqrt(max);
+		int   xt = (int) Math.sqrt(x);
+		return xt / maxt;
+	}
+	
+	static private int toPotAlign(int x) {
+		return (int)Math.pow(2, (int)(Math.log(x) / Math.log(2)));
+	}
 }

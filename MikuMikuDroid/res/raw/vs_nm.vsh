@@ -1,4 +1,4 @@
-precision mediump float;
+precision highp float;
 attribute vec4 aPosition;
 attribute vec4 aNormal;
 uniform vec3 uLightDir;

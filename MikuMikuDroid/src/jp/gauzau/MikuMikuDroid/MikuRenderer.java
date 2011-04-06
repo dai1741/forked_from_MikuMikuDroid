@@ -14,6 +14,7 @@ import android.util.Log;
 public class MikuRenderer extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
 	private int[] mTexSize = new int[1];
+	private boolean mNpot;
 
 	public MikuRenderer(CoreLogic cl) {
 		super(cl);
@@ -143,6 +144,7 @@ public class MikuRenderer extends MikuRendererBase {
 	public void onSurfaceCreated(GL10 gl, EGLConfig config) {
 		super.onSurfaceCreated(gl, config);
 
+		mNpot = gl.glGetString(GL10.GL_EXTENSIONS).contains("GL_ARB_texture_non_power_of_two");
 		gl.glHint(GL10.GL_PERSPECTIVE_CORRECTION_HINT, GL10.GL_FASTEST);
 
 		gl.glClearColor(1, 1, 1, 1);
@@ -293,7 +295,7 @@ public class MikuRenderer extends MikuRendererBase {
 					int tex[] = new int[1];
 					gl.glGenTextures(1, tex, 0);
 					gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[0]);
-					TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0]);
+					TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0], mNpot);
 	
 					int err = gl.glGetError();
 					if (err != 0) {
@@ -313,7 +315,7 @@ public class MikuRenderer extends MikuRendererBase {
 		model.mToon = new ArrayList<Integer>();
 		for (int i = 0; i < 11; i++) {
 			gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[i]);
-			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0]);
+			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0], mNpot);
 			model.mToon.add(tex[i]);
 		}
 	}
