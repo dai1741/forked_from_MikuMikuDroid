@@ -2,6 +2,7 @@ package jp.gauzau.MikuMikuDroid;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -42,15 +43,28 @@ public class MikuMikuDroid extends Activity {
 						AsyncExec<CoreLogic> ae = new AsyncExec<CoreLogic>(MikuMikuDroid.this) {
 							@Override
 							protected boolean exec(CoreLogic target) {
-								mCoreLogic.restoreState();
-								final int max = target.getDulation();
-								mSeekBar.post(new Runnable() {
-									@Override
-									public void run() {
-										mSeekBar.setMax(max);
-									}
-								});
+								try {
+									mCoreLogic.restoreState();
+									final int max = target.getDulation();
+									mSeekBar.post(new Runnable() {
+										@Override
+										public void run() {
+											mSeekBar.setMax(max);
+										}
+									});
+								} catch (OutOfMemoryError e) {
+									return false;
+								}
+
 								return true;
+							}
+							
+							@Override
+							public void post() {
+								if(mFail.size() != 0) {
+									Toast.makeText(MikuMikuDroid.this, "Out of Memory. Abort.", Toast.LENGTH_LONG).show();										
+								}
+								
 							}
 						};
 						ae.setMax(1);
@@ -168,7 +182,12 @@ public class MikuMikuDroid extends Activity {
 								protected boolean exec(CoreLogic target) {
 									try {
 										if(which == 0) {
-											target.loadStage(model);
+											MikuModel m = target.loadStage(model);
+											if(m != null) {
+												ArrayList<MikuModel> mm = new ArrayList<MikuModel>(1);
+												mm.add(m);
+												mMMGLSurfaceView.deleteTextures(mm);
+											}
 										} else {
 											target.loadModelMotion(model, motion);
 											final int max = target.getDulation();
@@ -194,7 +213,6 @@ public class MikuMikuDroid extends Activity {
 									if(mFail.size() != 0) {
 										Toast.makeText(MikuMikuDroid.this, "Out of Memory. Abort.", Toast.LENGTH_LONG).show();										
 									}
-									
 								}
 							};
 							ae.setMax(1);
@@ -270,7 +288,7 @@ public class MikuMikuDroid extends Activity {
 			break;
 
 		case (Menu.FIRST + 5):
-			mCoreLogic.clear();
+			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
 			break;
 
 		default:

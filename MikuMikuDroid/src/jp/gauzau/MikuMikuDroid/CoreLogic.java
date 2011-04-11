@@ -274,7 +274,12 @@ public class CoreLogic {
 		}
 	}
 
-	public synchronized void loadStage(String file) throws IOException, OutOfMemoryError {
+	public synchronized MikuModel loadStage(String file) throws IOException, OutOfMemoryError {
+		MikuModel mm = null;
+		if(mMikuStage != null) {
+			mm = mMikuStage.mModel;
+		}
+		
 		mMikuStage = null;
 		PMDParser pmd = new PMDParser(file);
 		if(pmd.isPmd()) {
@@ -282,6 +287,7 @@ public class CoreLogic {
 			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
 			mMikuStage = new Miku(model);			
 		}
+		return mm;
 	}
 
 	public double getFPS() {
@@ -308,13 +314,24 @@ public class CoreLogic {
 		mCamera = new MikuMotion(new VMDParser(camera));
 	}
 
-	public synchronized void clear() {
+	public synchronized ArrayList<MikuModel> clear() {
+		// get members for deleting textures
+		ArrayList<MikuModel> models = new ArrayList<MikuModel>();
+		for(Miku m: mMiku) {
+			models.add(m.mModel);
+		}
+		if(mMikuStage != null) {
+			models.add(mMikuStage.mModel);
+		}
+		
 		clearMember();
 		
 		SharedPreferences sp = mCtx.getSharedPreferences("default", 0);
 		SharedPreferences.Editor ed = sp.edit();
 		ed.clear();
 		ed.commit();
+		
+		return models;
 	}
 	
 	private void clearMember() {
@@ -602,6 +619,14 @@ public class CoreLogic {
 		}
 		
 		return sw.toString();
+	}
+	
+	public void logMemoryUsage() {
+		Runtime runtime = Runtime.getRuntime();
+		Log.d("CoreLogic", "totalMemory[KB] = " + (int)(runtime.totalMemory()/1024));
+		Log.d("CoreLogic", "freeMemory[KB] = " + (int)(runtime.freeMemory()/1024));
+		Log.d("CoreLogic", "usedMemory[KB] = " + (int)( (runtime.totalMemory() - runtime.freeMemory())/1024) );
+		Log.d("CoreLogic", "maxMemory[KB] = " + (int)(runtime.maxMemory()/1024));
 	}
 	
 	// ///////////////////////////////////////////////////////////

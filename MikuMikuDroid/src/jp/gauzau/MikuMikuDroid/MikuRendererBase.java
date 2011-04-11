@@ -18,6 +18,10 @@ public class MikuRendererBase implements Renderer {
 
 		mCoreLogic.setDefaultCamera();
 	}
+	
+	public void deleteTexture(MikuModel m) {
+		
+	}
 
 	// ///////////////////////////////////////////////////////////
 	// Rendar Interfaces

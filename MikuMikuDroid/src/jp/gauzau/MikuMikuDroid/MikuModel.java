@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import android.util.Log;
+
 public class MikuModel implements Serializable, SerializableExt {
 	private static final long serialVersionUID = -9127943692220369080L;
 	
@@ -22,6 +24,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	public transient int mRenameBone;
 	public transient CubeArea mCube;
 	public transient boolean mIsTextureLoaded;
+	public transient boolean mIsOneSkinning;
 	public transient String mBase;
 	
 	// model data
@@ -72,6 +75,10 @@ public class MikuModel implements Serializable, SerializableExt {
 		mRigidBody		= pmd.getRigidBody();
 		mJoint			= pmd.getJoint();
 		mToonFileName	= pmd.getToonFileName();
+		mIsOneSkinning	= pmd.isOneSkinning();
+		if(mIsOneSkinning) {
+			Log.d("MikuModel", pmd.getFileName() + " has only one skinnings.");			
+		}
 		
 		makeIndexSortedBuffers(pmd);
 		if (animation) {
@@ -262,7 +269,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	void buildNewBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename) {
 		mat.rename_hash = rename;
 		
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3 * 2);
+		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
 		rbb.order(ByteOrder.nativeOrder());
 		mat.rename_index = rbb;
 	}
@@ -307,7 +314,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 	void buildBoneNoMotionRenameIndex(PMDParser pmd) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3 * 2);
+		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
 		rbb.order(ByteOrder.nativeOrder());
 	
 		for (int i = 0; i < pmd.getVertex().size(); i++) {

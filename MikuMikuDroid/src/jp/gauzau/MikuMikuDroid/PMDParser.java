@@ -29,6 +29,7 @@ public class PMDParser extends ParserBase {
 	private ArrayList<String> mEnglishBoneDispName;
 	private ArrayList<RigidBody> mRigidBody;
 	private ArrayList<Joint> mJoint;
+	private boolean mIsOneSkinning = true;
 
 	public PMDParser(String file) throws IOException {
 		super(file);
@@ -485,6 +486,10 @@ public class PMDParser extends ParserBase {
 					vertex.bone_num_1 = tmp;
 					vertex.bone_weight = (byte) (100 - vertex.bone_weight);
 				}
+				
+				if(vertex.bone_weight != 100 && vertex.bone_weight != 0) {
+					mIsOneSkinning = false;
+				}
 
 				mVertex.add(i, vertex);
 			}
@@ -556,6 +561,10 @@ public class PMDParser extends ParserBase {
 	
 	public String getFileName() {
 		return mFileName;
+	}
+	
+	public boolean isOneSkinning() {
+		return mIsOneSkinning;
 	}
 
 	public void recycle() {

@@ -2,6 +2,7 @@ package jp.gauzau.MikuMikuDroid;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -122,6 +123,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	};
 	
 	private GLSL mGLSL;
+	private GLSL mGLSL1S;
 	private GLSL mGLSLBG;
 	
 	public float[]  mBoneMatrix = new float[16 * 256];	// ad-hock number: will be fixed to mBoneNum
@@ -141,9 +143,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		Vector.normalize(mLightDir);
 		
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
+		initializeAllTexture(false);
 
 		int pos = mCoreLogic.applyCurrentMotion();
-
+		
 		GLES20.glUseProgram(mGLSL.mProgram);
 
 		// Projection Matrix
@@ -159,16 +162,15 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 		if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
-				if(miku.mModel.mIsTextureLoaded == false) {
-					initializeTextures(miku);
-					miku.mModel.mIsTextureLoaded = true;
+				if(miku.mModel.mIsTextureLoaded) {
+					bindBufferGLES20(miku.mModel, mGLSL);
+					drawGLES20(miku.mModel, mGLSL);					
 				}
-				bindBufferGLES20(miku.mModel, mGLSL);
-				drawGLES20(miku.mModel, mGLSL);
 			}
 		}
 
-		if (mCoreLogic.getMikuStage() != null) {
+		Miku stage = mCoreLogic.getMikuStage();
+		if (stage != null && stage.mModel.mIsTextureLoaded) {
 			GLES20.glUseProgram(mGLSLBG.mProgram);
 
 			// Projection, Model, View Matrix
@@ -179,14 +181,10 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 			GLES20.glUniform1i(mGLSLBG.msToonSampler, 0);
 			GLES20.glUniform1i(mGLSLBG.msTextureSampler, 1);
-			checkGlError("on onDrawFrame");
+//			checkGlError("on onDrawFrame");
 
-			if(mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
-				initializeTextures(mCoreLogic.getMikuStage());
-				mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
-			}				
-			bindBufferGLES20(mCoreLogic.getMikuStage().mModel, mGLSLBG);
-			drawGLES20(mCoreLogic.getMikuStage().mModel, mGLSLBG);
+			bindBufferGLES20(stage.mModel, mGLSLBG);
+			drawGLES20(stage.mModel, mGLSLBG);
 		}
 
 		GLES20.glFlush();
@@ -201,8 +199,13 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 	@Override
 	public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+		// GL configurations
+		int bonenum = 48;
+		GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, mTexSize, 0);
+		mCoreLogic.setGLConfig(bonenum);
 		mNpot = GLES20.glGetString(GLES20.GL_EXTENSIONS).contains("GL_OES_texture_npot");
 		
+		// initialize
 		GLES20.glClearColor(1, 1, 1, 1);
 
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
@@ -217,22 +220,14 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 //		GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
 //		GLES20.glPolygonOffset(-1.0f, -2.0f);
 		
-		// sharder program
-		int bonenum = 48;
-		GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, mTexSize, 0);
-		mCoreLogic.setGLConfig(bonenum);
-		mGLSL = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
-		if (mCoreLogic.getMiku() != null) {
-			for (Miku miku : mCoreLogic.getMiku()) {
-				initializeTextures(miku);
-			}
-		}
-
-		// sharder program in no animation
+		// sharder programs
+		mGLSL   = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
+		mGLSL1S = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_1m), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_nm));
 		mGLSLBG = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm));
-		if (mCoreLogic.getMikuStage() != null) {
-			initializeTextures(mCoreLogic.getMikuStage());
-		}
+
+
+		// bind textures
+		initializeAllTexture(true);
 	}
 	
 	
@@ -256,7 +251,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	
 				GLES20.glEnableVertexAttribArray(glsl.maBlendHandle);
 				GLES20.glVertexAttribPointer(glsl.maBlendHandle, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.rename_index);
-				checkGlError("drawGLES20 VertexAttribPointer blend");
+//				checkGlError("drawGLES20 VertexAttribPointer blend");
 			}
 	
 			// don't cull face that has alpha value 0.99
@@ -315,7 +310,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				}
 			}
 
-			checkGlError("on DrawGLES20");
+//			checkGlError("on DrawGLES20");
 			
 			// diffusion and ambient
 			float wi = 0.6f;	// light color = (0.6, 0.6, 0.6)
@@ -335,23 +330,70 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			// draw
 			miku.mIndexBuffer.position(mat.face_vart_offset);
 			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
-			checkGlError("glDrawElements");
+//			checkGlError("glDrawElements");
 		}
 		miku.mIndexBuffer.position(0);
 	}
 
-	private void initializeTextures(Miku miku) {
-		// toon shading
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		readAndBindToonTextureGLES20(miku.mModel);
+	private void initializeAllTexture(boolean all) {
+		for(int i = 1; i < 16; i *= 2) {
+			if(tryInitializeAllTexture(all, i)) {
+				return ;
+			} else {
+				deleteAllTexture();
+			}
+		}
+	}
 
-		// Texture
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-		readAndBindTextureGLES20(miku.mModel);
+	private boolean deleteAllTexture() {
+		// try binding
+		if (mCoreLogic.getMiku() != null) {
+			for (Miku miku : mCoreLogic.getMiku()) {
+				deleteTexture(miku.mModel);
+			}
+		}
+
+		if (mCoreLogic.getMikuStage() != null) {
+			deleteTexture(mCoreLogic.getMikuStage().mModel);
+		}
 		
-		// Sphere
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
-		readAndBindSphereTextureGLES20(miku.mModel);
+		return true;
+	}
+	
+	private boolean tryInitializeAllTexture(boolean all, int scale) {
+		// try binding
+		if (mCoreLogic.getMiku() != null) {
+			for (Miku miku : mCoreLogic.getMiku()) {
+				if(all || miku.mModel.mIsTextureLoaded == false) {
+					if(initializeTextures(miku, scale)) {
+						miku.mModel.mIsTextureLoaded = true;
+					} else {
+						return false;
+					}
+				}
+			}
+		}
+
+		if (mCoreLogic.getMikuStage() != null) {
+			if(all || mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
+				if(initializeTextures(mCoreLogic.getMikuStage(), scale)) {
+					mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
+				} else {
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+
+	private boolean initializeTextures(Miku miku, int scale) {
+		boolean ret = true;
+		ret &= readAndBindToonTextureGLES20(miku.mModel);
+		ret &= readAndBindTextureGLES20(miku.mModel, scale);
+		ret &= readAndBindSphereTextureGLES20(miku.mModel, scale);
+		
+		return ret;
 	}
 
 	private void bindBufferGLES20(MikuModel miku, GLSL glsl) {
@@ -367,7 +409,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		miku.mAllBuffer.position(0);
 	}
 	
-	public void readAndBindTextureGLES20(MikuModel model) {
+	public boolean readAndBindTextureGLES20(MikuModel model, int scale) {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		
 		Log.d("MikuModel", "Loading textures...");
@@ -376,30 +418,32 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			Material mat = model.mMaterial.get(i);
 			if (mat.texture != null) {
 				try {
-					readAndBindTexture1(model, mat.texture);
+					readAndBindTexture1(model, mat.texture, scale);
 				} catch (OutOfMemoryError e) {
-					continue;
+					return false;
 				}
 			}
 		}
+		return true;
 	}
 	
-	public void readAndBindSphereTextureGLES20(MikuModel model) {
+	public boolean readAndBindSphereTextureGLES20(MikuModel model, int scale) {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		for (int i = 0; i < model.mMaterial.size(); i++) {
 			Material mat = model.mMaterial.get(i);
 			if(mat.sphere != null) {
 				try {
-					readAndBindTexture1(model, mat.sphere);					
+					readAndBindTexture1(model, mat.sphere, scale);					
 				} catch (OutOfMemoryError e) {
-					continue;
+					return false;
 				}
 			}
 		}
+		return true;
 	}
 	
 	
-	private void readAndBindTexture1(MikuModel model, String texture) {
+	private void readAndBindTexture1(MikuModel model, String texture, int scale) {
 		if (model.mTexture.get(texture) == null) {
 			// bind
 			int tex[] = new int[1];
@@ -414,7 +458,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			} else {
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);				
 			}
-			TextureFile.loadTexture(model.mBase, texture, 2, mTexSize[0], mNpot);
+			TextureFile.loadTexture(model.mBase, texture, scale, mTexSize[0], mNpot);
 			if(mNpot) {
 				GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
 			}
@@ -430,7 +474,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	}
 
 	
-	private void readAndBindToonTextureGLES20(MikuModel model) {
+	private boolean readAndBindToonTextureGLES20(MikuModel model) {
+		boolean res = true;
 		int tex[] = new int[11];
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		GLES20.glGenTextures(11, tex, 0);
@@ -442,9 +487,38 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-			TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0], mNpot);
+			try {
+				TextureFile.loadTexture(model.mBase, model.mToonFileName.get(i), 1, mTexSize[0], mNpot);
+			} catch (OutOfMemoryError e) {
+				res = false;
+			}
 			model.mToon.add(tex[i]);
 		}
+		return res;
+	}
+	
+	@Override
+	public void deleteTexture(MikuModel model) {
+		Log.d("MikuRenderGLES20", "Deleting textures...");
+		int[] tex = new int[1];
+		if(model != null) {
+			if(model.mTexture != null) {
+				for(Entry<String, Integer> t: model.mTexture.entrySet()) {
+					tex[0] = t.getValue();
+					GLES20.glDeleteTextures(1, tex, 0);
+					checkGlError("MikuRenderGLES20");
+				}			
+			}
+			if(model.mToon != null) {
+				for(Integer t: model.mToon) {
+					tex[0] = t;
+					GLES20.glDeleteTextures(1, tex, 0);
+					checkGlError("MikuRenderGLES20");
+				}
+			}
+			model.mIsTextureLoaded = false;
+		}
+		Log.d("MikuRenderGLES20", "Done.");
 	}
 	
 	private void checkGlError(String op) {
