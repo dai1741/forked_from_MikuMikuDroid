@@ -9,6 +9,10 @@ import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
 import android.content.res.Configuration;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -21,7 +25,7 @@ import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Toast;
 
-public class MikuMikuDroid extends Activity {
+public class MikuMikuDroid extends Activity implements SensorEventListener {
 	// View
 	private MMGLSurfaceView mMMGLSurfaceView;
 	private RelativeLayout mRelativeLayout;
@@ -29,10 +33,21 @@ public class MikuMikuDroid extends Activity {
 	
 	// Model
 	private CoreLogic mCoreLogic;
+	
+	// Sensor
+	SensorManager	mSM = null;
+	Sensor			mAx = null;
+	Sensor			mMg = null;
+	float[]			mAxV = new float[3];
+	float[]			mMgV = new float[3];
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		
+//		mSM = (SensorManager)getSystemService(SENSOR_SERVICE);
+//		mAx = mSM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+//		mMg = mSM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
 		mCoreLogic = new CoreLogic(this) {
 			@Override
@@ -139,6 +154,10 @@ public class MikuMikuDroid extends Activity {
 	protected void onResume() {
 		super.onResume();
 		mMMGLSurfaceView.onResume();
+		if(mAx != null && mMg != null) {
+			mSM.registerListener(this, mAx, SensorManager.SENSOR_DELAY_GAME);
+			mSM.registerListener(this, mMg, SensorManager.SENSOR_DELAY_GAME);			
+		}
 	}
 
 	@Override
@@ -146,6 +165,9 @@ public class MikuMikuDroid extends Activity {
 		super.onPause();
 		mCoreLogic.pause();
 		mMMGLSurfaceView.onPause();
+		if(mAx != null && mMg != null) {
+			mSM.unregisterListener(this);
+		}
 	}
 
 	@Override
@@ -360,5 +382,26 @@ public class MikuMikuDroid extends Activity {
 	public void onDestroy() {
 		super.onDestroy();
 		mCoreLogic.storeState();
+	}
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		if (event.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
+			return;
+		}
+	
+		if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+			System.arraycopy(event.values, 0, mAxV, 0, 3);
+		} else if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+			System.arraycopy(event.values, 0, mMgV, 0, 3);			
+		}
+		
+		SensorManager.getRotationMatrix(mCoreLogic.getRotationMatrix(), null, mAxV, mMgV);
 	}
 }

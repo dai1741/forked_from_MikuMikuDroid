@@ -123,7 +123,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	};
 	
 	private GLSL mGLSL;
-	private GLSL mGLSL1S;
+//	private GLSL mGLSL1S;
 	private GLSL mGLSLBG;
 	
 	public float[]  mBoneMatrix = new float[16 * 256];	// ad-hock number: will be fixed to mBoneNum
@@ -222,7 +222,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		
 		// sharder programs
 		mGLSL   = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
-		mGLSL1S = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_1m), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_nm));
+//		mGLSL1S = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_1m), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_nm));
 		mGLSLBG = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm));
 
 

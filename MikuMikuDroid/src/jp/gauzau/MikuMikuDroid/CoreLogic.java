@@ -35,6 +35,7 @@ public class CoreLogic {
 	
 	private float[]				mPMatrix = new float[16];
 	private float[]				mMVMatrix = new float[16];
+	private float[]				mRMatrix = new float[16];
 	
 	// configurations
 	private String				mBase = "/sdcard/MikuMikuDroid/";
@@ -426,6 +427,10 @@ public class CoreLogic {
 		}
 	}
 	
+	public float[] getRotationMatrix() {
+		return mRMatrix;
+	}
+	
 	public void onDraw(final int pos) {}
 
 
@@ -678,6 +683,24 @@ public class CoreLogic {
 			if (c != null) {
 				setCamera(c.length, c.location, c.rotation, c.view_angle, mWidth, mHeight);
 			}
+		} else {
+			if (mAngle == 0) {
+				mCameraIndex.location[0] = 0;
+				mCameraIndex.location[1] = 10; // 13
+				mCameraIndex.location[2] = 0;
+				mCameraIndex.rotation[0] = 0;
+				mCameraIndex.rotation[1] = 0;
+				mCameraIndex.rotation[2] = 0;
+				setCamera(-35f, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight); // -38f
+			} else {
+				mCameraIndex.location[0] = 0;
+				mCameraIndex.location[1] = 10;
+				mCameraIndex.location[2] = 0;
+				mCameraIndex.rotation[0] = 0;
+				mCameraIndex.rotation[1] = 0;
+				mCameraIndex.rotation[2] = 0;
+				setCamera(-30f, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight);
+			}
 		}
 	}
 
@@ -693,6 +716,8 @@ public class CoreLogic {
 		Matrix.scaleM(mPMatrix, 0, 1, 1, -1); // to right-handed
 		Matrix.rotateM(mPMatrix, 0, mAngle, 0, 0, -1); // rotation
 
+		Matrix.multiplyMM(mPMatrix, 0, mPMatrix, 0, mRMatrix, 0);	// device rotation
+
 		// camera
 		Matrix.translateM(mPMatrix, 0, 0, 0, -d);
 		Matrix.rotateM(mPMatrix, 0, rot[2], 0, 0, 1f);
@@ -705,6 +730,7 @@ public class CoreLogic {
 	}
 
 	protected void setDefaultCamera() {
+		Matrix.setIdentityM(mRMatrix, 0);
 		if (mAngle == 0) {
 			mCameraIndex.location[0] = 0;
 			mCameraIndex.location[1] = 10; // 13
