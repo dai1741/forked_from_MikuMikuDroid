@@ -25,6 +25,7 @@ public class CoreLogic {
 	// model / music data
 	private ArrayList<Miku>		mMiku;
 	private Miku				mMikuStage;
+	private String				mBG;
 	private MikuMotion			mCamera;
 	private MediaPlayer			mMedia;
 	private FakeMedia			mFakeMedia;
@@ -290,6 +291,12 @@ public class CoreLogic {
 		}
 		return mm;
 	}
+	
+	public synchronized String loadBG(String file) {
+		String tmp = mBG;
+		mBG = file;
+		return tmp;
+	}
 
 	public double getFPS() {
 		return mFPS;
@@ -349,6 +356,7 @@ public class CoreLogic {
 		}
 		mMedia = null;
 		mAngle = 0;
+		mBG = null;
 
 		setDefaultCamera();
 	}
@@ -532,13 +540,19 @@ public class CoreLogic {
 			ed.clear();
 			ed.commit();
 		}
-		
-
 	}
 
 	public void setScreenSize(int width, int height) {
 		mWidth	= width;
 		mHeight	= height;
+	}
+	
+	public int getScreenWidth() {
+		return mWidth;
+	}
+	
+	public int getScreenHeight() {
+		return mHeight;
 	}
 
 	public ArrayList<Miku> getMiku() {
@@ -551,6 +565,10 @@ public class CoreLogic {
 	
 	public Miku getMikuStage() {
 		return mMikuStage;
+	}
+	
+	public String getBG() {
+		return mBG;
 	}
 	
 	public void returnMikuStage(Miku stage) {
@@ -567,7 +585,23 @@ public class CoreLogic {
 	}
 	
 	public File[] getModelSelector() {
-		return listFiles(mBase + "UserFile/Model/", ".pmd");
+		String[] ext = {
+				".bmp",
+				".jpg",
+				".png",
+				".tga"
+			};
+		
+		File[] model = listFiles(mBase + "UserFile/Model/", ".pmd");
+		File[] bg    = listFiles(mBase + "UserFile/BackGround/", ext);
+		File[] f = new File[model.length + bg.length];
+		for(int i = 0; i < model.length; i++) {
+			f[i] = model[i];
+		}
+		for(int i = 0; i < bg.length; i++) {
+			f[i + model.length] = bg[i];
+		}
+		return f;
 	}
 
 	public File[] getMotionSelector() {
@@ -579,22 +613,38 @@ public class CoreLogic {
 	}
 	
 	public File[] getMediaSelector() {
-		return listFiles(mBase + "UserFile/Wave/", ".mp3");
+		String[] ext = {
+			".mp3",
+			".wav",
+			".3gp",
+			".mp4",
+			".m4a",
+			".ogg"
+		};
+		return listFiles(mBase + "UserFile/Wave/", ext);
 	}
 
-
 	public File[] listFiles(String dir, String ext) {
+		String[] exts = new String[1];
+		exts[0] = ext;
+		return listFiles(dir, exts);
+	}
+	
+	public File[] listFiles(String dir, String[] ext) {
 		File file = new File(dir);
 		ArrayList<File> list = listRecursive1(file, ext);
 		return (File[])list.toArray(new File[0]);
 	}
 	
-	private ArrayList<File> listRecursive1(File file, String ext) {
+	private ArrayList<File> listRecursive1(File file, String[] ext) {
 		ArrayList<File> files = new ArrayList<File>();
 		if(file.exists()) {
 			if(file.isFile()) {
-				if(file.getName().endsWith(ext)) {
-					files.add(file);					
+				for(int i = 0; i < ext.length; i++) {
+					if(file.getName().endsWith(ext[i])) {
+						files.add(file);
+						break;
+					}
 				}
 			} else {
 				File[] list = file.listFiles();

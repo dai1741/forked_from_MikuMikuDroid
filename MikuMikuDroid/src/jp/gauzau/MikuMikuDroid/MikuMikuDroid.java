@@ -194,6 +194,13 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					final String model = sc0[which].getPath();
+					
+					// read as background if not .pmd
+					if(!model.endsWith(".pmd")) {
+						mMMGLSurfaceView.deleteTexture(mCoreLogic.loadBG(model));
+						return ;
+					}
+					
 					final File[] sc = mCoreLogic.getMotionSelector();
 					openMotionSelectDialog(sc, R.string.menu_load_motion, R.string.setup_alert_vmd, new DialogInterface.OnClickListener() {
 						@Override

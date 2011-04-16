@@ -44,4 +44,13 @@ public class MMGLSurfaceView extends GLSurfaceView {
 		});
 	}
 
+	public void deleteTexture(final String tex) {
+		queueEvent(new Runnable() {
+			@Override
+			public void run() {
+				mMikuRendarer.deleteTexture(tex);
+			}
+		});
+	}
+
 }

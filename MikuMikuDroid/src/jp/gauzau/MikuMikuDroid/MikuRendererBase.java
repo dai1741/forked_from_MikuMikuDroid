@@ -22,6 +22,11 @@ public class MikuRendererBase implements Renderer {
 	public void deleteTexture(MikuModel m) {
 		
 	}
+	
+	public void deleteTexture(String texf) {
+		
+	}
+
 
 	// ///////////////////////////////////////////////////////////
 	// Rendar Interfaces
@@ -40,6 +45,7 @@ public class MikuRendererBase implements Renderer {
 		mCoreLogic.setScreenSize(width, height);
 		mCoreLogic.setDefaultCamera();
 	}
+
 
 	// ///////////////////////////////////////////////////////////
 	// Some common methods
