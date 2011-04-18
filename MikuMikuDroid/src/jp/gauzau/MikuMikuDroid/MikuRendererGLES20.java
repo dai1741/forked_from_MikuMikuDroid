@@ -15,6 +15,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLU;
+import android.opengl.Visibility;
 import android.util.Log;
 
 public class MikuRendererGLES20 extends MikuRendererBase {
@@ -403,8 +404,14 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			}
 			
 			// draw
-			miku.mIndexBuffer.position(mat.face_vart_offset);
-			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+			int[] ri = new int[mat.area.mSph.size() * 2];
+			int n = mat.area.getRenderIndex(mCoreLogic.getProjectionMatrix(), ri);
+			for(int i = 0; i < n; i++) {
+				miku.mIndexBuffer.position(mat.face_vart_offset + ri[i * 2]);
+				GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[i * 2 + 1], GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+			}
+//			miku.mIndexBuffer.position(mat.face_vart_offset);
+//			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 //			checkGlError("glDrawElements");
 		}
 		miku.mIndexBuffer.position(0);
@@ -595,13 +602,14 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		if(bg != null) {
 			try {
 				// check size
-				Bitmap bmp = BitmapFactory.decodeFile(mCoreLogic.getBG());
-				mBgWidth = bmp.getWidth();
-				mBgHeight = bmp.getHeight();
-				bmp.recycle();
+				BitmapFactory.Options op = new BitmapFactory.Options();
+				op.inJustDecodeBounds = true;
+				BitmapFactory.decodeFile(mCoreLogic.getBG(), op);
+				mBgWidth = op.outWidth;
+				mBgHeight = op.outHeight;
 				
 				// load texture
-				readAndBindTexture1(mBG, bg, scale);
+				readAndBindTexture1(mBG, bg, scale * 2);	// lower resolution
 			} catch (OutOfMemoryError e) {
 				return false;
 			}

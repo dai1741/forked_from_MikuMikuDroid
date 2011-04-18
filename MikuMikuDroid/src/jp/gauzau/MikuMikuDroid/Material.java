@@ -27,6 +27,7 @@ public class Material implements Serializable, SerializableExt {
 	public transient int rename_hash_size;
 	public transient ByteBuffer rename_index;
 	public transient int[] rename_inv_map;
+	public transient SphereArea area;
 	
 	public Material(Material mat) {
 		diffuse_color		= mat.diffuse_color;
@@ -43,6 +44,7 @@ public class Material implements Serializable, SerializableExt {
 		rename_hash			= mat.rename_hash;
 		rename_hash_size	= mat.rename_hash_size;
 		rename_index		= mat.rename_index;
+		area				= mat.area;
 	}
 
 	public Material() {
@@ -60,6 +62,7 @@ public class Material implements Serializable, SerializableExt {
 		rename_hash			= null;
 		rename_hash_size	= 0;
 		rename_index		= null;
+		area				= null;
 	}
 
 	public Material create() {

@@ -62,38 +62,36 @@ public class TextureFile {
 	
 	static private void loadBitmapTexture(String base, String file, int scale, int max, boolean npot) {
 		// check texture size
-		Bitmap info = loadBitmap(file, scale);
-		if(info != null) {
-			Log.d("TextureFile", String.format("Load Bitmap %s: %d x %d", file, info.getWidth(), info.getHeight()));
-			if(npot || isPot(info.getWidth()) && isPot(info.getHeight())) {	// support npot or pot texture
-				int wh = Math.max(info.getWidth(), info.getHeight());
-				info.recycle();
-				Bitmap bmp;
-				if(wh > max) {
-					bmp = loadBitmap(file, toPotScale(max, wh));
-				} else {
-					bmp = loadBitmap(file, scale);
-				}
-				if(bmp != null) {
-					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-					bmp.recycle();					
-				}
-			} else {	// no support npot
-				// rescaling
-				int w = toPotAlign(info.getWidth());
-				int h = toPotAlign(info.getHeight());
-				info.recycle();
-				Bitmap bmp = loadScaledBitmap(file, w, h);
-				if(bmp != null) {
-					Log.d("TextureFile", String.format("Scaled Bitmap %s: %d x %d", file, bmp.getWidth(), bmp.getHeight()));
-					GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
-					bmp.recycle();					
-				} else {
-					Log.d("TextureFile", String.format("fail to scale Bitmap %s", file));
-				}
+		BitmapFactory.Options op = new BitmapFactory.Options();
+		op.inJustDecodeBounds = true;
+		op.inSampleSize = scale;
+		BitmapFactory.decodeFile(file, op);
+		
+		Log.d("TextureFile", String.format("Load Bitmap %s: %d x %d", file, op.outWidth, op.outHeight));
+		if(npot || isPot(op.outWidth) && isPot(op.outHeight)) {	// support npot or pot texture
+			int wh = Math.max(op.outWidth, op.outHeight);
+			Bitmap bmp;
+			if(wh > max) {
+				bmp = loadBitmap(file, toPotScale(max, wh));
+			} else {
+				bmp = loadBitmap(file, scale);
 			}
-		} else {
-			Log.d("TextureFile", String.format("fail to get info %s", file));			
+			if(bmp != null) {
+				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+				bmp.recycle();					
+			}
+		} else {	// no support npot
+			// rescaling
+			int w = toPotAlign(op.outWidth);
+			int h = toPotAlign(op.outHeight);
+			Bitmap bmp = loadScaledBitmap(file, w, h);
+			if(bmp != null) {
+				Log.d("TextureFile", String.format("Scaled Bitmap %s: %d x %d", file, bmp.getWidth(), bmp.getHeight()));
+				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
+				bmp.recycle();					
+			} else {
+				Log.d("TextureFile", String.format("fail to scale Bitmap %s", file));
+			}
 		}
 	}
 
