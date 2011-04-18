@@ -1,9 +1,12 @@
 package jp.gauzau.MikuMikuDroid;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 import android.opengl.Matrix;
 import android.opengl.Visibility;
+import android.util.Log;
 
 public class SphereArea {
 	private class Sphere {
@@ -17,12 +20,11 @@ public class SphereArea {
 		public float mCr = 0;
 		public int   mCn = 0;
 
-		public void set(int idx) {
+		public void set(int idx, Vertex v) {
 			if(mIdx == null) {
 				mIdx = new ArrayList<Integer>();
 			}
 			mIdx.add(idx);
-			Vertex v = mVtx.get(idx);
 			mCx += v.pos[0];
 			mCy += v.pos[1];
 			mCz += v.pos[2];
@@ -70,120 +72,160 @@ public class SphereArea {
 	};
 	
 	public class SphereBone {
-		public int					mBone;
-		public ArrayList<Sphere>	mSph = new ArrayList<Sphere>();
-		float[]						mSphIdx = null;
-	};
-	
-	ArrayList<Vertex>	mVtx;
-	ArrayList<Sphere>	mSph = new ArrayList<Sphere>();
-	float[] mSphere = null;
-	private int[] mRes;
-	
-	public SphereArea(ArrayList<Vertex> v) {
-		mVtx = v;
-	}
-
-	public void initialSet(ArrayList<Integer> idx, int pos, int size) {
-		Sphere s = new Sphere();
-		for(int i = 0; i < size; i++) {
-			s.set(idx.get(pos + i));
+		private Bone				mCurBone;
+		private ArrayList<Sphere>	mSph = new ArrayList<Sphere>();
+		private float[]				mSphere = null;
+		private int[]				mRes;
+		private int[]				mRender;
+		
+		public SphereBone(Bone bone) {
+			mCurBone = bone;
 		}
-		s.calcR();
-//		Log.d("SphereArea", String.format("Sphere %f x %f x %f, r = %f", s.mCx / s.mCn, s.mCy / s.mCn, s.mCz / s.mCn, s.mCr));
-		mSph.add(s);
-	}
-
-	public void cluster() {
-		Sphere s1 = null;
-		Sphere s2 = null;
-		float md = Float.MAX_VALUE;
-
-		while(mSph.size() > 1) {
-			s1 = null;
-			s2 = null;
-			md = Float.MAX_VALUE;
-			for(Sphere st1: mSph) {
-				for(Sphere st2: mSph) {
-					if(st1 != st2) {
-						float d = st1.distance(st2);
-						if(d < md) {
-							s1 = st1;
-							s2 = st2;
-						}
+		
+		public void add(Sphere s) {
+			mSph.add(s);
+		}
+		
+		public void calcR() {
+			for(Sphere s: mSph) {
+				s.calcR();
+			}
+		}
+		
+		public void fix() {
+			mRes = new int[mSph.size()];
+			mRender = new int[mSph.size() * 2];
+			
+			int cnt = 0;
+			mSphere = new float[mSph.size() * 4];
+			for(Sphere s: mSph) {
+				s.calcR();
+				mSphere[cnt++] = s.mCx / s.mCn;
+				mSphere[cnt++] = s.mCy / s.mCn;
+				mSphere[cnt++] = s.mCz / s.mCn;
+				mSphere[cnt++] = s.mCr;
+//				Log.d("SphereArea", String.format("Sphere %f x %f x %f, r = %f, n= %d", s.mCx / s.mCn, s.mCy / s.mCn, s.mCz / s.mCn, s.mCr, s.mCn));
+				s.recycle();
+			}
+		}
+		
+		public int[] getRenderIndex() {
+			return mRender;
+		}
+		
+		public int makeRenderIndex(float[] mat) {
+			int n;
+			if(mCurBone != null) {
+				Matrix.multiplyMM(mMwork, 0, mat, 0, mCurBone.matrix, 0);
+				n = Visibility.frustumCullSpheres(mMwork, 0, mSphere, 0, mSph.size(), mRes, 0, mRes.length);				
+			} else {
+				n = Visibility.frustumCullSpheres(mat, 0, mSphere, 0, mSph.size(), mRes, 0, mRes.length);				
+			}
+			
+			int cnt = 0;
+			if(n > 0) {
+				int ofs = 0;
+				for(int i = 0; i < n; i++) {
+					ofs = 0;
+					for(int j = 0; j < mRes[i]; j ++) {
+						ofs += mSph.get(j).mCn;
+					}
+					if(i > 0 && mRes[i - 1] + 1 == mRes[i]) {
+						mRender[(cnt - 1) * 2 + 1] += mSph.get(mRes[i]).mCn;
+					} else {
+						mRender[cnt * 2 + 0] = ofs;
+						mRender[cnt * 2 + 1] = mSph.get(mRes[i]).mCn;
+						cnt++;
 					}
 				}
 			}
-			
-			mSph.add(s1.merge(s2));
-			mSph.remove(s1);
-			mSph.remove(s2);
-		}
-	}
-	
-	public int getRenderIndex(float[] mat, int[] rendar) {
-		if(mRes == null) {
-			mRes = new int[mSph.size()];
-		}
-		int n = Visibility.frustumCullSpheres(mat, 0, getSphere(), 0, mSph.size(), mRes, 0, mRes.length);
-		int cnt = 0;
-		if(n > 0) {
-			int ofs = 0;
-			for(int i = 0; i < n; i++) {
-				ofs = 0;
-				for(int j = 0; j < mRes[i]; j ++) {
-					ofs += mSph.get(j).mCn;
-				}
-				if(i > 0 && mRes[i - 1] + 1 == mRes[i]) {
-					rendar[(cnt - 1) * 2 + 1] += mSph.get(mRes[i]).mCn;
-				} else {
-					rendar[cnt * 2 + 0] = ofs;
-					rendar[cnt * 2 + 1] = mSph.get(mRes[i]).mCn;
-					cnt++;
-				}
-				/*
-				rendar[cnt * 2 + 0] = ofs;
-				rendar[cnt * 2 + 1] = mSph.get(mRes[i]).mCn;
-				cnt++;
-				*/
-			}
-			/*
-			Arrays.sort(mRes);
-			int cnt = 0;
-			for(int i = 0; i < mRes[n - 1]; i++) {
-				if(mRes[cnt] == i) {
-					rendar[cnt * 2 + 0] = ofs;
-					rendar[cnt * 2 + 1] = mSph.get(i).mCn;
-					cnt++;
-				}
-				ofs += mSph.get(i).mCn;
-			}
-			*/
-		}
 
-		return cnt;
+			return cnt;
+		}
+		
+		public void cluster() {
+			Sphere s1 = null;
+			Sphere s2 = null;
+			float md = Float.MAX_VALUE;
+
+			while(mSph.size() > 1) {
+				s1 = null;
+				s2 = null;
+				md = Float.MAX_VALUE;
+				for(Sphere st1: mSph) {
+					for(Sphere st2: mSph) {
+						if(st1 != st2) {
+							float d = st1.distance(st2);
+							if(d < md) {
+								s1 = st1;
+								s2 = st2;
+							}
+						}
+					}
+				}
+				
+				mSph.add(s1.merge(s2));
+				mSph.remove(s1);
+				mSph.remove(s2);
+			}
+		}
+	};
+	
+	private ArrayList<Vertex>			mVtx;
+	private ArrayList<Bone>				mBone;
+	private HashMap<Bone, SphereBone>	mSphB = new HashMap<Bone, SphereBone>();
+	private SphereBone[]				mSphV;
+	private float[]						mMwork = new float[16];
+	
+	public SphereArea(ArrayList<Vertex> v, ArrayList<Bone> b) {
+		mVtx  = v;
+		mBone = b;
+	}
+
+	public int initialSet(ArrayList<Integer> idx, int pos, int size) {
+		Bone b = mBone.get(mVtx.get(idx.get(pos)).bone_num_0);
+		SphereBone sb = mSphB.get(b);
+		if(sb == null) {
+			sb = new SphereBone(b);
+			mSphB.put(b, sb);
+		}
+		
+		int i;
+		Sphere s = new Sphere();
+		for(i = 0; i < size; i++) {
+			int idx_pos = idx.get(pos + i);
+			Vertex v = mVtx.get(idx_pos);
+			Bone bc = mBone.get(v.bone_num_0);
+			if(bc == b) {
+				s.set(idx_pos, v);
+			} else {
+				i++;
+				break;
+			}
+		}
+		sb.add(s);
+		
+		return i;
+	}
+
+
+	
+	public SphereBone[] getSphereBone() {
+		return mSphV;
 	}
 	
 	public void recycle() {
-		for(Sphere s: mSph) {
-			s.recycle();
+		mSphV = new SphereBone[mSphB.size()];
+		int i = 0;
+		for(Entry<Bone, SphereBone> s: mSphB.entrySet()) {
+			s.getValue().fix();
+			mSphV[i++] = s.getValue();
 		}
-		mVtx = null;
+		mVtx	= null;
+		mBone	= null;
+		mSphB	= null;
 	}
-	
-	private float[] getSphere() {
-		if(mSphere == null) {
-			int cnt = 0;
-			mSphere = new float[mSph.size() * 4];
-			for(Sphere sph: mSph) {
-				mSphere[cnt++] = sph.mCx / sph.mCn;
-				mSphere[cnt++] = sph.mCy / sph.mCn;
-				mSphere[cnt++] = sph.mCz / sph.mCn;
-				mSphere[cnt++] = sph.mCr;
-			}
-		}
-		return mSphere;
-	}
+
 	
 	public void logOutput() {
 //		Log.d("SphereArea", String.format("root node %d", mSph.size()));

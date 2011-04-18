@@ -759,9 +759,9 @@ public class CoreLogic {
 		float s = (float) Math.sin(angle * Math.PI / 360);
 		Matrix.setIdentityM(mPMatrix, 0);
 		if (mAngle == 90) {
-			Matrix.frustumM(mPMatrix, 0, -s, s, -s * height / width, s * height / width, 1f, 3000f);
+			Matrix.frustumM(mPMatrix, 0, -s, s, -s * height / width, s * height / width, 1f, 3500f);
 		} else {
-			Matrix.frustumM(mPMatrix, 0, -s * width / height, s * width / height, -s, s, 1f, 3000f);
+			Matrix.frustumM(mPMatrix, 0, -s * width / height, s * width / height, -s, s, 1f, 3500f);
 		}
 		Matrix.scaleM(mPMatrix, 0, 1, 1, -1); // to right-handed
 		Matrix.rotateM(mPMatrix, 0, mAngle, 0, 0, -1); // rotation

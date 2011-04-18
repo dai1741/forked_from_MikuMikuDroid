@@ -11,11 +11,9 @@ import java.util.Map.Entry;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLU;
-import android.opengl.Visibility;
 import android.util.Log;
 
 public class MikuRendererGLES20 extends MikuRendererBase {
@@ -316,11 +314,20 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		for (int r = 0; r < max; r++) {
 			Material mat = rendar.get(r);
 			if (miku.mAnimation) {
-				for (int j = 0; j < miku.mRenameBone; j++) {
-					int inv = mat.rename_inv_map[j];
-					if (inv >= 0) {
-						Bone b = bs.get(inv);
-						System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
+				if(mat.rename_inv_map == null) {
+					for (int j = 0; j < bs.size(); j++) {
+						Bone b = bs.get(j);
+						if(b != null) {
+							System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
+						}
+					}
+				} else {
+					for (int j = 0; j < miku.mRenameBone; j++) {
+						int inv = mat.rename_inv_map[j];
+						if (inv >= 0) {
+							Bone b = bs.get(inv);
+							System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
+						}
 					}
 				}
 				GLES20.glUniformMatrix4fv(glsl.muMBone, mat.rename_hash_size, false, mBoneMatrix, 0);
@@ -404,14 +411,20 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			}
 			
 			// draw
-			int[] ri = new int[mat.area.mSph.size() * 2];
-			int n = mat.area.getRenderIndex(mCoreLogic.getProjectionMatrix(), ri);
-			for(int i = 0; i < n; i++) {
-				miku.mIndexBuffer.position(mat.face_vart_offset + ri[i * 2]);
-				GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[i * 2 + 1], GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+			if(miku.mIsOneSkinning || !miku.mAnimation) {
+				SphereArea.SphereBone[] sba = mat.area.getSphereBone();
+				for(int i = 0; i < sba.length; i++) {
+					int n = sba[i].makeRenderIndex(mCoreLogic.getProjectionMatrix());
+					int[] ri = sba[i].getRenderIndex();
+					for(int j = 0; j < n; j++) {
+						miku.mIndexBuffer.position(mat.face_vart_offset + ri[j * 2]);
+						GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+					}
+				}
+			} else {
+				miku.mIndexBuffer.position(mat.face_vart_offset);
+				GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 			}
-//			miku.mIndexBuffer.position(mat.face_vart_offset);
-//			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 //			checkGlError("glDrawElements");
 		}
 		miku.mIndexBuffer.position(0);

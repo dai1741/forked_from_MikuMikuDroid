@@ -81,19 +81,29 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 		
 		makeIndexSortedBuffers(pmd);
-		clusterVertex(pmd);
 		if (animation) {
 			reconstructFace();
-			pmd.recycleVertex();
-			reconstructMaterial(pmd, mRenameBone);
-			
-			// release unused data
-			for(Material rb: mRendarList) {
-				rb.rename_hash_size = rb.rename_hash.size();
-				rb.rename_hash = null;
-				rb.rename_map = null;
+			if(mBone.size() <= mRenameBone) {
+				buildBoneRenameIndexAll(pmd, mRenameBone);
+				mRendarList = mMaterial;
+				if(mIsOneSkinning) {
+					clusterVertex(pmd);
+				}
+				pmd.recycleVertex();
+			} else {
+				pmd.recycleVertex();
+				reconstructMaterial(pmd, mRenameBone);
+				
+				// release unused data
+				for(Material rb: mRendarList) {
+					rb.rename_hash_size = rb.rename_hash.size();
+					rb.rename_hash = null;
+					rb.rename_map = null;
+				}
 			}
 		} else {
+			mRendarList = mMaterial;
+			clusterVertex(pmd);
 			mFaceBase = null;
 			pmd.recycleVertex();
 			buildBoneNoMotionRenameIndex(pmd);
@@ -123,17 +133,17 @@ public class MikuModel implements Serializable, SerializableExt {
 	private void clusterVertex(PMDParser pmd) {
 		ArrayList<Integer> index = pmd.getIndex();
 		ArrayList<Vertex>  vertex = pmd.getVertex();
+		ArrayList<Bone>    bone = pmd.getBone();
 		
 		// cluster vertices
-		for(Material m: mMaterial) {
+		for(Material m: mRendarList) {
 			
 			// initialize: each 3 vertices becomes one cluster
-			m.area = new SphereArea(vertex);
-			int inc = 300;
-			for(int i = 0; i < m.face_vert_count; i += inc) {
-				int n = i + inc > m.face_vert_count ? m.face_vert_count - i : inc;
-				m.area.initialSet(index, m.face_vart_offset + i, n);
-			}
+			m.area = new SphereArea(vertex, bone);
+			int inc = 900;
+//			int inc = 300;
+			for(int i = 0; i < m.face_vert_count;
+				i += m.area.initialSet(index, m.face_vart_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));
 			m.area.recycle();
 			
 			// exec clustering
@@ -351,6 +361,27 @@ public class MikuModel implements Serializable, SerializableExt {
 		for (Material m : mMaterial) {
 			m.rename_index = rbb;
 		}
+	}
+	
+	private void buildBoneRenameIndexAll(PMDParser pmd, int max_bone) {
+		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
+		rbb.order(ByteOrder.nativeOrder());
+	
+		for (int i = 0; i < pmd.getVertex().size(); i++) {
+			Vertex v = pmd.getVertex().get(i);
+			rbb.put((byte) v.bone_num_0);
+			rbb.put((byte) v.bone_num_1);
+			rbb.put((byte) v.bone_weight);
+		}
+		rbb.position(0);
+	
+		for (Material m : mMaterial) {
+			m.rename_index = rbb;
+			m.rename_inv_map = null;
+			m.rename_hash_size = max_bone;
+		}
+		
+		
 	}
 
 	private int renameBone1(PMDParser pmd, HashMap<Integer, Integer> rename, int veridx, ArrayList<Vertex> ver, int acc) {
