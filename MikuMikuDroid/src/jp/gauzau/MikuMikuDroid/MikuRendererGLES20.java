@@ -417,7 +417,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 					int n = sba[i].makeRenderIndex(mCoreLogic.getProjectionMatrix());
 					int[] ri = sba[i].getRenderIndex();
 					for(int j = 0; j < n; j++) {
-						miku.mIndexBuffer.position(mat.face_vart_offset + ri[j * 2]);
+						miku.mIndexBuffer.position(ri[j * 2]);
 						GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 					}
 				}

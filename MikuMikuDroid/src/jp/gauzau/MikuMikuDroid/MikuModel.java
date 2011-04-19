@@ -368,17 +368,21 @@ public class MikuModel implements Serializable, SerializableExt {
 		rbb.order(ByteOrder.nativeOrder());
 	
 		for (int i = 0; i < pmd.getVertex().size(); i++) {
-			Vertex v = pmd.getVertex().get(i);
-			rbb.put((byte) v.bone_num_0);
-			rbb.put((byte) v.bone_num_1);
-			rbb.put((byte) v.bone_weight);
+			int pos = pmd.getIndex().get(i);
+			if (mIndexMaps[pos] >= 0) {
+				Vertex v = pmd.getVertex().get(pos);
+				rbb.position(mIndexMaps[pos] * 3);
+				rbb.put((byte) v.bone_num_0);
+				rbb.put((byte) v.bone_num_1);
+				rbb.put((byte) v.bone_weight);				
+			}
 		}
 		rbb.position(0);
 	
 		for (Material m : mMaterial) {
 			m.rename_index = rbb;
 			m.rename_inv_map = null;
-			m.rename_hash_size = max_bone;
+			m.rename_hash_size = pmd.getBone().size();
 		}
 		
 		

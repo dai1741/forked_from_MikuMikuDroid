@@ -6,7 +6,6 @@ import java.util.Map.Entry;
 
 import android.opengl.Matrix;
 import android.opengl.Visibility;
-import android.util.Log;
 
 public class SphereArea {
 	private class Sphere {
@@ -19,6 +18,12 @@ public class SphereArea {
 		public float mCz = 0;
 		public float mCr = 0;
 		public int   mCn = 0;
+		public int   mOfs;
+		public boolean mComplex = false;
+		
+		public Sphere(int ofs) {
+			mOfs = ofs;
+		}
 
 		public void set(int idx, Vertex v) {
 			if(mIdx == null) {
@@ -29,6 +34,10 @@ public class SphereArea {
 			mCy += v.pos[1];
 			mCz += v.pos[2];
 			mCn++;
+		}
+		
+		public void setComprex(boolean c) {
+			mComplex = c;
 		}
 		
 		public void calcR() {
@@ -54,7 +63,7 @@ public class SphereArea {
 		}
 		
 		public Sphere merge(Sphere s) {
-			Sphere sph = new Sphere();
+			Sphere sph = new Sphere(mOfs);
 			sph.s1 = this;
 			sph.s2 = s;
 			sph.mCx = mCx + s.mCx;
@@ -74,6 +83,7 @@ public class SphereArea {
 	public class SphereBone {
 		private Bone				mCurBone;
 		private ArrayList<Sphere>	mSph = new ArrayList<Sphere>();
+		private ArrayList<Sphere>	mSphC = new ArrayList<Sphere>();
 		private float[]				mSphere = null;
 		private int[]				mRes;
 		private int[]				mRender;
@@ -86,6 +96,10 @@ public class SphereArea {
 			mSph.add(s);
 		}
 		
+		public void addComplex(Sphere s) {
+			mSphC.add(s);
+		}
+		
 		public void calcR() {
 			for(Sphere s: mSph) {
 				s.calcR();
@@ -94,7 +108,7 @@ public class SphereArea {
 		
 		public void fix() {
 			mRes = new int[mSph.size()];
-			mRender = new int[mSph.size() * 2];
+			mRender = new int[(mSph.size() + mSphC.size()) * 2];
 			
 			int cnt = 0;
 			mSphere = new float[mSph.size() * 4];
@@ -105,6 +119,9 @@ public class SphereArea {
 				mSphere[cnt++] = s.mCz / s.mCn;
 				mSphere[cnt++] = s.mCr;
 //				Log.d("SphereArea", String.format("Sphere %f x %f x %f, r = %f, n= %d", s.mCx / s.mCn, s.mCy / s.mCn, s.mCz / s.mCn, s.mCr, s.mCn));
+				s.recycle();
+			}
+			for(Sphere s: mSphC) {
 				s.recycle();
 			}
 		}
@@ -123,24 +140,27 @@ public class SphereArea {
 			}
 			
 			int cnt = 0;
+			int nxt = 0;
 			if(n > 0) {
-				int ofs = 0;
 				for(int i = 0; i < n; i++) {
-					ofs = 0;
-					for(int j = 0; j < mRes[i]; j ++) {
-						ofs += mSph.get(j).mCn;
-					}
-					if(i > 0 && mRes[i - 1] + 1 == mRes[i]) {
-						mRender[(cnt - 1) * 2 + 1] += mSph.get(mRes[i]).mCn;
+					Sphere s = mSph.get(mRes[i]);
+					if(i > 0 && s.mOfs == nxt) {
+						mRender[(cnt - 1) * 2 + 1] += s.mCn;
 					} else {
-						mRender[cnt * 2 + 0] = ofs;
-						mRender[cnt * 2 + 1] = mSph.get(mRes[i]).mCn;
+						mRender[cnt * 2 + 0] = s.mOfs;
+						mRender[cnt * 2 + 1] = s.mCn;
+						nxt = s.mOfs + s.mCn;
 						cnt++;
 					}
 				}
 			}
+			
+			for(int i = 0; i < mSphC.size(); i++) {
+				mRender[(cnt + i) * 2 + 0] = mSphC.get(i).mOfs;
+				mRender[(cnt + i) * 2 + 1] = mSphC.get(i).mCn;
+			}
 
-			return cnt;
+			return cnt + mSphC.size();
 		}
 		
 		public void cluster() {
@@ -191,24 +211,39 @@ public class SphereArea {
 		}
 		
 		int i;
-		Sphere s = new Sphere();
-		for(i = 0; i < size; i++) {
+		Sphere s = new Sphere(pos);
+		for(i = 0; i < size; i += 3) {
 			int idx_pos = idx.get(pos + i);
 			Vertex v = mVtx.get(idx_pos);
 			Bone bc = mBone.get(v.bone_num_0);
-			if(bc == b) {
-				s.set(idx_pos, v);
+			if(bc == b || s.mComplex) {
+				addVertex(s, idx, pos + i    , b);
+				addVertex(s, idx, pos + i + 1, b);
+				addVertex(s, idx, pos + i + 2, b);
 			} else {
-				i++;
 				break;
 			}
 		}
-		sb.add(s);
+		
+		if(s.mComplex) {
+			sb.addComplex(s);
+//			sb.add(s);			
+		} else {
+			sb.add(s);			
+		}
 		
 		return i;
 	}
 
-
+	private void addVertex(Sphere s, ArrayList<Integer> idxA, int idx, Bone b) {
+		int idx_pos = idxA.get(idx);
+		Vertex v = mVtx.get(idx_pos);
+		Bone ba = mBone.get(v.bone_num_0);
+		if(ba != b) {
+			s.setComprex(true);
+		}
+		s.set(idx_pos, v);
+	}
 	
 	public SphereBone[] getSphereBone() {
 		return mSphV;
