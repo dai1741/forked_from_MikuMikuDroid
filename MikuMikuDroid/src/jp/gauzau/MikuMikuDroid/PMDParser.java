@@ -31,7 +31,7 @@ public class PMDParser extends ParserBase {
 	private ArrayList<Joint> mJoint;
 	private boolean mIsOneSkinning = true;
 
-	public PMDParser(String file) throws IOException {
+	public PMDParser(String base, String file) throws IOException {
 		super(file);
 		mFileName = file;
 		mIsPmd = false;
@@ -52,14 +52,14 @@ public class PMDParser extends ParserBase {
 				parsePMDBoneDisp();
 				if (!isEof()) {
 					parsePMDEnglish();
-					parsePMDToonFileName(path);
+					parsePMDToonFileName(path, base);
 					parsePMDRigidBody();
 					parsePMDJoint();
 				} else {
 					mToonFileName = new ArrayList<String>(11);
-					mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
+					mToonFileName.add(0, base + "Data/toon0.bmp");
 					for (int i = 0; i < 10; i++) {
-						String str = String.format("/sdcard/MikuMikuDroid/Data/toon%02d.bmp", i + 1);
+						String str = String.format(base + "Data/toon%02d.bmp", i + 1);
 						mToonFileName.add(i + 1, str);
 					}
 
@@ -163,21 +163,21 @@ public class PMDParser extends ParserBase {
 		}
 	}
 
-	private void parsePMDToonFileName(String path) throws IOException {
+	private void parsePMDToonFileName(String path, String base) throws IOException {
 		mToonFileName = new ArrayList<String>(11);
-		mToonFileName.add(0, "/sdcard/MikuMikuDroid/Data/toon0.bmp");
+		mToonFileName.add(0, base + "Data/toon0.bmp");
 		for (int i = 0; i < 10; i++) {
 			String str = getString(100);
 			str = str.replace('\\', '/');
 			if (isExist(path + str)) {
 				mToonFileName.add(i + 1, path + str);
 			} else {
-				String toon = "/sdcard/MikuMikuDroid/Data/" + str;
+				String toon = base + "Data/" + str;
 				if(!isExist(toon)) {
 					mIsPmd = false;
 					Log.d("PMDParser", String.format("Toon texture not found: %s", str));
 				}
-				mToonFileName.add(i + 1, "/sdcard/MikuMikuDroid/Data/" + str);
+				mToonFileName.add(i + 1, base + "Data/" + str);
 			}
 		}
 	}

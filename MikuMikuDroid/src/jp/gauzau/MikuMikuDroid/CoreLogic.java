@@ -39,7 +39,7 @@ public class CoreLogic {
 	private float[]				mRMatrix = new float[16];
 	
 	// configurations
-	private String				mBase = "/sdcard/MikuMikuDroid/";
+	private String				mBase;
 	private int					mBoneNum = 0;
 	private Context				mCtx;
 	private int					mWidth;
@@ -151,6 +151,12 @@ public class CoreLogic {
 		mFakeMedia = new FakeMedia(ctx);
 		
 		clearMember();
+		
+		if(new File("/sdcard/.MikuMikuDroid").exists()) {
+			mBase = "/sdcard/.MikuMikuDroid/";
+		} else {
+			mBase = "/sdcard/MikuMikuDroid/";			
+		}
 	}
 	
 	public void setGLConfig(int boneNum) {
@@ -166,7 +172,7 @@ public class CoreLogic {
 	// Model configurations
 	public void loadModel(String modelf) throws IOException {
 		// model
-		PMDParser pmd = new PMDParser(modelf);
+		PMDParser pmd = new PMDParser(mBase, modelf);
 		MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
 		
 		// Create Miku
@@ -209,7 +215,7 @@ public class CoreLogic {
 	
 	public synchronized boolean loadModelMotion(String modelf, String motionf) throws IOException, OutOfMemoryError {
 		// read model/motion files
-		PMDParser pmd = new PMDParser(modelf);
+		PMDParser pmd = new PMDParser(mBase, modelf);
 		
 		if(pmd.isPmd()) {
 			// create texture cache
@@ -283,7 +289,7 @@ public class CoreLogic {
 		}
 		
 		mMikuStage = null;
-		PMDParser pmd = new PMDParser(file);
+		PMDParser pmd = new PMDParser(mBase, file);
 		if(pmd.isPmd()) {
 			createTextureCache(pmd);
 			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
