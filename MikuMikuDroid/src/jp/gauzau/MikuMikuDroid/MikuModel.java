@@ -46,7 +46,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	public transient int[] mIndexMaps;
 	public transient Face mFaceBase;
 	
-	public transient HashMap<String, Integer> mTexture;
+	public transient HashMap<String, TexInfo> mTexture;
 	public transient ArrayList<Integer> mToon;
 
 	public MikuModel() {

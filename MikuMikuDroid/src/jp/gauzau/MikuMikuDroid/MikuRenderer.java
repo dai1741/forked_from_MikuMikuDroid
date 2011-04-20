@@ -240,7 +240,7 @@ public class MikuRenderer extends MikuRendererBase {
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
 				gl.glTexParameterx(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
-				gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mTexture.get(mat.texture));
+				gl.glBindTexture(GL10.GL_TEXTURE_2D, miku.mTexture.get(mat.texture).tex);
 				gl.glColor4f(mat.diffuse_color[0] * wi + mat.emmisive_color[0], mat.diffuse_color[1] * wi + mat.emmisive_color[1], mat.diffuse_color[2] * wi + mat.emmisive_color[2], mat.diffuse_color[3]);
 			} else {
 				gl.glActiveTexture(GL10.GL_TEXTURE1);
@@ -287,21 +287,23 @@ public class MikuRenderer extends MikuRendererBase {
 	public void readAndBindTexture(GL10 gl, MikuModel model) {
 		gl.glPixelStorei(GL10.GL_UNPACK_ALIGNMENT, 1);
 	
-		model.mTexture = new HashMap<String, Integer>();
+		model.mTexture = new HashMap<String, TexInfo>();
 		for (int i = 0; i < model.mMaterial.size(); i++) {
 			Material mat = model.mMaterial.get(i);
 			if (mat.texture != null) {
 				if (model.mTexture.get(mat.texture) == null) {
+					TexInfo ti = new TexInfo();
 					int tex[] = new int[1];
 					gl.glGenTextures(1, tex, 0);
+					ti.tex = tex[0];
 					gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[0]);
-					TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0], mNpot);
+					ti.has_alpha = TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0], mNpot);
 	
 					int err = gl.glGetError();
 					if (err != 0) {
 						Log.d("MikuModel", GLU.gluErrorString(err));
 					}
-					model.mTexture.put(mat.texture, tex[0]);
+					model.mTexture.put(mat.texture, ti);
 				}
 			}
 		}

@@ -32,35 +32,38 @@ public class TextureFile {
 		}
 	}
 	
-	static public void loadTexture(String base, String file, int scale, int max, boolean npot) {
+	static public boolean loadTexture(String base, String file, int scale, int max, boolean npot) {
 		if (file.endsWith(".tga")) {
-			loadTgaTextureCached(base, file, scale, max, npot);
+			return loadTgaTextureCached(base, file, scale, max, npot);
 		} else {
-			loadBitmapTextureCached(base, file, scale, max, npot);
+			return loadBitmapTextureCached(base, file, scale, max, npot);
 		}
 	}
 	
-	static private void loadTgaTextureCached(String base, String file, int scale, int max, boolean npot) {
+	static private boolean loadTgaTextureCached(String base, String file, int scale, int max, boolean npot) {
 		CacheFile cp = new CacheFile(base, "png");
 		cp.addFile(file);
 		
 		if(cp.hasCache()) {
-			loadBitmapTexture(base, cp.getCacheFileName(), scale, max, npot);
+			return loadBitmapTexture(base, cp.getCacheFileName(), scale, max, npot);
+		} else {
+			return false;
 		}
+		
 	}
 	
-	static private void loadBitmapTextureCached(String base, String file, int scale, int max, boolean npot) {
+	static private boolean loadBitmapTextureCached(String base, String file, int scale, int max, boolean npot) {
 		CacheFile cp = new CacheFile(base, "png");
 		cp.addFile(file);
 		
 		if(cp.hasCache()) {
-			loadBitmapTexture(base, cp.getCacheFileName(), scale, max, npot);
+			return loadBitmapTexture(base, cp.getCacheFileName(), scale, max, npot);
 		} else {
-			loadBitmapTexture(base, file, scale, max, npot);
+			return loadBitmapTexture(base, file, scale, max, npot);
 		}
 	}
 	
-	static private void loadBitmapTexture(String base, String file, int scale, int max, boolean npot) {
+	static private boolean loadBitmapTexture(String base, String file, int scale, int max, boolean npot) {
 		// check texture size
 		BitmapFactory.Options op = new BitmapFactory.Options();
 		op.inJustDecodeBounds = true;
@@ -79,6 +82,9 @@ public class TextureFile {
 			if(bmp != null) {
 				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
 				bmp.recycle();					
+				return bmp.hasAlpha();
+			} else {
+				return false;
 			}
 		} else {	// no support npot
 			// rescaling
@@ -89,8 +95,10 @@ public class TextureFile {
 				Log.d("TextureFile", String.format("Scaled Bitmap %s: %d x %d", file, bmp.getWidth(), bmp.getHeight()));
 				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0);
 				bmp.recycle();					
+				return bmp.hasAlpha();
 			} else {
 				Log.d("TextureFile", String.format("fail to scale Bitmap %s", file));
+				return false;
 			}
 		}
 	}
