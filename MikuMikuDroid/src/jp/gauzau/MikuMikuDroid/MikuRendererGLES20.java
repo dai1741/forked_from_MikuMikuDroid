@@ -314,6 +314,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs)));
 		mGLSL.put("builtin:default_alpha", 
 				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_alpha)));
+		mGLSL.put("builtin:default_shadow", 
+				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_shadow), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_shadow)));
 		mGLSL.put("builtin:nomotion",
 				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm)));
 		mGLSL.put("builtin:nomotion_alpha",
