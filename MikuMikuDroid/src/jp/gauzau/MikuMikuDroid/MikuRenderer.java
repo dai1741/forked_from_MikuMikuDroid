@@ -55,23 +55,6 @@ public class MikuRenderer extends MikuRendererBase {
 		readAndBindTexture(gl, miku.mModel);
 	}
 
-	public void initializeStageBuffers(GL10 gl) {
-		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
-		Vector.normalize(mLightDir);
-		
-		// toon shading
-		gl.glActiveTexture(GL10.GL_TEXTURE0);
-		mCoreLogic.getMikuStage().mModel.calcToonTexCoord(mLightDir);
-		readAndBindToonTexture(gl, mCoreLogic.getMikuStage().mModel);
-
-		// Texture
-		gl.glActiveTexture(GL10.GL_TEXTURE1);
-		readAndBindTexture(gl, mCoreLogic.getMikuStage().mModel);
-
-		// buffer bindings
-		bindBuffer(mCoreLogic.getMikuStage().mModel, gl);
-	}
-
 	@Override
 	public void onDrawFrame(GL10 gl) {
 		super.onDrawFrame(gl);
@@ -97,8 +80,6 @@ public class MikuRenderer extends MikuRendererBase {
 
 			gl11.glEnableClientState(GL10.GL_VERTEX_ARRAY);
 			gl11.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
-			gl11.glEnableClientState(GL11Ext.GL_MATRIX_INDEX_ARRAY_OES);
-			gl11.glEnableClientState(GL11Ext.GL_WEIGHT_ARRAY_OES);
 
 			// float white_light[] = {0.6f, 0.6f, 0.6f, 1.0f};
 			// float lmodel_ambient[] = {0.6f, 0.6f, 0.6f, 1.0f};
@@ -111,23 +92,19 @@ public class MikuRenderer extends MikuRendererBase {
 
 			gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
 			for (Miku miku : mCoreLogic.getMiku()) {
+				if(miku.mMotion == null) { // stage
+					gl.glDisable(GL11Ext.GL_MATRIX_PALETTE_OES);
+					gl11.glDisableClientState(GL11Ext.GL_MATRIX_INDEX_ARRAY_OES);
+					gl11.glDisableClientState(GL11Ext.GL_WEIGHT_ARRAY_OES);
+				} else {
+					gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
+					gl11.glEnableClientState(GL11Ext.GL_MATRIX_INDEX_ARRAY_OES);
+					gl11.glEnableClientState(GL11Ext.GL_WEIGHT_ARRAY_OES);
+				}
 				bindBuffer(miku.mModel, gl);
 				draw(gl, miku.mModel);
 			}
 		}
-
-		if (mCoreLogic.getMikuStage() != null) {
-			if (mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
-				initializeStageBuffers(gl);
-				mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
-			}
-			gl.glDisable(GL11Ext.GL_MATRIX_PALETTE_OES);
-			gl11.glDisableClientState(GL11Ext.GL_MATRIX_INDEX_ARRAY_OES);
-			gl11.glDisableClientState(GL11Ext.GL_WEIGHT_ARRAY_OES);
-			bindBuffer(mCoreLogic.getMikuStage().mModel, gl);
-			draw(gl, mCoreLogic.getMikuStage().mModel);
-		}
-		gl.glEnable(GL11Ext.GL_MATRIX_PALETTE_OES);
 
 		gl.glFlush();
 		mCoreLogic.onDraw(pos);
@@ -177,9 +154,6 @@ public class MikuRenderer extends MikuRendererBase {
 
 		if (mCoreLogic.getMiku() != null) {
 			initializeBuffers(gl);
-		}
-		if (mCoreLogic.getMikuStage() != null) {
-			initializeStageBuffers(gl);
 		}
 	}
 

@@ -24,7 +24,6 @@ import android.util.Log;
 public class CoreLogic {
 	// model / music data
 	private ArrayList<Miku>		mMiku;
-	private Miku				mMikuStage;
 	private String				mBG;
 	private MikuMotion			mCamera;
 	private MediaPlayer			mMedia;
@@ -256,6 +255,8 @@ public class CoreLogic {
 				miku.attachMotion(motion);
 				miku.setBonePosByVMDFrame(0);
 				miku.setFaceByVMDFrame(0);
+				miku.addRenderSenario("builtin:default", "screen");
+				miku.addRenderSenario("builtin:default_alpha", "screen");
 				
 				// store IK chache
 				if(!vmc_success) {
@@ -283,19 +284,16 @@ public class CoreLogic {
 	}
 
 	public synchronized MikuModel loadStage(String file) throws IOException, OutOfMemoryError {
-		MikuModel mm = null;
-		if(mMikuStage != null) {
-			mm = mMikuStage.mModel;
-		}
-		
-		mMikuStage = null;
 		PMDParser pmd = new PMDParser(mBase, file);
 		if(pmd.isPmd()) {
 			createTextureCache(pmd);
 			MikuModel model = new MikuModel(mBase, pmd, mMaxBone, false);
-			mMikuStage = new Miku(model);			
+			Miku miku = new Miku(model);			
+			miku.addRenderSenario("builtin:nomotion", "screen");
+			miku.addRenderSenario("builtin:nomotion_alpha", "screen");
+			mMiku.add(miku);
 		}
-		return mm;
+		return null;
 	}
 	
 	public synchronized String loadBG(String file) {
@@ -334,9 +332,6 @@ public class CoreLogic {
 		for(Miku m: mMiku) {
 			models.add(m.mModel);
 		}
-		if(mMikuStage != null) {
-			models.add(mMikuStage.mModel);
-		}
 		
 		clearMember();
 		
@@ -350,7 +345,6 @@ public class CoreLogic {
 	
 	private void clearMember() {
 		mMiku = new ArrayList<Miku>();
-		mMikuStage = null;
 		mPrevTime = 0;
 		mStartTime = 0;
 		mCamera = null;
@@ -458,15 +452,12 @@ public class CoreLogic {
 			for(int i = 0; i < mMiku.size(); i++) {
 				Miku m = mMiku.get(i);
 				ed.putString(String.format("Model%d", i), m.mModel.mFileName);
-				ed.putString(String.format("Motion%d", i), m.mMotion.mFileName);
+				if(m.mMotion != null) {
+					ed.putString(String.format("Motion%d", i), m.mMotion.mFileName);
+				}
 			}
 		} else {
 			ed.putInt("ModelNum", 0);
-		}
-		
-		// stage
-		if(mMikuStage != null) {
-			ed.putString("Stage", mMikuStage.mModel.mFileName);
 		}
 		
 		// camera
@@ -506,7 +497,6 @@ public class CoreLogic {
 				motion[i] = sp.getString(String.format("Motion%d", i), null);
 			}
 
-			String stage = sp.getString("Stage", null);
 			String camera = sp.getString("Camera", null);
 			String music = sp.getString("Music", null);
 			int pos = sp.getInt("Position", 0);
@@ -518,13 +508,13 @@ public class CoreLogic {
 			
 			// load data
 			for(int i = 0; i < num; i++) {
-				loadModelMotion(model[i], motion[i]);
+				if(motion[i] == null) {
+					loadStage(model[i]);
+				} else {
+					loadModelMotion(model[i], motion[i]);
+				}
 			}
 			
-			if(stage != null) {
-				loadStage(stage);
-			}			
-
 			if(camera != null) {
 				loadCamera(camera);
 			}			
@@ -567,10 +557,6 @@ public class CoreLogic {
 	
 	public void returnMiku(Miku miku) {
 		
-	}
-	
-	public Miku getMikuStage() {
-		return mMikuStage;
 	}
 	
 	public String getBG() {

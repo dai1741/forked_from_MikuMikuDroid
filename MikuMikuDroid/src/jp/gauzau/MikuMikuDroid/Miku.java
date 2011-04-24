@@ -10,11 +10,23 @@ import android.opengl.Matrix;
 import android.util.Log;
 
 public class Miku {
+	public class RenderSet {
+		public String shader;
+		public String target;
+		public RenderSet(String s, String t) {
+			shader = s;
+			target = t;
+		}
+	}
+	
 	// model data
 	public MikuModel mModel;
 
 	// motion data
 	public MikuMotion mMotion;
+	
+	// render senario
+	public ArrayList<RenderSet> mRenderSenario = new ArrayList<RenderSet>();
 
 	// temporary data
 	private MotionPair mMpWork = new MotionPair();
@@ -45,6 +57,10 @@ public class Miku {
 			Log.d("Miku", "IK calcuration");
 			preCalcKeyFrameIK();			
 		}
+	}
+	
+	public void addRenderSenario(String s, String t) {
+		mRenderSenario.add(new RenderSet(s, t));
 	}
 
 	public void setBonePosByVMDFrame(float i) {

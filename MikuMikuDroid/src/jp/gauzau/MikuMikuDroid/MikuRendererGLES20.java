@@ -11,6 +11,8 @@ import java.util.Map.Entry;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import jp.gauzau.MikuMikuDroid.Miku.RenderSet;
+
 import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLU;
@@ -206,15 +208,18 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 	// GPU configuration
 	private boolean	mNpot;
-	private ArrayList<RenderTarget> mRT;
 
 	// shader
+	private HashMap<String, RenderTarget> mRT;
+	private HashMap<String, GLSL>	mGLSL;
+	/*
 	private GLSL mGLSL;
 	private GLSL mGLSLA;
 	private GLSL mGLSLST;
 	private GLSL mGLSLSA;
 	private GLSL mGLSLBG;
 	private GLSL mGLSLD;
+	*/
 	
 	// for background
 	private MikuModel	mBG = new MikuModel();
@@ -304,18 +309,22 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 //		GLES20.glPolygonOffset(-1.0f, -2.0f);
 		
 		// shader programs
-		mGLSL   = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
-		mGLSLA  = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_alpha));
-//		mGLSL1S = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_1m), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_nm));
-		mGLSLST = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm));
-		mGLSLSA = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm_alpha));
-		mGLSLBG = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_bg));
-		mGLSLD  = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_post_diffusion));
+		mGLSL = new HashMap<String, GLSL>();
+		mGLSL.put("builtin:default", 
+				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs)));
+		mGLSL.put("builtin:default_alpha", 
+				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_alpha)));
+		mGLSL.put("builtin:nomotion",
+				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm)));
+		mGLSL.put("builtin:nomotion_alpha",
+				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm_alpha)));
+		mGLSL.put("builtin:bg",
+				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_bg)));
+		mGLSL.put("builtin:post_diffusion", 
+				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_post_diffusion)));
 		
-		mRT = new ArrayList<RenderTarget>();
-		mRT.add(0, new RenderTarget());
-		mRT.add(1, new RenderTarget(1024, 600));
-		mRT.add(2, new RenderTarget(128, 128));
+		mRT = new HashMap<String, RenderTarget>();
+		mRT.put("screen", new RenderTarget());
 		
 		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 
@@ -334,110 +343,54 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
 		Vector.normalize(mLightDir);
 		
-		mRT.get(0).switchTargetFrameBuffer();
+		mRT.get("screen").switchTargetFrameBuffer();
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 		initializeAllTexture(false);
 
 		int pos = mCoreLogic.applyCurrentMotion();
 
 		////////////////////////////////////////////////////////////////////
-		//// draw model - Non alpha
-		GLES20.glUseProgram(mGLSL.mProgram);
-
-		// Projection Matrix
-		GLES20.glUniformMatrix4fv(mGLSL.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
-
-		// LightPosition
-		GLES20.glUniform3fv(mGLSL.muLightDir, 1, mLightDir, 0);
-
-		GLES20.glUniform1i(mGLSL.msToonSampler, 0);
-		GLES20.glUniform1i(mGLSL.msTextureSampler, 1);
-		GLES20.glUniform1i(mGLSL.msSphereSampler, 2);
-		checkGlError("on onDrawFrame");
-
+		//// draw models
 		if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
 				if(miku.mModel.mIsTextureLoaded) {
-					bindBuffer(miku.mModel, mGLSL);
-					drawNonAlpha(miku.mModel, mGLSL);
-					drawAlpha(miku.mModel, mGLSL, false);
+					for(RenderSet rs: miku.mRenderSenario) {
+						mRT.get(rs.target).switchTargetFrameBuffer();
+						GLSL glsl = mGLSL.get(rs.shader);
+						
+						GLES20.glUseProgram(glsl.mProgram);
+
+						// Projection Matrix
+						GLES20.glUniformMatrix4fv(glsl.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
+
+						// LightPosition
+						GLES20.glUniform3fv(glsl.muLightDir, 1, mLightDir, 0);
+
+						GLES20.glUniform1i(glsl.msToonSampler, 0);
+						GLES20.glUniform1i(glsl.msTextureSampler, 1);
+						GLES20.glUniform1i(glsl.msSphereSampler, 2);
+						
+						bindBuffer(miku.mModel, glsl);
+						if(!rs.shader.endsWith("alpha")) {
+							drawNonAlpha(miku.mModel, glsl);							
+							drawAlpha(miku.mModel, glsl, false);						
+						} else {
+							drawAlpha(miku.mModel, glsl, true);							
+						}
+					}
 				}
 			}
-		}
-
-		////////////////////////////////////////////////////////////////////
-		//// draw model - Alpha
-		GLES20.glUseProgram(mGLSLA.mProgram);
-
-		// Projection Matrix
-		GLES20.glUniformMatrix4fv(mGLSLA.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
-
-		// LightPosition
-		GLES20.glUniform3fv(mGLSLA.muLightDir, 1, mLightDir, 0);
-
-		GLES20.glUniform1i(mGLSLA.msToonSampler, 0);
-		GLES20.glUniform1i(mGLSLA.msTextureSampler, 1);
-		GLES20.glUniform1i(mGLSLA.msSphereSampler, 2);
-		checkGlError("on onDrawFrame");
-
-		if (mCoreLogic.getMiku() != null) {
-			for (Miku miku : mCoreLogic.getMiku()) {
-				if(miku.mModel.mIsTextureLoaded) {
-					bindBuffer(miku.mModel, mGLSLA);
-					drawAlpha(miku.mModel, mGLSLA, true);
-				}
-			}
-		}
-
-		////////////////////////////////////////////////////////////////////
-		//// draw stage
-		Miku stage = mCoreLogic.getMikuStage();
-		if (stage != null && stage.mModel.mIsTextureLoaded) {
-			////////////////////////////
-			// non alpha
-			GLES20.glUseProgram(mGLSLST.mProgram);
-
-			// Projection, Model, View Matrix
-			GLES20.glUniformMatrix4fv(mGLSLST.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
-
-			// LightPosition
-			GLES20.glUniform3fv(mGLSLST.muLightDir, 1, mLightDir, 0);		
-
-			GLES20.glUniform1i(mGLSLST.msToonSampler, 0);
-			GLES20.glUniform1i(mGLSLST.msTextureSampler, 1);
-//			checkGlError("on onDrawFrame");
-
-			bindBuffer(stage.mModel, mGLSLST);
-			drawNonAlpha(stage.mModel, mGLSLST);
-			drawAlpha(stage.mModel, mGLSLST, false);
-
-			
-			////////////////////////////
-			// alpha
-			GLES20.glUseProgram(mGLSLSA.mProgram);
-
-			// Projection, Model, View Matrix
-			GLES20.glUniformMatrix4fv(mGLSLSA.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
-
-			// LightPosition
-			GLES20.glUniform3fv(mGLSLSA.muLightDir, 1, mLightDir, 0);		
-
-			GLES20.glUniform1i(mGLSLSA.msToonSampler, 0);
-			GLES20.glUniform1i(mGLSLSA.msTextureSampler, 1);
-//			checkGlError("on onDrawFrame");
-
-			bindBuffer(stage.mModel, mGLSLSA);
-			drawAlpha(stage.mModel, mGLSLSA, true);
 		}
 
 		////////////////////////////////////////////////////////////////////
 		//// draw BG
 		String bg = mCoreLogic.getBG();
 		if(bg != null) {
-			GLES20.glUseProgram(mGLSLBG.mProgram);
-			GLES20.glUniform1i(mGLSLBG.msTextureSampler, 1);
+			GLSL glsl = mGLSL.get("builtin:bg");
+			GLES20.glUseProgram(glsl.mProgram);
+			GLES20.glUniform1i(glsl.msTextureSampler, 1);
 
-			bindBgBuffer(mGLSLBG);
+			bindBgBuffer(glsl);
 			drawBg(bg);
 		}
 
@@ -726,10 +679,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			}
 		}
 
-		if (mCoreLogic.getMikuStage() != null) {
-			deleteTexture(mCoreLogic.getMikuStage().mModel);
-		}
-		
 		if (mCoreLogic.getBG() != null) {
 			deleteTexture(mBG);
 		}
@@ -751,16 +700,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			}
 		}
 
-		if (mCoreLogic.getMikuStage() != null) {
-			if(all || mCoreLogic.getMikuStage().mModel.mIsTextureLoaded == false) {
-				if(initializeTextures(mCoreLogic.getMikuStage(), scale)) {
-					mCoreLogic.getMikuStage().mModel.mIsTextureLoaded = true;
-				} else {
-					return false;
-				}
-			}
-		}
-		
 		if (mCoreLogic.getBG() != null) {
 			if(all || mBG.mIsTextureLoaded == false) {
 				if(readAndBindBgTexture(scale)) {

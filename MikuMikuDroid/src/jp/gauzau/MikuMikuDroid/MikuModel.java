@@ -19,36 +19,36 @@ public class MikuModel implements Serializable, SerializableExt {
 	private static final long serialVersionUID = -9127943692220369080L;
 	
 	// model configuration
-	public transient String mFileName;	
-	public transient boolean mAnimation;
-	public transient int mMaxBone;
-	public transient CubeArea mCube;
-	public transient boolean mIsTextureLoaded;
-	public transient boolean mIsOneSkinning;
-	public transient String mBase;
+	public transient String						mFileName;	
+	public transient boolean					mAnimation;
+	public transient int						mMaxBone;
+	public transient CubeArea					mCube;
+	public transient boolean					mIsTextureLoaded;
+	public transient boolean					mIsOneSkinning;
+	public transient String						mBase;
 	
 	// model data
-	public transient FloatBuffer mToonCoordBuffer;
-	public transient FloatBuffer mWeightBuffer;
-	public transient ShortBuffer mIndexBuffer;
-	public transient FloatBuffer mAllBuffer;
+	public transient FloatBuffer				mToonCoordBuffer;
+	public transient FloatBuffer				mWeightBuffer;
+	public transient ShortBuffer				mIndexBuffer;
+	public transient FloatBuffer				mAllBuffer;
 	
-	public transient ArrayList<Bone> mBone;
-	public transient ArrayList<Material> mMaterial;
-	public transient ArrayList<Face> mFace;
-	public transient ArrayList<IK> mIK;
-	public transient ArrayList<RigidBody> mRigidBody;
-	public transient ArrayList<Joint> mJoint;
-	public transient ArrayList<String> mToonFileName;
+	public transient ArrayList<Bone>			mBone;
+	public transient ArrayList<Material>		mMaterial;
+	public transient ArrayList<Face>			mFace;
+	public transient ArrayList<IK>				mIK;
+	public transient ArrayList<RigidBody>		mRigidBody;
+	public transient ArrayList<Joint>			mJoint;
+	public transient ArrayList<String>			mToonFileName;
 	
 	// generated data
-	public transient ArrayList<Material> mRendarList;
-	public transient int[] mIndexMaps;
-	public transient Face mFaceBase;
+	public transient ArrayList<Material>		mRendarList;
+	public transient int[]						mIndexMaps;
+	public transient Face						mFaceBase;
 	
-	public transient HashMap<String, TexInfo> mTexture;
-	public transient ArrayList<Integer> mToon;
-	public transient ArrayList<Integer> mLoDIndex;
+	public transient HashMap<String, TexInfo>	mTexture;
+	public transient ArrayList<Integer>			mToon;
+	public transient ArrayList<Integer>			mLoDIndex;
 
 	public MikuModel() {
 		
@@ -94,19 +94,12 @@ public class MikuModel implements Serializable, SerializableExt {
 			} else {
 				pmd.recycleVertex();
 				reconstructMaterial(pmd, mMaxBone);
-				
-				// release unused data
-				for(Material rb: mRendarList) {
-					rb.bone_num = rb.rename_hash.size();
-					rb.rename_hash = null;
-				}
 			}
 		} else {
 			mRendarList = mMaterial;
 			clusterVertex(pmd);
 			mFaceBase = null;
 			pmd.recycleVertex();
-			buildNoMotionWeightBuffer(pmd);
 		}
 		pmd.recycle();
 	}
@@ -140,15 +133,10 @@ public class MikuModel implements Serializable, SerializableExt {
 			
 			// initialize: each 3 vertices becomes one cluster
 			m.area = new SphereArea(vertex, bone);
-			int inc = 900;
-//			int inc = 300;
+			int inc = 900;	// or 300?
 			for(int i = 0; i < m.face_vert_count;
 				i += m.area.initialSet(index, m.face_vert_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));
 			m.area.recycle();
-			
-			// exec clustering
-//			m.area.cluster();
-//			m.area.logOutput();
 		}
 	}
 
@@ -180,17 +168,6 @@ public class MikuModel implements Serializable, SerializableExt {
 		// sort vertex by index order
 		ArrayList<Integer> index;
 		index = pmd.getIndex();
-		/*
-		if(mBone.size() <= mRenameBone || mAnimation) {
-			index = mLoDIndex;
-			for(Material mat: pmd.getMaterial()) {
-				mat.face_vert_count = mat.lod_face_vert_count;
-				mat.face_vert_offset = mat.lod_face_vert_offset;
-			}
-		} else {
-			index = pmd.getIndex();
-		}
-		*/
 		for (Integer idx : index) {
 			if (mIndexMaps[idx] < 0) { // not mapped yet
 				Vertex ver = pmd.getVertex().get(idx);
@@ -356,6 +333,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		Material mat = new Material(mat_orig);
 		mat.face_vert_offset = mat_orig.face_vert_offset + offset;
 		mat.face_vert_count  = count - offset;
+		mat.bone_num = rename.size();
 		
 		// find unoverwrapped hash
 		for(Entry<HashMap<Integer, Integer>, ByteBuffer> pool: rename_pool.entrySet()) {
@@ -373,10 +351,8 @@ public class MikuModel implements Serializable, SerializableExt {
 			// find free byte buffer
 			if(bb != null) {
 				rename_pool.remove(map);
-				
-				mat.rename_hash = rename;
 				mat.weight = bb;
-				buildBoneRenamedWeightBuffers(pmd, mat, max_bone);
+				buildBoneRenamedWeightBuffers(pmd, mat, rename, max_bone);
 				
 				map.putAll(rename);
 				rename_pool.put(map, bb);
@@ -388,9 +364,9 @@ public class MikuModel implements Serializable, SerializableExt {
 		// allocate new buffer
 //		Log.d("MikuModel", "Allocate new buffer");
 		buildNewBoneRenameHash(pmd, mat, rename);
-		buildBoneRenamedWeightBuffers(pmd, mat, max_bone);
+		buildBoneRenamedWeightBuffers(pmd, mat, rename, max_bone);
 		
-		HashMap<Integer, Integer> new_map = new HashMap<Integer, Integer>(mat.rename_hash);
+		HashMap<Integer, Integer> new_map = new HashMap<Integer, Integer>(rename);
 		rename_pool.put(new_map, mat.weight);
 		
 		/*
@@ -403,19 +379,17 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 	
 	private void buildNewBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename) {
-		mat.rename_hash = rename;
-		
 		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
 		rbb.order(ByteOrder.nativeOrder());
 		mat.weight = rbb;
 	}
 	
-	private int[] buildBoneRenameMap(Material mat, int max_bone) {
+	private int[] buildBoneRenameMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
 		int[] rename_map = new int[mBone.size()];
 		for (int i = 0; i < mBone.size(); i++) {
 			rename_map[i] = 0; // initialize
 		}
-		for (Entry<Integer, Integer> b : mat.rename_hash.entrySet()) {
+		for (Entry<Integer, Integer> b : rename.entrySet()) {
 			if (b.getValue() < max_bone) {
 				rename_map[b.getKey()] = b.getValue();
 			}
@@ -424,22 +398,22 @@ public class MikuModel implements Serializable, SerializableExt {
 		return rename_map;
 	}
 
-	private void buildBoneRenameInvMap(Material mat, int max_bone) {
+	private void buildBoneRenameInvMap(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
 		mat.bone_inv_map = new int[mMaxBone];
 		for (int i = 0; i < mMaxBone; i++) {
 			mat.bone_inv_map[i] = -1; // initialize
 		}
-		for (Entry<Integer, Integer> b : mat.rename_hash.entrySet()) {
+		for (Entry<Integer, Integer> b : rename.entrySet()) {
 			if (b.getValue() < max_bone) {
 				mat.bone_inv_map[b.getValue()] = b.getKey();
 			}
 		}
 	}
 
-	private void buildBoneRenamedWeightBuffers(PMDParser pmd, Material mat, int max_bone) {
-		buildBoneRenameInvMap(mat, max_bone);
+	private void buildBoneRenamedWeightBuffers(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, int max_bone) {
+		buildBoneRenameInvMap(mat, rename, max_bone);
 		
-		int[] map = buildBoneRenameMap(mat, max_bone);
+		int[] map = buildBoneRenameMap(mat, rename, max_bone);
 		
 		for (int i = mat.face_vert_offset; i < mat.face_vert_offset + mat.face_vert_count; i++) {
 			int pos = pmd.getIndex().get(i);
@@ -453,22 +427,6 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 	
 		mat.weight.position(0);
-	}
-
-	private void buildNoMotionWeightBuffer(PMDParser pmd) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
-		rbb.order(ByteOrder.nativeOrder());
-	
-		for (int i = 0; i < pmd.getVertex().size(); i++) {
-			rbb.put((byte) 0);
-			rbb.put((byte) 0);
-			rbb.put((byte) 100);
-		}
-		rbb.position(0);
-	
-		for (Material m : mMaterial) {
-			m.weight = rbb;
-		}
 	}
 	
 	private void buildBoneRenameIndexAll(PMDParser pmd, int max_bone) {
@@ -492,8 +450,6 @@ public class MikuModel implements Serializable, SerializableExt {
 			m.bone_inv_map = null;
 			m.bone_num = pmd.getBone().size();
 		}
-		
-		
 	}
 
 	private int renameBone1(PMDParser pmd, HashMap<Integer, Integer> rename, int veridx, ArrayList<Vertex> ver, int acc) {

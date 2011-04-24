@@ -6,7 +6,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.HashMap;
 
 public class Material implements Serializable, SerializableExt {
 	private static final long serialVersionUID = 2851797827233142586L;
@@ -22,7 +21,6 @@ public class Material implements Serializable, SerializableExt {
 
 	public transient int face_vert_offset;
 	public transient String sphere;
-	public transient HashMap<Integer, Integer> rename_hash;
 	public transient int bone_num;
 	public transient ByteBuffer weight;
 	public transient int[] bone_inv_map;
@@ -42,9 +40,8 @@ public class Material implements Serializable, SerializableExt {
 		texture				= mat.texture;
 		face_vert_offset	= mat.face_vert_offset;
 		sphere				= mat.sphere;
-		rename_hash			= mat.rename_hash;
-		bone_num	= mat.bone_num;
-		weight		= mat.weight;
+		bone_num			= mat.bone_num;
+		weight				= mat.weight;
 		area				= mat.area;
 		lod_face_vert_count	= mat.lod_face_vert_count;
 		lod_face_vert_offset= mat.lod_face_vert_offset;
@@ -61,7 +58,6 @@ public class Material implements Serializable, SerializableExt {
 		texture				= null;
 		face_vert_offset	= 0;
 		sphere				= null;
-		rename_hash			= null;
 		bone_num			= 0;
 		weight				= null;
 		area				= null;
