@@ -199,8 +199,8 @@ public class MikuRenderer extends MikuRendererBase {
 		ArrayList<Material> rendar = miku.mAnimation ? miku.mRendarList : miku.mMaterial;
 		for (Material mat : rendar) {
 			if (miku.mAnimation) {
-				for (int j = 0; j < miku.mRenameBone; j++) {
-					int inv = mat.rename_inv_map[j];
+				for (int j = 0; j < miku.mMaxBone; j++) {
+					int inv = mat.bone_inv_map[j];
 					if (inv >= 0) {
 						Bone b = bs.get(inv);
 						gl11Ext.glCurrentPaletteMatrixOES(j);
@@ -210,7 +210,7 @@ public class MikuRenderer extends MikuRendererBase {
 				}
 
 				// gl11.glBindBuffer(GL11.GL_ARRAY_BUFFER, 0);
-				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, mat.rename_index);
+				gl11Ext.glMatrixIndexPointerOES(2, GL10.GL_UNSIGNED_BYTE, 3, mat.weight);
 			}
 			
 			// don't cull face that has alpha value 0.99
@@ -255,7 +255,7 @@ public class MikuRenderer extends MikuRendererBase {
 			// gl.glMaterialfv(GL10.GL_FRONT_AND_BACK, GL10.GL_AMBIENT, mat.emmisive_color, 0);
 			// gl.glMaterialf(GL10.GL_FRONT_AND_BACK, GL10.GL_SHININESS, mat.power);
 	
-			miku.mIndexBuffer.position(mat.face_vart_offset);
+			miku.mIndexBuffer.position(mat.face_vert_offset);
 			gl.glDrawElements(GL10.GL_TRIANGLES, mat.face_vert_count, GL10.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 		}
 		miku.mIndexBuffer.position(0);
@@ -292,12 +292,11 @@ public class MikuRenderer extends MikuRendererBase {
 			Material mat = model.mMaterial.get(i);
 			if (mat.texture != null) {
 				if (model.mTexture.get(mat.texture) == null) {
-					TexInfo ti = new TexInfo();
 					int tex[] = new int[1];
 					gl.glGenTextures(1, tex, 0);
-					ti.tex = tex[0];
 					gl.glBindTexture(GL10.GL_TEXTURE_2D, tex[0]);
-					ti.has_alpha = TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0], mNpot);
+					TexInfo ti = TextureFile.loadTexture(model.mBase, mat.texture, 2, mTexSize[0], mNpot);
+					ti.tex = tex[0];
 	
 					int err = gl.glGetError();
 					if (err != 0) {

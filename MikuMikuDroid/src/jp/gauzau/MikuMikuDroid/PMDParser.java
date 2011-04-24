@@ -433,7 +433,7 @@ public class PMDParser extends ParserBase {
 					}
 				}
 				
-				material.face_vart_offset = acc;
+				material.face_vert_offset = acc;
 
 				acc = acc + material.face_vert_count;
 				mMaterial.add(i, material);

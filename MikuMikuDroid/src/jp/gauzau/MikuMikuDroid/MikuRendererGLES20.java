@@ -123,16 +123,98 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			}
 			return program;
 		}
-	};
+	}
+	
+	public class RenderTarget {
+		private int FBO;
+		private int RBOD;
+		private int RBOC;
+		private int mWidth;
+		private int mHeight;
+		
+		public RenderTarget() {
+			FBO  = 0;
+			RBOD = 0;
+			RBOC = 0;
+		}
+
+		public RenderTarget(int width, int height) {
+			mWidth = width;
+			mHeight = height;
+			create(width, height);
+		}
+		
+		public void switchTargetFrameBuffer() {
+			GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBO);
+			if(FBO == 0) {
+				GLES20.glViewport(0, 0, mCoreLogic.getScreenWidth(), mCoreLogic.getScreenHeight());
+			} else {
+				GLES20.glViewport(0, 0, mWidth, mHeight);
+			}
+		}
+		
+		public void bindTexture() {
+			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, RBOC);
+		}
+		
+		public void resize(int width, int height) {
+			if(FBO != 0) {
+				int[] args = {RBOC, RBOD, FBO};
+				GLES20.glDeleteTextures(1, args, 0);
+				GLES20.glDeleteRenderbuffers(1, args, 1);
+				GLES20.glDeleteFramebuffers(1, args, 2);
+				create(width, height);
+			}
+		}
+		
+		private void create(int width, int height) {
+			// FBO
+			int[] ret = new int[1];
+			
+			// frame buffer
+			GLES20.glGenFramebuffers(1, ret, 0);
+			FBO = ret[0];
+			GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBO);
+			
+			// depth buffer
+			GLES20.glGenRenderbuffers(1, ret, 0);
+			RBOD = ret[0];
+			GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, RBOD);
+			GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16, width, height);
+			GLES20.glFramebufferRenderbuffer(GLES20.GL_FRAMEBUFFER, GLES20.GL_DEPTH_ATTACHMENT, GLES20.GL_RENDERBUFFER, RBOD);
+			
+			// color buffer (is texture)
+			GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+			GLES20.glGenTextures(1, ret, 0);
+			RBOC = ret[0];
+			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, RBOC);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+			GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+			GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, RBOC, 0);
+			
+			if(GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+				Log.d(TAG, "Fail to create FBO.");
+				FBO = 0;
+				RBOD = 0;
+				RBOC = 0;
+			}
+		}
+	}
 
 	// GPU configuration
 	private boolean	mNpot;
+	private ArrayList<RenderTarget> mRT;
 
 	// shader
 	private GLSL mGLSL;
 	private GLSL mGLSLA;
 	private GLSL mGLSLST;
+	private GLSL mGLSLSA;
 	private GLSL mGLSLBG;
+	private GLSL mGLSLD;
 	
 	// for background
 	private MikuModel	mBG = new MikuModel();
@@ -142,7 +224,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private int			mBgHeight;
 
 	// tmp buffers
-	public float[]  mBoneMatrix = new float[16 * 256];	// ad-hock number: will be fixed to mBoneNum
+	public float[]  mBoneMatrix = new float[16 * 256];	// ad-hock number: will be fixed to mMaxBone
 	private float[] mLightDir = new float[3];
 	private float[] mDifAmb = new float[4];
 	private int[]	mTexSize = new int[1];
@@ -204,7 +286,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		int bonenum = 48;
 		GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, mTexSize, 0);
 		mCoreLogic.setGLConfig(bonenum);
-		mNpot = GLES20.glGetString(GLES20.GL_EXTENSIONS).contains("GL_OES_texture_npot");
+		mNpot = hasExt("GL_OES_texture_npot");
+//		mFBO  = hasExt("GL_OES_framebuffer_object");
 		
 		// initialize
 		GLES20.glClearColor(1, 1, 1, 1);
@@ -222,11 +305,19 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		
 		// shader programs
 		mGLSL   = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs));
-		mGLSLA  = mGLSL;
-//		mGLSLA  = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_alpha));
+		mGLSLA  = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_alpha));
 //		mGLSL1S = new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_1m), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_nm));
 		mGLSLST = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm));
+		mGLSLSA = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm_alpha));
 		mGLSLBG = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_bg));
+		mGLSLD  = new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_post_diffusion));
+		
+		mRT = new ArrayList<RenderTarget>();
+		mRT.add(0, new RenderTarget());
+		mRT.add(1, new RenderTarget(1024, 600));
+		mRT.add(2, new RenderTarget(128, 128));
+		
+		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 
 		// bind textures
 		initializeAllTexture(true);
@@ -243,6 +334,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mLightDir[0] = -0.5f; mLightDir[1] = -1.0f; mLightDir[2] = -0.5f;	// in left-handed region
 		Vector.normalize(mLightDir);
 		
+		mRT.get(0).switchTargetFrameBuffer();
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 		initializeAllTexture(false);
 
@@ -268,6 +360,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				if(miku.mModel.mIsTextureLoaded) {
 					bindBuffer(miku.mModel, mGLSL);
 					drawNonAlpha(miku.mModel, mGLSL);
+					drawAlpha(miku.mModel, mGLSL, false);
 				}
 			}
 		}
@@ -291,7 +384,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			for (Miku miku : mCoreLogic.getMiku()) {
 				if(miku.mModel.mIsTextureLoaded) {
 					bindBuffer(miku.mModel, mGLSLA);
-					drawAlpha(miku.mModel, mGLSLA);
+					drawAlpha(miku.mModel, mGLSLA, true);
 				}
 			}
 		}
@@ -300,6 +393,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		//// draw stage
 		Miku stage = mCoreLogic.getMikuStage();
 		if (stage != null && stage.mModel.mIsTextureLoaded) {
+			////////////////////////////
+			// non alpha
 			GLES20.glUseProgram(mGLSLST.mProgram);
 
 			// Projection, Model, View Matrix
@@ -314,9 +409,27 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 			bindBuffer(stage.mModel, mGLSLST);
 			drawNonAlpha(stage.mModel, mGLSLST);
-			drawAlpha(stage.mModel, mGLSLST);
+			drawAlpha(stage.mModel, mGLSLST, false);
+
+			
+			////////////////////////////
+			// alpha
+			GLES20.glUseProgram(mGLSLSA.mProgram);
+
+			// Projection, Model, View Matrix
+			GLES20.glUniformMatrix4fv(mGLSLSA.muPMatrix, 1, false, mCoreLogic.getProjectionMatrix(), 0);
+
+			// LightPosition
+			GLES20.glUniform3fv(mGLSLSA.muLightDir, 1, mLightDir, 0);		
+
+			GLES20.glUniform1i(mGLSLSA.msToonSampler, 0);
+			GLES20.glUniform1i(mGLSLSA.msTextureSampler, 1);
+//			checkGlError("on onDrawFrame");
+
+			bindBuffer(stage.mModel, mGLSLSA);
+			drawAlpha(stage.mModel, mGLSLSA, true);
 		}
-		
+
 		////////////////////////////////////////////////////////////////////
 		//// draw BG
 		String bg = mCoreLogic.getBG();
@@ -327,6 +440,23 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			bindBgBuffer(mGLSLBG);
 			drawBg(bg);
 		}
+
+		////////////////////////////////////////////////////////////////////
+		//// Post Effects
+		/*
+		mRT.get(2).switchTargetFrameBuffer();
+		GLES20.glUseProgram(mGLSLBG.mProgram);
+		GLES20.glUniform1i(mGLSLBG.msTextureSampler, 1);
+		bindPostEffectBuffer(mGLSLBG);
+		drawPostEffect(1);
+		
+		mRT.get(0).switchTargetFrameBuffer();
+		GLES20.glUseProgram(mGLSLD.mProgram);
+		GLES20.glUniform1i(mGLSLD.msTextureSampler, 1);
+		GLES20.glUniform1i(mGLSLD.msSphereSampler, 2);
+		bindPostEffectBuffer(mGLSLD);
+		drawPostEffect2(1, 2);
+		*/
 
 		GLES20.glFlush();
 		mCoreLogic.onDraw(pos);
@@ -390,7 +520,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		miku.mIndexBuffer.position(0);
 	}
 	
-	private void drawAlpha(MikuModel miku, GLSL glsl) {
+	private void drawAlpha(MikuModel miku, GLSL glsl, boolean alpha_test) {
 		ArrayList<Material> rendar = miku.mAnimation ? miku.mRendarList : miku.mMaterial;
 	
 		int max = rendar.size();
@@ -403,14 +533,36 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			if (mat.texture != null) {
 				tb = miku.mTexture.get(mat.texture);
 			}
-			if(mat.diffuse_color[3] < 1.0 || tb != null && tb.has_alpha) {
-				if(mat.diffuse_color[3] < 1.0) {
-					GLES20.glDisable(GLES20.GL_CULL_FACE);
-				} else {
-					GLES20.glEnable(GLES20.GL_CULL_FACE);
-//					GLES20.glDisable(GLES20.GL_CULL_FACE);
+			if(alpha_test) {
+				if(tb != null && tb.needs_alpha_test) {
+					if(mat.diffuse_color[3] < 1.0) {
+						GLES20.glDisable(GLES20.GL_CULL_FACE);
+					} else {
+						GLES20.glEnable(GLES20.GL_CULL_FACE);						
+					}
+					drawOneMaterial(glsl, miku, mat);					
 				}
-				drawOneMaterial(glsl, miku, mat);
+			} else {
+				if(tb != null) { // has texture
+					if(!tb.needs_alpha_test) {
+						if(tb.has_alpha) {
+							if(mat.diffuse_color[3] < 1.0) {
+								GLES20.glDisable(GLES20.GL_CULL_FACE);
+							} else {
+								GLES20.glEnable(GLES20.GL_CULL_FACE);						
+							}
+							drawOneMaterial(glsl, miku, mat);						
+						} else if(mat.diffuse_color[3] < 1.0) {
+							GLES20.glDisable(GLES20.GL_CULL_FACE);
+							drawOneMaterial(glsl, miku, mat);
+						}
+					}
+				} else {
+					if(mat.diffuse_color[3] < 1.0) {
+						GLES20.glDisable(GLES20.GL_CULL_FACE);
+						drawOneMaterial(glsl, miku, mat);
+					}
+				}
 			}
 		}
 		miku.mIndexBuffer.position(0);
@@ -419,7 +571,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private void drawOneMaterial(GLSL glsl, MikuModel miku, Material mat) {
 		ArrayList<Bone> bs = miku.mBone;
 		if (miku.mAnimation) {
-			if(mat.rename_inv_map == null) {
+			if(mat.bone_inv_map == null) {
 				for (int j = 0; j < bs.size(); j++) {
 					Bone b = bs.get(j);
 					if(b != null) {
@@ -427,18 +579,18 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 					}
 				}
 			} else {
-				for (int j = 0; j < miku.mRenameBone; j++) {
-					int inv = mat.rename_inv_map[j];
+				for (int j = 0; j < miku.mMaxBone; j++) {
+					int inv = mat.bone_inv_map[j];
 					if (inv >= 0) {
 						Bone b = bs.get(inv);
 						System.arraycopy(b.matrix, 0, mBoneMatrix, j * 16, 16);
 					}
 				}
 			}
-			GLES20.glUniformMatrix4fv(glsl.muMBone, mat.rename_hash_size, false, mBoneMatrix, 0);
+			GLES20.glUniformMatrix4fv(glsl.muMBone, mat.bone_num, false, mBoneMatrix, 0);
 
 			GLES20.glEnableVertexAttribArray(glsl.maBlendHandle);
-			GLES20.glVertexAttribPointer(glsl.maBlendHandle, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.rename_index);
+			GLES20.glVertexAttribPointer(glsl.maBlendHandle, 3, GLES20.GL_UNSIGNED_BYTE, false, 0, mat.weight);
 		}
 		
 		// initialize color
@@ -515,7 +667,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				}
 			}
 		} else {
-			miku.mIndexBuffer.position(mat.face_vart_offset);
+			miku.mIndexBuffer.position(mat.face_vert_offset);
 			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
 		}
 //		checkGlError("glDrawElements");
@@ -523,6 +675,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	
 	private void drawBg(String bg) {
 		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		GLES20.glEnable(GLES20.GL_BLEND);
 
 		// texture
 		TexInfo tb = mBG.mTexture.get(bg);
@@ -533,6 +686,26 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				GLES20.glDrawElements(GLES20.GL_TRIANGLES, 6, GLES20.GL_UNSIGNED_SHORT, mBgIndex);
 			}
 		}
+	}
+	
+	private void drawPostEffect(int buf) {
+		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		GLES20.glDisable(GLES20.GL_BLEND);
+
+		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+		mRT.get(buf).bindTexture();
+		GLES20.glDrawElements(GLES20.GL_TRIANGLES, 6, GLES20.GL_UNSIGNED_SHORT, mBgIndex);
+	}
+	
+	private void drawPostEffect2(int buf1, int buf2) {
+		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		GLES20.glDisable(GLES20.GL_BLEND);
+
+		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+		mRT.get(buf1).bindTexture();
+		GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
+		mRT.get(buf2).bindTexture();
+		GLES20.glDrawElements(GLES20.GL_TRIANGLES, 6, GLES20.GL_UNSIGNED_SHORT, mBgIndex);
 	}
 
 	private void initializeAllTexture(boolean all) {
@@ -663,6 +836,37 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mBgVertex.position(0);
 	}
 	
+	private void bindPostEffectBuffer(GLSL glsl) {
+		float s, t;
+		s = 0;
+		t = 1;
+		
+		// left
+		mBgVertex.put(2, s);
+		mBgVertex.put(6, s);
+
+		// right
+		mBgVertex.put(10, 1 - s);
+		mBgVertex.put(14, 1 - s);
+		
+		// top
+		mBgVertex.put(3, 1 - t);
+		mBgVertex.put(15, 1 - t);
+		
+		// bottom
+		mBgVertex.put(7, t);
+		mBgVertex.put(11, t);
+		
+		mBgVertex.position(0);
+
+		GLES20.glEnableVertexAttribArray(glsl.maPositionHandle);
+		mBgVertex.position(0);
+		GLES20.glVertexAttribPointer(glsl.maPositionHandle, 4, GLES20.GL_FLOAT, false, 0, mBgVertex);
+//		checkGlError("drawGLES20 VertexAttribPointer bg vertex");
+		
+		mBgVertex.position(0);
+	}
+	
 	private boolean readAndBindTexture(MikuModel model, int scale) {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		
@@ -712,7 +916,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				mBgHeight = op.outHeight;
 				
 				// load texture
-				readAndBindTexture1(mBG, bg, scale * 2);	// lower resolution
+				readAndBindTexture1(mBG, bg, scale);	// lower resolution
 			} catch (OutOfMemoryError e) {
 				return false;
 			}
@@ -723,10 +927,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private void readAndBindTexture1(MikuModel model, String texture, int scale) {
 		if (model.mTexture.get(texture) == null) {
 			// bind
-			TexInfo ti = new TexInfo();
 			int tex[] = new int[1];
 			GLES20.glGenTextures(1, tex, 0);
-			ti.tex = tex[0];
 
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[0]);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
@@ -737,7 +939,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			} else {
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);				
 			}
-			ti.has_alpha = TextureFile.loadTexture(model.mBase, texture, scale, mTexSize[0], mNpot);
+			TexInfo ti = TextureFile.loadTexture(model.mBase, texture, scale, mTexSize[0], mNpot);
+			ti.tex = tex[0];
 			if(mNpot) {
 				GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
 			}
@@ -782,4 +985,9 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 //			throw new RuntimeException(op + ": glError " + error);
 		}
 	}
+	
+    private boolean hasExt(String extension) {
+        String extensions = " " + GLES20.glGetString(GLES20.GL_EXTENSIONS) + " ";
+        return extensions.indexOf(" " + extension + " ") >= 0;
+    }
 }

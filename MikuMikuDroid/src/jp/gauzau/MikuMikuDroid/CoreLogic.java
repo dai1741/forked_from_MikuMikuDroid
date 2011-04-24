@@ -40,7 +40,7 @@ public class CoreLogic {
 	
 	// configurations
 	private String				mBase;
-	private int					mBoneNum = 0;
+	private int					mMaxBone = 0;
 	private Context				mCtx;
 	private int					mWidth;
 	private int					mHeight;
@@ -159,9 +159,9 @@ public class CoreLogic {
 		}
 	}
 	
-	public void setGLConfig(int boneNum) {
-		if(mBoneNum == 0) {
-			mBoneNum = boneNum;
+	public void setGLConfig(int max_bone) {
+		if(mMaxBone == 0) {
+			mMaxBone = max_bone;
 			onInitialize();
 		}
 	}
@@ -173,7 +173,7 @@ public class CoreLogic {
 	public void loadModel(String modelf) throws IOException {
 		// model
 		PMDParser pmd = new PMDParser(mBase, modelf);
-		MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
+		MikuModel model = new MikuModel(mBase, pmd, mMaxBone, false);
 		
 		// Create Miku
 		Miku miku = new Miku(model);
@@ -222,7 +222,7 @@ public class CoreLogic {
 			createTextureCache(pmd);
 			
 			// construct model/motion data structure
-			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, true);
+			MikuModel model = new MikuModel(mBase, pmd, mMaxBone, true);
 			MikuMotion motion = null;
 			pmd = null;
 			
@@ -292,7 +292,7 @@ public class CoreLogic {
 		PMDParser pmd = new PMDParser(mBase, file);
 		if(pmd.isPmd()) {
 			createTextureCache(pmd);
-			MikuModel model = new MikuModel(mBase, pmd, 1024, mBoneNum, false);
+			MikuModel model = new MikuModel(mBase, pmd, mMaxBone, false);
 			mMikuStage = new Miku(model);			
 		}
 		return mm;

@@ -20,14 +20,16 @@ public class Material implements Serializable, SerializableExt {
 	public transient int face_vert_count;
 	public transient String texture;
 
-	public transient int face_vart_offset;
+	public transient int face_vert_offset;
 	public transient String sphere;
-	public transient int[] rename_map;
 	public transient HashMap<Integer, Integer> rename_hash;
-	public transient int rename_hash_size;
-	public transient ByteBuffer rename_index;
-	public transient int[] rename_inv_map;
+	public transient int bone_num;
+	public transient ByteBuffer weight;
+	public transient int[] bone_inv_map;
 	public transient SphereArea area;
+
+	public transient int lod_face_vert_offset;
+	public transient int lod_face_vert_count;
 	
 	public Material(Material mat) {
 		diffuse_color		= mat.diffuse_color;
@@ -38,13 +40,14 @@ public class Material implements Serializable, SerializableExt {
 		edge_flag			= mat.edge_flag;
 		face_vert_count		= mat.face_vert_count;
 		texture				= mat.texture;
-		face_vart_offset	= mat.face_vart_offset;
+		face_vert_offset	= mat.face_vert_offset;
 		sphere				= mat.sphere;
-		rename_map			= mat.rename_map;
 		rename_hash			= mat.rename_hash;
-		rename_hash_size	= mat.rename_hash_size;
-		rename_index		= mat.rename_index;
+		bone_num	= mat.bone_num;
+		weight		= mat.weight;
 		area				= mat.area;
+		lod_face_vert_count	= mat.lod_face_vert_count;
+		lod_face_vert_offset= mat.lod_face_vert_offset;
 	}
 
 	public Material() {
@@ -56,13 +59,14 @@ public class Material implements Serializable, SerializableExt {
 		edge_flag			= 0;
 		face_vert_count		= 0;
 		texture				= null;
-		face_vart_offset	= 0;
+		face_vert_offset	= 0;
 		sphere				= null;
-		rename_map			= null;
 		rename_hash			= null;
-		rename_hash_size	= 0;
-		rename_index		= null;
+		bone_num			= 0;
+		weight				= null;
 		area				= null;
+		lod_face_vert_count	= 0;
+		lod_face_vert_offset= 0;
 	}
 
 	public Material create() {
@@ -79,24 +83,24 @@ public class Material implements Serializable, SerializableExt {
 		os.writeInt(face_vert_count);
 		ObjRW.writeString(os, texture);
 		
-		os.writeInt(face_vart_offset);
+		os.writeInt(face_vert_offset);
 		ObjRW.writeString(os, sphere);
-		os.writeInt(rename_hash_size);
+		os.writeInt(bone_num);
 //		ObjRW.writeIntA(os, rename_map);
 
 		// rename_index
-		if(rename_index == null) {
+		if(weight == null) {
 			os.writeInt(0);
 		} else {
-			os.writeInt(rename_index.capacity());
-			rename_index.position(0);
-			for(int i = 0; i < rename_index.capacity(); i++) {
-				os.writeByte(rename_index.get());
+			os.writeInt(weight.capacity());
+			weight.position(0);
+			for(int i = 0; i < weight.capacity(); i++) {
+				os.writeByte(weight.get());
 			}
-			rename_index.position(0);
+			weight.position(0);
 		}
 		
-		ObjRW.writeIntA(os, rename_inv_map);
+		ObjRW.writeIntA(os, bone_inv_map);
 		os.reset();
 		os.flush();
 	}
@@ -111,26 +115,26 @@ public class Material implements Serializable, SerializableExt {
 		face_vert_count	= is.readInt();
 		texture			= ObjRW.readString(is);
 		
-		face_vart_offset= is.readInt();
+		face_vert_offset= is.readInt();
 		sphere			= ObjRW.readString(is);
-		rename_hash_size= is.readInt();
+		bone_num= is.readInt();
 //		rename_map		= ObjRW.readIntA(is);
 		
 		// rename_index
 		int len = is.readInt();
 		if(len == 0) {
-			rename_index = null;
+			weight = null;
 		} else {
 			ByteBuffer bb = ByteBuffer.allocateDirect(len/2);
 			bb.order(ByteOrder.nativeOrder());
-			rename_index = bb;
-			for(int i = 0; i < rename_index.capacity(); i++) {
-				rename_index.put(is.readByte());
+			weight = bb;
+			for(int i = 0; i < weight.capacity(); i++) {
+				weight.put(is.readByte());
 			}
-			rename_index.position(0);
+			weight.position(0);
 		}
 		
-		rename_inv_map = ObjRW.readIntA(is);
+		bone_inv_map = ObjRW.readIntA(is);
 	}
 	
 	private void writeObject(ObjectOutputStream os) throws IOException {
