@@ -197,7 +197,35 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 					
 					// read as background if not .pmd
 					if(!model.endsWith(".pmd")) {
-						mMMGLSurfaceView.deleteTexture(mCoreLogic.loadBG(model));
+						if(model.endsWith(".x")) { // accessory
+							AsyncExec<CoreLogic> ae = new AsyncExec<CoreLogic>(MikuMikuDroid.this) {
+								@Override
+								protected boolean exec(CoreLogic target) {
+									try {
+										mCoreLogic.loadAccessory(model);
+										mCoreLogic.storeState();
+									} catch (OutOfMemoryError e) {
+										return false;
+									} catch (IOException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
+									return true;
+								}
+								
+								@Override
+								public void post() {
+									if(mFail.size() != 0) {
+										Toast.makeText(MikuMikuDroid.this, "Out of Memory. Abort.", Toast.LENGTH_LONG).show();										
+									}
+								}
+							};
+							ae.setMax(1);
+							ae.setMessage("Loading Model/Motion...");
+							ae.execute(mCoreLogic);
+						} else {
+							mMMGLSurfaceView.deleteTexture(mCoreLogic.loadBG(model));							
+						}
 						return ;
 					}
 					

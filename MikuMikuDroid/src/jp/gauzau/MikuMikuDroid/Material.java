@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 
 public class Material implements Serializable, SerializableExt {
 	private static final long serialVersionUID = 2851797827233142586L;
@@ -63,6 +64,39 @@ public class Material implements Serializable, SerializableExt {
 		area				= null;
 		lod_face_vert_count	= 0;
 		lod_face_vert_offset= 0;
+	}
+	
+	public boolean equals(Material m) {
+		boolean t, s;
+		if(texture == null && m.texture == null) {
+			t = true;
+		} else if(texture == null || m.texture == null) {
+			t = false;
+		} else if(texture.equals(m.texture)) {
+			t = true;
+		} else {
+			t = false;
+		}
+		if(sphere == null && m.sphere == null) {
+			s = true;
+		} else if(sphere == null || m.sphere == null) {
+			s = false;
+		} else if(sphere.equals(m.sphere)) {
+			s = true;
+		} else {
+			s = false;
+		}
+		
+		if(Arrays.equals(emmisive_color, m.emmisive_color) &&
+		   Arrays.equals(diffuse_color, m.diffuse_color) &&
+		   Arrays.equals(specular_color, m.specular_color) &&
+		   power == m.power &&
+		   toon_index == m.toon_index &&
+		   s && t) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	public Material create() {

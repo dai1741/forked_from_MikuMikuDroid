@@ -54,15 +54,15 @@ public class MikuModel implements Serializable, SerializableExt {
 		
 	}
 	
-	public MikuModel(String base, PMDParser pmd, int max_bone, boolean animation) {
+	public MikuModel(String base, ModelFile pmd, int max_bone, boolean animation) {
 		init(base, pmd, max_bone, animation);
 	}
 
-	public MikuModel(String base, PMDParser pmd, int max_bone) {
+	public MikuModel(String base, ModelFile pmd, int max_bone) {
 		init(base, pmd, max_bone, true);
 	}
 
-	public void init(String base, PMDParser pmd, int max_bone, boolean animation) {
+	public void init(String base, ModelFile pmd, int max_bone, boolean animation) {
 		mBase			= base;
 		mFileName       = pmd.getFileName();
 		mMaxBone		= max_bone;
@@ -80,6 +80,7 @@ public class MikuModel implements Serializable, SerializableExt {
 			Log.d("MikuModel", pmd.getFileName() + " has only one skinnings.");			
 		}
 
+//		mMaterial = mergeMaterials(mMaterial);
 //		makeLoDIndex(pmd);
 		makeIndexSortedVertexBuffers(pmd);
 		if (animation) {
@@ -104,6 +105,26 @@ public class MikuModel implements Serializable, SerializableExt {
 		pmd.recycle();
 	}
 
+	private ArrayList<Material> mergeMaterials(ArrayList<Material> ma) {
+		ArrayList<Material> man = new ArrayList<Material>();
+		Material prev = null;
+		for(Material m: ma) {
+			if(prev != null) {
+				if(prev.equals(m)) {
+					Material n = new Material(prev);
+					n.face_vert_count += m.face_vert_count;
+					prev = n;					
+				} else {
+					man.add(prev);
+					prev = m;
+				}
+			} else {
+				prev = m;
+			}
+		}
+		man.add(prev);
+		return man;
+	}
 	private void reconstructFace() {
 		mFaceBase = null;
 	
@@ -123,7 +144,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 	}
 
-	private void clusterVertex(PMDParser pmd) {
+	private void clusterVertex(ModelFile pmd) {
 		ArrayList<Integer> index = pmd.getIndex();
 		ArrayList<Vertex>  vertex = pmd.getVertex();
 		ArrayList<Bone>    bone = pmd.getBone();
@@ -140,7 +161,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 	}
 
-	private void makeIndexSortedVertexBuffers(PMDParser pmd) {
+	private void makeIndexSortedVertexBuffers(ModelFile pmd) {
 		mIndexMaps = new int[pmd.getVertex().size()];
 		for (int i = 0; i < mIndexMaps.length; i++) {
 			mIndexMaps[i] = -1; // not mapped yet
@@ -197,7 +218,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		mCube.logOutput("Miku");
 	}
 	
-	private void makeLoDIndex(PMDParser pmd) {
+	private void makeLoDIndex(ModelFile pmd) {
 		HashSet<Integer> red = new HashSet<Integer>();
 		HashSet<Integer> eff = new HashSet<Integer>();
 		HashMap<Integer, Integer> vset = new HashMap<Integer, Integer>();
@@ -301,7 +322,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 
-	private void reconstructMaterial(PMDParser parser, int max_bone) {
+	private void reconstructMaterial(ModelFile parser, int max_bone) {
 		mRendarList = new ArrayList<Material>();
 		HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ByteBuffer>();
 		for (Material mat : mMaterial) {
@@ -309,7 +330,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 	}
 	
-	private void reconstructMaterial1(PMDParser pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
+	private void reconstructMaterial1(ModelFile pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		ArrayList<Vertex> ver = pmd.getVertex();
 		HashMap<Integer, Integer> rename = new HashMap<Integer, Integer>();
 		int acc = 0;
@@ -329,7 +350,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 
 
-	private Material buildNewMaterial(PMDParser pmd, Material mat_orig, int offset, int count, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
+	private Material buildNewMaterial(ModelFile pmd, Material mat_orig, int offset, int count, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		Material mat = new Material(mat_orig);
 		mat.face_vert_offset = mat_orig.face_vert_offset + offset;
 		mat.face_vert_count  = count - offset;
@@ -378,7 +399,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		return mat;
 	}
 	
-	private void buildNewBoneRenameHash(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename) {
+	private void buildNewBoneRenameHash(ModelFile pmd, Material mat, HashMap<Integer, Integer> rename) {
 		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
 		rbb.order(ByteOrder.nativeOrder());
 		mat.weight = rbb;
@@ -410,7 +431,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 	}
 
-	private void buildBoneRenamedWeightBuffers(PMDParser pmd, Material mat, HashMap<Integer, Integer> rename, int max_bone) {
+	private void buildBoneRenamedWeightBuffers(ModelFile pmd, Material mat, HashMap<Integer, Integer> rename, int max_bone) {
 		buildBoneRenameInvMap(mat, rename, max_bone);
 		
 		int[] map = buildBoneRenameMap(mat, rename, max_bone);
@@ -429,7 +450,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		mat.weight.position(0);
 	}
 	
-	private void buildBoneRenameIndexAll(PMDParser pmd, int max_bone) {
+	private void buildBoneRenameIndexAll(ModelFile pmd, int max_bone) {
 		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
 		rbb.order(ByteOrder.nativeOrder());
 	
@@ -452,7 +473,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		}
 	}
 
-	private int renameBone1(PMDParser pmd, HashMap<Integer, Integer> rename, int veridx, ArrayList<Vertex> ver, int acc) {
+	private int renameBone1(ModelFile pmd, HashMap<Integer, Integer> rename, int veridx, ArrayList<Vertex> ver, int acc) {
 		int idx = ver.get(pmd.getIndex().get(veridx)).bone_num_0;
 		Integer i = rename.get(idx);
 		if (i == null) {

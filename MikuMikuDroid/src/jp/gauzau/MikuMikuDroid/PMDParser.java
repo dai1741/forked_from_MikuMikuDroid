@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 import android.util.Log;
 
-public class PMDParser extends ParserBase {
+public class PMDParser extends ParserBase implements ModelFile {
 	private String  mFileName;
 	private boolean mIsPmd;
 	private String mModelName;

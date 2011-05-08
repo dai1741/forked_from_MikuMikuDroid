@@ -282,6 +282,23 @@ public class CoreLogic {
 			return false;
 		}
 	}
+	
+	public synchronized boolean loadAccessory(String modelf) throws IOException, OutOfMemoryError {
+		// read model files
+		XParser x = new XParser(mBase, modelf, 10.0f);
+		
+		if(x.isPmd()) {
+			createTextureCache(x);
+			MikuModel model = new MikuModel(mBase, x, mMaxBone, false);
+			Miku miku = new Miku(model);			
+			miku.addRenderSenario("builtin:nomotion", "screen");
+			miku.addRenderSenario("builtin:nomotion_alpha", "screen");
+			mMiku.add(miku);
+			return true;
+		} else {
+			return false;
+		}
+	}
 
 	public synchronized MikuModel loadStage(String file) throws IOException, OutOfMemoryError {
 		PMDParser pmd = new PMDParser(mBase, file);
@@ -318,7 +335,8 @@ public class CoreLogic {
 		Uri uri = Uri.parse(media);
 		mMedia = MediaPlayer.create(mCtx, uri);
 		if(mMedia != null) {
-			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);			
+			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
+			mMedia.setLooping(true);
 		}
 	}
 
@@ -509,7 +527,11 @@ public class CoreLogic {
 			// load data
 			for(int i = 0; i < num; i++) {
 				if(motion[i] == null) {
-					loadStage(model[i]);
+					if(model[i].endsWith(".x")) {
+						loadAccessory(model[i]);
+					} else {
+						loadStage(model[i]);						
+					}
 				} else {
 					loadModelMotion(model[i], motion[i]);
 				}
@@ -584,14 +606,23 @@ public class CoreLogic {
 				".tga"
 			};
 		
-		File[] model = listFiles(mBase + "UserFile/Model/", ".pmd");
+		String[] extm = {
+				".pmd",
+				".x"
+			};
+		
+		File[] model = listFiles(mBase + "UserFile/Model/", extm);
 		File[] bg    = listFiles(mBase + "UserFile/BackGround/", ext);
-		File[] f = new File[model.length + bg.length];
+		File[] acc   = listFiles(mBase + "UserFile/Accessory/", ".x");
+		File[] f = new File[model.length + bg.length + acc.length];
 		for(int i = 0; i < model.length; i++) {
 			f[i] = model[i];
 		}
 		for(int i = 0; i < bg.length; i++) {
 			f[i + model.length] = bg[i];
+		}
+		for(int i = 0; i < acc.length; i++) {
+			f[i + model.length + bg.length] = acc[i];
 		}
 		return f;
 	}
@@ -679,7 +710,7 @@ public class CoreLogic {
 	// ///////////////////////////////////////////////////////////
 	// Some common methods
 
-	private void createTextureCache(PMDParser pmd) {
+	private void createTextureCache(ModelFile pmd) {
 		// create texture cache
 		for(Material mat: pmd.getMaterial()) {
 			if(mat.texture != null) {

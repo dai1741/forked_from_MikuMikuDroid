@@ -881,12 +881,14 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);				
 			}
 			TexInfo ti = TextureFile.loadTexture(model.mBase, texture, scale, mTexSize[0], mNpot);
-			ti.tex = tex[0];
-			if(mNpot) {
-				GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-			}
+			if(ti != null) {
+				ti.tex = tex[0];
+				if(mNpot) {
+					GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+				}
 
-			model.mTexture.put(texture, ti);
+				model.mTexture.put(texture, ti);				
+			}
 
 			int err = GLES20.glGetError();
 			if (err != 0) {
