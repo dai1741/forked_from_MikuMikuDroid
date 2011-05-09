@@ -16,6 +16,7 @@ public class XParser extends ParserBase implements ModelFile {
 	private ArrayList<String> mToonFileName;
 
 	private ArrayList<ArrayList<Integer>> mRawFace;
+	private int mVertBase;
 
 	public XParser(String base, String file, float scale) throws IOException {
 		super(file);
@@ -109,62 +110,58 @@ public class XParser extends ParserBase implements ModelFile {
 
 	private void parseXHeader() {
 		String s = getString(16);
-		mIsX = s.equalsIgnoreCase("xof 0302txt 0064");
+		mIsX =  s.equalsIgnoreCase("xof 0302txt 0064") ||
+				s.equalsIgnoreCase("xof 0302txt 0032") ||
+				s.equalsIgnoreCase("xof 0303txt 0064") ||
+				s.equalsIgnoreCase("xof 0303txt 0032");
 		nextLine();
 	}
 	
 	private void parseXMesh(String path, float scale) throws IOException {
-		// find mesh body
-		skipToBody("Mesh");
-		
-		parseVertex(scale);
-		parseFace();
+		mVertex = new ArrayList<Vertex>();
+		mIndex = new ArrayList<Integer>();
+		mMaterial = new ArrayList<Material>(0);
 
-		String s = getToken();
-		while(!s.equals("}")) {
-			if(s.equals("MeshMaterialList")) {
-				nextLine();
-				parseMaterial(path);
-			} else if(s.equals("MeshTextureCoords")) {
-				nextLine();
-				parseTexCoord();
-			} else {
-				break;
+		// find mesh body
+		while(skipToBody("Mesh")) {
+			parseVertex(scale);
+			parseFace();
+
+			Token t = new Token();
+			getToken(t);
+			while(!(t.type == '}')) {
+				if(t.s.equals("MeshMaterialList")) {
+					nextLine();
+					parseMaterial(path);
+				} else if(t.s.equals("MeshTextureCoords")) {
+					nextLine();
+					parseTexCoord();
+				} else {
+					break;
+				}
+				getToken(t);
 			}
-			s = getToken();
 		}
-		
 	}
 	
 	private void parseVertex(float scale) throws IOException {
-		int n = Integer.parseInt(getToken());
+		Token t = new Token();
+		int n = (int) getToken(t);
 		nextLine();
 		
-		Token t = new Token();
-		mVertex = new ArrayList<Vertex>(n);
+		mVertBase = mVertex.size();
 		for(int i = 0; i < n; i++) {
 			Vertex v = new Vertex();
 			v.pos = new float[3];
 			v.normal = new float[3];
 			v.uv = new float[2];
 
-			getToken(t);
-			v.pos[0] = t.num * scale;
+			v.pos[0] = getToken(t) * scale;
 			getToken(t);	// must be ','
-			getToken(t);
-			v.pos[1] = t.num * scale;
+			v.pos[1] = getToken(t) * scale;
 			getToken(t);	// must be ','
-			getToken(t);
-			v.pos[2] = t.num * scale;
+			v.pos[2] = getToken(t) * scale;
 			getToken(t);	// must be ','
-			/*
-			v.pos[0] = Float.parseFloat(getToken()) * scale;
-			getToken();	// must be ','
-			v.pos[1] = Float.parseFloat(getToken()) * scale;
-			getToken();	// must be ','
-			v.pos[2] = Float.parseFloat(getToken()) * scale;
-			getToken();	// must be ','
-			*/
 			
 			v.bone_num_0 = 0;
 			v.bone_num_1 = 0;
@@ -178,10 +175,11 @@ public class XParser extends ParserBase implements ModelFile {
 	}
 	
 	private void parseFace() throws IOException {
-		int n = Integer.parseInt(getToken());
+		Token t = new Token();
+		
+		int n = (int) getToken(t);
 		nextLine();
 		
-		Token t = new Token();
 		mRawFace = new ArrayList<ArrayList<Integer>>(n);
 		for(int i = 0; i < n; i++) {
 			getToken(t);
@@ -202,9 +200,9 @@ public class XParser extends ParserBase implements ModelFile {
 	private void parseMaterial(String path) throws IOException {
 		Token t = new Token();
 		
-		int mn = Integer.parseInt(getToken());
+		int mn = (int) getToken(t);
 		nextLine();
-		int fn = Integer.parseInt(getToken());
+		int fn = (int) getToken(t);
 		nextLine();
 		if(fn != mRawFace.size()) {
 			mIsX = false;
@@ -219,16 +217,14 @@ public class XParser extends ParserBase implements ModelFile {
 		
 		// read material map
 		for(int i = 0; i < fn; i++) {
-			getToken(t);
-			int idx = (int) t.num;
+			int idx = (int) getToken(t);
 			getToken(t);	// must be ','
 			mmap.get(idx).add(i);
 		}
+		nextLine();
 		
 		// read and reconstruct material and index
-		int acc = 0;
-		mIndex = new ArrayList<Integer>();
-		mMaterial = new ArrayList<Material>(mn);
+		int acc = mIndex.size();
 		for(int i = 0; i < mn; i++) {
 			Material m = new Material();
 			
@@ -236,45 +232,35 @@ public class XParser extends ParserBase implements ModelFile {
 			m.specular_color = new float[4];
 			m.emmisive_color = new float[4];
 			
-			skipToBody("Material");
-			getToken(t);
-			m.diffuse_color[0] = t.num;
+			getToken(t); // must be token 'Material'
+			getToken(t); // must be token '{'
+			m.diffuse_color[0] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.diffuse_color[1] = t.num;
+			m.diffuse_color[1] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.diffuse_color[2] = t.num;
+			m.diffuse_color[2] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.diffuse_color[3] = t.num;
+			m.diffuse_color[3] = getToken(t);
 			getToken(t);	// must be ';'
 			getToken(t);	// must be ';'
 
-			getToken(t);
-			m.power = t.num;
+			m.power = getToken(t);
 			getToken(t);	// must be ';'
 
-			getToken(t);
-			m.specular_color[0] = t.num;
+			m.specular_color[0] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.specular_color[1] = t.num;
+			m.specular_color[1] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.specular_color[2] = t.num;
+			m.specular_color[2] = getToken(t);
 			m.specular_color[3] = 0;
 			getToken(t);	// must be ';'
 			getToken(t);	// must be ';'
 
-			getToken(t);
-			m.emmisive_color[0] = t.num;
+			m.emmisive_color[0] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.emmisive_color[1] = t.num;
+			m.emmisive_color[1] = getToken(t);
 			getToken(t);	// must be ';'
-			getToken(t);
-			m.emmisive_color[2] = t.num;
+			m.emmisive_color[2] = getToken(t);
 			m.emmisive_color[3] = 0;
 			getToken(t);	// must be ';'
 			getToken(t);	// must be ';'
@@ -282,19 +268,13 @@ public class XParser extends ParserBase implements ModelFile {
 			// has Texture
 			getToken(t);
 			if(t.type == 's' && t.s.equals("TextureFilename")) {
-				printToken(t);
 				getToken(t);	// must be '{'
-				printToken(t);
 				getToken(t);
-				printToken(t);
 				m.texture = path + t.s;
 				Log.d("XParser", String.format("Texture: %s", m.texture));
 				getToken(t); // must be ';'
-				printToken(t);
 				getToken(t); // must be '}'
-				printToken(t);
 				getToken(t); // must be '}'
-				printToken(t);
 			} else {
 				// must be '}'
 				m.texture = null;
@@ -307,43 +287,40 @@ public class XParser extends ParserBase implements ModelFile {
 				ArrayList<Integer> face = mRawFace.get(rf.get(j));
 				if(face.size() == 3) {
 					acc += 3;
-					mIndex.add(face.get(0));
-					mIndex.add(face.get(1));
-					mIndex.add(face.get(2));
+					mIndex.add(face.get(0) + mVertBase);
+					mIndex.add(face.get(1) + mVertBase);
+					mIndex.add(face.get(2) + mVertBase);
 				} else {	// must be face.size() == 4
 					acc += 6;
-					mIndex.add(face.get(0));
-					mIndex.add(face.get(1));
-					mIndex.add(face.get(2));
+					mIndex.add(face.get(0) + mVertBase);
+					mIndex.add(face.get(1) + mVertBase);
+					mIndex.add(face.get(2) + mVertBase);
 					
-					mIndex.add(face.get(0));
-					mIndex.add(face.get(2));
-					mIndex.add(face.get(3));
+					mIndex.add(face.get(0) + mVertBase);
+					mIndex.add(face.get(2) + mVertBase);
+					mIndex.add(face.get(3) + mVertBase);
 				}
 			}
 			m.face_vert_count = acc - m.face_vert_offset;
 			mMaterial.add(m);
 		}
 		
-		getToken(); // must be '}'
+		getToken(t); // must be '}'
 		Log.d("XParser", String.format("Material: %d %d", mn, fn));
 	}
 	
 	private void parseTexCoord() throws IOException {
 		Token t = new Token();
 
-		getToken(t);
-		int n = (int) t.num;
+		int n = (int) getToken(t);
 		getToken(t);
 		
-		if(mVertex.size() == n) {
+		if(mVertex.size() - mVertBase == n) {
 			for(int i = 0; i < n; i++) {
-				Vertex v = mVertex.get(i);
-				getToken(t);
-				v.uv[0] = t.num;
+				Vertex v = mVertex.get(i + mVertBase);
+				v.uv[0] = getToken(t);
 				getToken(t);	// must be ';'
-				getToken(t);
-				v.uv[1] = t.num;
+				v.uv[1] = getToken(t);
 				nextLine();
 			}
 			getToken(t);	// must be '}'
@@ -380,12 +357,17 @@ public class XParser extends ParserBase implements ModelFile {
 		mBone.add(b);
 	}
 	
-	private void skipToBody(String b) {
-		String token;
+	private boolean skipToBody(String b) {
+		Token t = new Token();
 		do {
-			token = getToken();
-			nextLine();
-		} while(!token.equals(b));
+			if(!getTokenEof(t)) {
+				return false;
+			}
+			if(!nextLineEof()) {
+				return false;
+			}
+		} while(!(t.type == 's' && t.s.equals(b)));
+		return true;
 	}
 	
 	private boolean isWhiteSpace(byte b) {
@@ -393,7 +375,7 @@ public class XParser extends ParserBase implements ModelFile {
 	}
 	
 	private boolean isSeparator(byte b) {
-		return b == ';' || b == ',';
+		return b == ';' || b == ',' || b == '{' || b == '}';
 	}
 	
 	private boolean isEndOfToken(byte b) {
@@ -404,31 +386,28 @@ public class XParser extends ParserBase implements ModelFile {
 		while(getByte() != '\n') ;
 	}
 	
+	private boolean nextLineEof() {
+		while(!isEof()) {
+			if(getByte() == '\n') {
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	private void skipWhiteSpace() {
 		while(isWhiteSpace(getByte()));
 		position(position() - 1);
 	}
 	
-	private String getToken() {
-		skipWhiteSpace();
-		int pos0 = position();
-		byte c = getByte();
-		if(isSeparator(c)) {
-			position(pos0);
-			return getString(1);
-		} else if(c == '\"') {
-			while(getByte() != '\"') ;
-			int pos1 = position();
-			position(pos0 + 1);
-			String s = getString(pos1 - pos0 - 2);
-			position(pos1 + 1);
-			return s;
-		} else {
-			while(!isEndOfToken(getByte())) ;
-			int pos1 = position();
-			position(pos0);
-			return getString(pos1 - pos0 - 1);
-		}		
+	private boolean skipWhiteSpaceEof() {
+		while(!isEof()) {
+			if(!isWhiteSpace(getByte())) {
+				position(position() - 1);
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	private class Token {
@@ -436,13 +415,26 @@ public class XParser extends ParserBase implements ModelFile {
 		public float num;
 		public String s;
 	}
-
-	private void getToken(Token t) {
+	
+	private float getToken(Token t) {
 		skipWhiteSpace();
+		return getToken1(t);
+	}
+	
+	private boolean getTokenEof(Token t) {
+		if(!skipWhiteSpaceEof()) {
+			return false;
+		}
+		getToken1(t);
+		return true;
+	}
+
+	private float getToken1(Token t) {
 		int pos0 = position();
 		byte c = getByte();
 		if(isSeparator(c)) {
 			t.type = c;
+			return 0;
 		} else if(c == '\"') {
 			while(getByte() != '\"') ;
 			int pos1 = position();
@@ -450,6 +442,7 @@ public class XParser extends ParserBase implements ModelFile {
 			t.type = 's';
 			t.s = getString(pos1 - pos0 - 2);
 			position(pos1);
+			return 0;
 		} else if(Character.isDigit(c) || c == '-') {
 			t.type = '0';
 			boolean minus = c == '-';
@@ -473,12 +466,14 @@ public class XParser extends ParserBase implements ModelFile {
 				t.num /= Math.pow(10.0, position() - pos1 - 1);
 			}
 			position(position() - 1);
+			return t.num;
 		} else {	// string
 			while(!isEndOfToken(getByte()));
 			int pos1 = position();
 			position(pos0);
 			t.type = 's';
 			t.s = getString(pos1 - pos0 - 1);
+			return 0;
 		}		
 	}
 	
@@ -486,7 +481,11 @@ public class XParser extends ParserBase implements ModelFile {
 		if(t.type == ';') {
 			Log.d("XParser", "Token ;");
 		} else if(t.type == ',') {
-			Log.d("XParser", "Token ;");
+			Log.d("XParser", "Token ,");
+		} else if(t.type == '{') {
+			Log.d("XParser", "Token {");
+		} else if(t.type == '}') {
+			Log.d("XParser", "Token }");
 		} else if(t.type == 's') {
 			Log.d("XParser", "Token String " + t.s);			
 		} else {
