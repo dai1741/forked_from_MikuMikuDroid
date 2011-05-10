@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,7 +31,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	// model data
 	public transient FloatBuffer				mToonCoordBuffer;
 	public transient FloatBuffer				mWeightBuffer;
-	public transient ShortBuffer				mIndexBuffer;
+	public transient IntBuffer					mIndexBuffer;
 	public transient FloatBuffer				mAllBuffer;
 	
 	public transient ArrayList<Bone>			mBone;
@@ -179,9 +180,9 @@ public class MikuModel implements Serializable, SerializableExt {
 		mWeightBuffer = wbb.asFloatBuffer();
 	
 		// index buffer
-		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 2);
+		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 4);
 		ibb.order(ByteOrder.nativeOrder());
-		mIndexBuffer = ibb.asShortBuffer();
+		mIndexBuffer = ibb.asIntBuffer();
 	
 		// reference cube
 		mCube = new CubeArea();
@@ -209,7 +210,7 @@ public class MikuModel implements Serializable, SerializableExt {
 				mIndexMaps[idx] = vc++;
 			}
 	
-			mIndexBuffer.put((short) mIndexMaps[idx]);
+			mIndexBuffer.put(mIndexMaps[idx]);
 		}
 		mIndexBuffer.position(0);
 		mWeightBuffer.position(0);
@@ -537,9 +538,9 @@ public class MikuModel implements Serializable, SerializableExt {
 		
 		// index
 		len = is.readInt();
-		tmp = ByteBuffer.allocateDirect(len*2);
+		tmp = ByteBuffer.allocateDirect(len*4);
 		tmp.order(ByteOrder.nativeOrder());
-		mIndexBuffer = tmp.asShortBuffer();
+		mIndexBuffer = tmp.asIntBuffer();
 		for(int i = 0; i < len; i++) {
 			mIndexBuffer.put(is.readShort());
 		}
@@ -599,7 +600,7 @@ public class MikuModel implements Serializable, SerializableExt {
 		os.writeInt(mIndexBuffer.capacity());
 		mIndexBuffer.position(0);
 		for(int i = 0; i < mIndexBuffer.capacity(); i++) {
-			os.writeShort(mIndexBuffer.get());
+			os.writeInt(mIndexBuffer.get());
 		}
 		mIndexBuffer.position(0);
 		os.reset();

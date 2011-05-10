@@ -17,6 +17,8 @@ public class XParser extends ParserBase implements ModelFile {
 
 	private ArrayList<ArrayList<Integer>> mRawFace;
 	private int mVertBase;
+	private int mVertNum;
+	private int mIdxBase;
 
 	public XParser(String base, String file, float scale) throws IOException {
 		super(file);
@@ -121,6 +123,8 @@ public class XParser extends ParserBase implements ModelFile {
 		mVertex = new ArrayList<Vertex>();
 		mIndex = new ArrayList<Integer>();
 		mMaterial = new ArrayList<Material>(0);
+		mVertBase = 0;
+		mIdxBase = 0;
 
 		// find mesh body
 		while(skipToBody("Mesh")) {
@@ -141,6 +145,7 @@ public class XParser extends ParserBase implements ModelFile {
 				}
 				getToken(t);
 			}
+			mVertBase += mVertNum;
 		}
 	}
 	
@@ -149,7 +154,6 @@ public class XParser extends ParserBase implements ModelFile {
 		int n = (int) getToken(t);
 		nextLine();
 		
-		mVertBase = mVertex.size();
 		for(int i = 0; i < n; i++) {
 			Vertex v = new Vertex();
 			v.pos = new float[3];
@@ -171,7 +175,8 @@ public class XParser extends ParserBase implements ModelFile {
 			mVertex.add(v);
 			nextLine();
 		}
-		Log.d("XParser", String.format("Vertex: %d", n));
+		mVertNum = n;
+		Log.d("XParser", String.format("Vertex: %d, total %d", n, mVertBase + mVertNum));
 	}
 	
 	private void parseFace() throws IOException {
@@ -224,7 +229,7 @@ public class XParser extends ParserBase implements ModelFile {
 		nextLine();
 		
 		// read and reconstruct material and index
-		int acc = mIndex.size();
+		int acc = mIdxBase;
 		for(int i = 0; i < mn; i++) {
 			Material m = new Material();
 			
@@ -290,7 +295,7 @@ public class XParser extends ParserBase implements ModelFile {
 					mIndex.add(face.get(0) + mVertBase);
 					mIndex.add(face.get(1) + mVertBase);
 					mIndex.add(face.get(2) + mVertBase);
-				} else {	// must be face.size() == 4
+				} else if(face.size() == 4){	// must be face.size() == 4
 					acc += 6;
 					mIndex.add(face.get(0) + mVertBase);
 					mIndex.add(face.get(1) + mVertBase);
@@ -299,14 +304,17 @@ public class XParser extends ParserBase implements ModelFile {
 					mIndex.add(face.get(0) + mVertBase);
 					mIndex.add(face.get(2) + mVertBase);
 					mIndex.add(face.get(3) + mVertBase);
+				} else {
+					Log.d("XParser", "Illegal face");
 				}
 			}
 			m.face_vert_count = acc - m.face_vert_offset;
 			mMaterial.add(m);
 		}
+		mIdxBase = acc;
 		
 		getToken(t); // must be '}'
-		Log.d("XParser", String.format("Material: %d %d", mn, fn));
+		Log.d("XParser", String.format("Material: %d %d, index total %d", mn, fn, mIdxBase));
 	}
 	
 	private void parseTexCoord() throws IOException {
@@ -315,7 +323,7 @@ public class XParser extends ParserBase implements ModelFile {
 		int n = (int) getToken(t);
 		getToken(t);
 		
-		if(mVertex.size() - mVertBase == n) {
+		if(mVertNum == n) {
 			for(int i = 0; i < n; i++) {
 				Vertex v = mVertex.get(i + mVertBase);
 				v.uv[0] = getToken(t);

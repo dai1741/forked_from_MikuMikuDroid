@@ -618,12 +618,12 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				int[] ri = sba[i].getRenderIndex();
 				for(int j = 0; j < n; j++) {
 					miku.mIndexBuffer.position(ri[j * 2]);
-					GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+					GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_INT, miku.mIndexBuffer);
 				}
 			}
 		} else {
 			miku.mIndexBuffer.position(mat.face_vert_offset);
-			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_INT, miku.mIndexBuffer);
 		}
 //		checkGlError("glDrawElements");
 	}
