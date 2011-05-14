@@ -1,5 +1,8 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -21,18 +24,21 @@ public class SphereArea {
 		public int   mOfs;
 		public boolean mComplex = false;
 		
+		private float[] mPos = new float[3];
+		
 		public Sphere(int ofs) {
 			mOfs = ofs;
 		}
 
-		public void set(int idx, Vertex v) {
+		public void set(int idx) {
 			if(mIdx == null) {
 				mIdx = new ArrayList<Integer>();
 			}
 			mIdx.add(idx);
-			mCx += v.pos[0];
-			mCy += v.pos[1];
-			mCz += v.pos[2];
+			getVertex(idx, mPos);
+			mCx += mPos[0];
+			mCy += mPos[1];
+			mCz += mPos[2];
 			mCn++;
 		}
 		
@@ -46,13 +52,19 @@ public class SphereArea {
 			float mz = mCz / mCn;
 			
 			for(Integer idx: mIdx) {
-				Vertex v = mVtx.get(idx);
-				float x = mx - v.pos[0];
-				float y = my - v.pos[1];
-				float z = mz - v.pos[2];
+				getVertex(idx, mPos);
+//				Vertex v = mVtx.get(idx);
+				float x = mx - mPos[0];
+				float y = my - mPos[1];
+				float z = mz - mPos[2];
 				float d = Matrix.length(x, y, z);
 				mCr = Math.max(d, mCr);
 			}
+		}
+		
+		private void getVertex(int pos, float[] ver) {
+			mVtx.position(pos * 8);
+			mVtx.get(ver);
 		}
 		
 		public float distance(Sphere s) {
@@ -191,19 +203,21 @@ public class SphereArea {
 		}
 	};
 	
-	private ArrayList<Vertex>			mVtx;
+	private FloatBuffer					mVtx;
+	private ByteBuffer					mWeight;
 	private ArrayList<Bone>				mBone;
 	private HashMap<Bone, SphereBone>	mSphB = new HashMap<Bone, SphereBone>();
 	private SphereBone[]				mSphV;
 	private float[]						mMwork = new float[16];
 	
-	public SphereArea(ArrayList<Vertex> v, ArrayList<Bone> b) {
+	public SphereArea(FloatBuffer v, ByteBuffer w, ArrayList<Bone> b) {
 		mVtx  = v;
+		mWeight = w;
 		mBone = b;
 	}
 
-	public int initialSet(ArrayList<Integer> idx, int pos, int size) {
-		Bone b = mBone.get(mVtx.get(idx.get(pos)).bone_num_0);
+	public int initialSet(IntBuffer idx, int pos, int size) {
+		Bone b = getBone(pos);
 		SphereBone sb = mSphB.get(b);
 		if(sb == null) {
 			sb = new SphereBone(b);
@@ -214,8 +228,7 @@ public class SphereArea {
 		Sphere s = new Sphere(pos);
 		for(i = 0; i < size; i += 3) {
 			int idx_pos = idx.get(pos + i);
-			Vertex v = mVtx.get(idx_pos);
-			Bone bc = mBone.get(v.bone_num_0);
+			Bone bc = getBone(idx_pos);
 			if(bc == b || s.mComplex) {
 				addVertex(s, idx, pos + i    , b);
 				addVertex(s, idx, pos + i + 1, b);
@@ -235,14 +248,22 @@ public class SphereArea {
 		return i;
 	}
 
-	private void addVertex(Sphere s, ArrayList<Integer> idxA, int idx, Bone b) {
+	private void addVertex(Sphere s, IntBuffer idxA, int idx, Bone b) {
 		int idx_pos = idxA.get(idx);
-		Vertex v = mVtx.get(idx_pos);
-		Bone ba = mBone.get(v.bone_num_0);
+//		Vertex v = mVtx.get(idx_pos);
+		Bone ba = getBone(idx_pos);
 		if(ba != b) {
 			s.setComprex(true);
 		}
-		s.set(idx_pos, v);
+		s.set(idx_pos);
+	}
+	
+	private Bone getBone(int pos) {
+		if(mWeight != null) {
+			return mBone.get(mWeight.get(pos * 3));
+		} else {
+			return mBone.get(0);
+		}
 	}
 	
 	public SphereBone[] getSphereBone() {

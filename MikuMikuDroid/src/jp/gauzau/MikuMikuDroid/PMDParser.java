@@ -70,7 +70,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 			mIsPmd = false;
 		}
 	}
-
+	
 	private void parsePMDJoint() {
 		int num = getInt();
 		Log.d("PMDParser", "Joint: " + String.valueOf(num));
@@ -379,21 +379,13 @@ public class PMDParser extends ParserBase implements ModelFile {
 				Material material = new Material();
 
 				material.diffuse_color = new float[4];
+				material.specular_color = new float[3];
+				material.emmisive_color = new float[3];
+				
 				getFloat(material.diffuse_color);
-
 				material.power = getFloat();
-
-				material.specular_color = new float[4];
-				material.specular_color[0] = getFloat();
-				material.specular_color[1] = getFloat();
-				material.specular_color[2] = getFloat();
-				material.specular_color[3] = 0f;
-
-				material.emmisive_color = new float[4];
-				material.emmisive_color[0] = getFloat();
-				material.emmisive_color[1] = getFloat();
-				material.emmisive_color[2] = getFloat();
-				material.emmisive_color[3] = 0f;
+				getFloat(material.specular_color);
+				getFloat(material.emmisive_color);
 
 				material.toon_index = getByte();
 				material.toon_index += 1; // 0xFF to toon0.bmp, 0x00 to toon01.bmp, 0x01 to toon02.bmp...

@@ -109,7 +109,6 @@ public class XParser extends ParserBase implements ModelFile {
 		}
 	}
 
-
 	private void parseXHeader() {
 		String s = getString(16);
 		mIsX =  s.equalsIgnoreCase("xof 0302txt 0064") ||

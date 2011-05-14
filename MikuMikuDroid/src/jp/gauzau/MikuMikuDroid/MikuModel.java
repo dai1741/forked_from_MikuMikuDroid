@@ -1,14 +1,10 @@
 package jp.gauzau.MikuMikuDroid;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,9 +12,7 @@ import java.util.Map.Entry;
 
 import android.util.Log;
 
-public class MikuModel implements Serializable, SerializableExt {
-	private static final long serialVersionUID = -9127943692220369080L;
-	
+public class MikuModel {
 	// model configuration
 	public transient String						mFileName;	
 	public transient boolean					mAnimation;
@@ -44,7 +38,7 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 	// generated data
 	public transient ArrayList<Material>		mRendarList;
-	public transient int[]						mIndexMaps;
+//	public transient int[]						mIndexMaps;
 	public transient Face						mFaceBase;
 	
 	public transient HashMap<String, TexInfo>	mTexture;
@@ -56,6 +50,10 @@ public class MikuModel implements Serializable, SerializableExt {
 	}
 	
 	public MikuModel(String base, ModelFile pmd, int max_bone, boolean animation) {
+		init(base, pmd, max_bone, animation);
+	}
+	
+	public MikuModel(String base, ModelBuilder pmd, int max_bone, boolean animation) {
 		init(base, pmd, max_bone, animation);
 	}
 
@@ -83,14 +81,15 @@ public class MikuModel implements Serializable, SerializableExt {
 
 //		mMaterial = mergeMaterials(mMaterial);
 //		makeLoDIndex(pmd);
-		makeIndexSortedVertexBuffers(pmd);
+		makeVertexBuffers(pmd);
+//		makeIndexSortedVertexBuffers(pmd);
 		if (animation) {
 			reconstructFace();
 			if(mBone.size() <= mMaxBone) {
 				buildBoneRenameIndexAll(pmd, mMaxBone);
 				mRendarList = mMaterial;
 				if(mIsOneSkinning) {
-					clusterVertex(pmd);
+					clusterVertex();
 				}
 				pmd.recycleVertex();
 			} else {
@@ -99,11 +98,139 @@ public class MikuModel implements Serializable, SerializableExt {
 			}
 		} else {
 			mRendarList = mMaterial;
-			clusterVertex(pmd);
+			clusterVertex();
 			mFaceBase = null;
 			pmd.recycleVertex();
 		}
 		pmd.recycle();
+	}
+	
+	public void init(String base, ModelBuilder mb, int max_bone, boolean animation) {
+		mBase			= base;
+		mFileName       = mb.getFileName();
+		mMaxBone		= max_bone;
+		mAnimation		= animation;
+		mIsTextureLoaded= false;
+		mBone			= mb.mBone;
+		mMaterial		= mb.mMaterial;
+		mFace			= mb.mFace;
+		mIK				= mb.mIK;
+		mRigidBody		= mb.mRigidBody;
+		mJoint			= mb.mJoint;
+		mToonFileName	= mb.mToonFileName;
+		mIsOneSkinning	= mb.mIsOneSkinning;
+		if(mIsOneSkinning) {
+			Log.d("MikuModel", mFileName + " has only one skinnings.");			
+		}
+		
+		// assume bg
+		mAllBuffer = mb.mVertBuffer.asFloatBuffer();
+		mIndexBuffer = mb.mIndexBuffer.asIntBuffer();
+		mRendarList = mMaterial;
+		clusterVertex();
+		mFaceBase = null;
+	}
+	
+	private void makeVertexBuffers(ModelFile pmd) {
+		// vertex, normal, texture buffer
+		ByteBuffer abb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 8 * 4);
+		abb.order(ByteOrder.nativeOrder());
+		mAllBuffer = abb.asFloatBuffer();
+	
+		// weight buffer
+		ByteBuffer wbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 2 * 4);
+		wbb.order(ByteOrder.nativeOrder());
+		mWeightBuffer = wbb.asFloatBuffer();
+	
+		// index buffer
+		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 4);
+		ibb.order(ByteOrder.nativeOrder());
+		mIndexBuffer = ibb.asIntBuffer();
+	
+		// reference cube
+		mCube = new CubeArea();
+	
+		// sort vertex by index order
+		ArrayList<Integer> index;
+		index = pmd.getIndex();
+		for (Integer idx : index) {
+			mIndexBuffer.put(idx);
+		}
+		for(Vertex ver: pmd.getVertex()) {
+			// vertex, normal, texture
+			mAllBuffer.put(ver.pos);
+			mAllBuffer.put(ver.normal);
+			mAllBuffer.put(ver.uv);
+
+			// weight
+			mWeightBuffer.put(ver.bone_weight / 100.0f);
+			mWeightBuffer.put((100 - ver.bone_weight) / 100.0f);
+
+			// update cube
+			mCube.set(ver.pos);
+		}
+		mIndexBuffer.position(0);
+		mWeightBuffer.position(0);
+		mAllBuffer.position(0);
+	
+		mCube.logOutput("PMDParser");
+	}
+	
+	private void makeIndexSortedVertexBuffers(ModelFile pmd) {
+		int[] index_map = new int[pmd.getVertex().size()];
+		for (int i = 0; i < index_map.length; i++) {
+			index_map[i] = -1; // not mapped yet
+		}
+		int vc = 0;
+	
+		// vertex, normal, texture buffer
+		ByteBuffer abb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 8 * 4);
+		abb.order(ByteOrder.nativeOrder());
+		mAllBuffer = abb.asFloatBuffer();
+	
+		// weight buffer
+		ByteBuffer wbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 2 * 4);
+		wbb.order(ByteOrder.nativeOrder());
+		mWeightBuffer = wbb.asFloatBuffer();
+	
+		// index buffer
+		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 4);
+		ibb.order(ByteOrder.nativeOrder());
+		mIndexBuffer = ibb.asIntBuffer();
+	
+		// reference cube
+		mCube = new CubeArea();
+	
+		// sort vertex by index order
+		ArrayList<Integer> index;
+		index = pmd.getIndex();
+		for (Integer idx : index) {
+			if (index_map[idx] < 0) { // not mapped yet
+				Vertex ver = pmd.getVertex().get(idx);
+	
+				// vertex, normal, texture
+				mAllBuffer.put(ver.pos);
+				mAllBuffer.put(ver.normal);
+				mAllBuffer.put(ver.uv);
+	
+				// weight
+				mWeightBuffer.put(ver.bone_weight / 100.0f);
+				mWeightBuffer.put((100 - ver.bone_weight) / 100.0f);
+	
+				// update cube
+				mCube.set(ver.pos);
+	
+				// update map
+				index_map[idx] = vc++;
+			}
+	
+			mIndexBuffer.put(index_map[idx]);
+		}
+		mIndexBuffer.position(0);
+		mWeightBuffer.position(0);
+		mAllBuffer.position(0);
+	
+		mCube.logOutput("PMDParser");
 	}
 
 	private ArrayList<Material> mergeMaterials(ArrayList<Material> ma) {
@@ -140,83 +267,22 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 			// update base face
 			for(int i = 0; i < mFaceBase.face_vert_count; i++) {
-				mFaceBase.face_vert_index[i] = mIndexMaps[mFaceBase.face_vert_index[i]] * 8;
+				mFaceBase.face_vert_index[i] = mFaceBase.face_vert_index[i] * 8;
 			}
 		}
 	}
 
-	private void clusterVertex(ModelFile pmd) {
-		ArrayList<Integer> index = pmd.getIndex();
-		ArrayList<Vertex>  vertex = pmd.getVertex();
-		ArrayList<Bone>    bone = pmd.getBone();
-		
+	private void clusterVertex() {
 		// cluster vertices
 		for(Material m: mRendarList) {
 			
 			// initialize: each 3 vertices becomes one cluster
-			m.area = new SphereArea(vertex, bone);
+			m.area = new SphereArea(mAllBuffer, m.weight, mBone);
 			int inc = 900;	// or 300?
 			for(int i = 0; i < m.face_vert_count;
-				i += m.area.initialSet(index, m.face_vert_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));
+				i += m.area.initialSet(mIndexBuffer, m.face_vert_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));
 			m.area.recycle();
 		}
-	}
-
-	private void makeIndexSortedVertexBuffers(ModelFile pmd) {
-		mIndexMaps = new int[pmd.getVertex().size()];
-		for (int i = 0; i < mIndexMaps.length; i++) {
-			mIndexMaps[i] = -1; // not mapped yet
-		}
-		int vc = 0;
-	
-		// vertex, normal, texture buffer
-		ByteBuffer abb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 8 * 4);
-		abb.order(ByteOrder.nativeOrder());
-		mAllBuffer = abb.asFloatBuffer();
-	
-		// weight buffer
-		ByteBuffer wbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 2 * 4);
-		wbb.order(ByteOrder.nativeOrder());
-		mWeightBuffer = wbb.asFloatBuffer();
-	
-		// index buffer
-		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 4);
-		ibb.order(ByteOrder.nativeOrder());
-		mIndexBuffer = ibb.asIntBuffer();
-	
-		// reference cube
-		mCube = new CubeArea();
-	
-		// sort vertex by index order
-		ArrayList<Integer> index;
-		index = pmd.getIndex();
-		for (Integer idx : index) {
-			if (mIndexMaps[idx] < 0) { // not mapped yet
-				Vertex ver = pmd.getVertex().get(idx);
-	
-				// vertex, normal, texture
-				mAllBuffer.put(ver.pos);
-				mAllBuffer.put(ver.normal);
-				mAllBuffer.put(ver.uv);
-	
-				// weight
-				mWeightBuffer.put(ver.bone_weight / 100.0f);
-				mWeightBuffer.put((100 - ver.bone_weight) / 100.0f);
-	
-				// update cube
-				mCube.set(ver.pos);
-	
-				// update map
-				mIndexMaps[idx] = vc++;
-			}
-	
-			mIndexBuffer.put(mIndexMaps[idx]);
-		}
-		mIndexBuffer.position(0);
-		mWeightBuffer.position(0);
-		mAllBuffer.position(0);
-	
-		mCube.logOutput("Miku");
 	}
 	
 	private void makeLoDIndex(ModelFile pmd) {
@@ -439,13 +505,11 @@ public class MikuModel implements Serializable, SerializableExt {
 		
 		for (int i = mat.face_vert_offset; i < mat.face_vert_offset + mat.face_vert_count; i++) {
 			int pos = pmd.getIndex().get(i);
-			if (mIndexMaps[pos] >= 0) {
-				Vertex ver = pmd.getVertex().get(pos);
-				mat.weight.position(mIndexMaps[pos] * 3);
-				mat.weight.put((byte) map[ver.bone_num_0]);
-				mat.weight.put((byte) map[ver.bone_num_1]);
-				mat.weight.put(ver.bone_weight);
-			}
+			Vertex ver = pmd.getVertex().get(pos);
+			mat.weight.position(pos * 3);
+			mat.weight.put((byte) map[ver.bone_num_0]);
+			mat.weight.put((byte) map[ver.bone_num_1]);
+			mat.weight.put(ver.bone_weight);
 		}
 	
 		mat.weight.position(0);
@@ -457,13 +521,11 @@ public class MikuModel implements Serializable, SerializableExt {
 	
 		for (int i = 0; i < pmd.getVertex().size(); i++) {
 			int pos = pmd.getIndex().get(i);
-			if (mIndexMaps[pos] >= 0) {
-				Vertex v = pmd.getVertex().get(pos);
-				rbb.position(mIndexMaps[pos] * 3);
-				rbb.put((byte) v.bone_num_0);
-				rbb.put((byte) v.bone_num_1);
-				rbb.put((byte) v.bone_weight);				
-			}
+			Vertex v = pmd.getVertex().get(pos);
+			rbb.position(pos * 3);
+			rbb.put((byte) v.bone_num_0);
+			rbb.put((byte) v.bone_num_1);
+			rbb.put((byte) v.bone_weight);				
 		}
 		rbb.position(0);
 	
@@ -506,127 +568,4 @@ public class MikuModel implements Serializable, SerializableExt {
 		mToonCoordBuffer.position(0);
 		mAllBuffer.position(0);
 	}
-
-	public MikuModel create() {
-		return new MikuModel();
-	}
-	
-	public void read(ObjectInputStream is) throws IOException, ClassNotFoundException {
-		mFileName  = is.readUTF();
-		mAnimation = is.readBoolean();
-		mMaxBone = is.readInt();
-
-		// all
-		int len = is.readInt();
-		ByteBuffer tmp = ByteBuffer.allocateDirect(len*4);
-		tmp.order(ByteOrder.nativeOrder());
-		mAllBuffer = tmp.asFloatBuffer();
-		for(int i = 0; i < len; i++) {
-			mAllBuffer.put(is.readFloat());
-		}
-		mAllBuffer.position(0);
-		
-		// weight
-		len = is.readInt();
-		tmp = ByteBuffer.allocateDirect(len*4);
-		tmp.order(ByteOrder.nativeOrder());
-		mWeightBuffer = tmp.asFloatBuffer();
-		for(int i = 0; i < len; i++) {
-			mWeightBuffer.put(is.readByte());
-		}
-		mWeightBuffer.position(0);
-		
-		// index
-		len = is.readInt();
-		tmp = ByteBuffer.allocateDirect(len*4);
-		tmp.order(ByteOrder.nativeOrder());
-		mIndexBuffer = tmp.asIntBuffer();
-		for(int i = 0; i < len; i++) {
-			mIndexBuffer.put(is.readShort());
-		}
-		mIndexBuffer.position(0);
-
-		mBone = (ArrayList<Bone>)is.readObject();
-		mMaterial = ObjRW.readArrayList(is, new Material());
-		mFace = (ArrayList<Face>)is.readObject();
-		mIK = (ArrayList<IK>)is.readObject();
-		mRigidBody = (ArrayList<RigidBody>)is.readObject();
-		mJoint = (ArrayList<Joint>)is.readObject();
-		mToonFileName = (ArrayList<String>)is.readObject();
-		
-		mRendarList = ObjRW.readArrayList(is, new Material());
-		mIndexMaps = ObjRW.readIntA(is);
-		mFaceBase = (Face)is.readObject();
-		
-		// re-allocate memory
-		for(Bone b: mBone) {
-			b.matrix = new float[16];
-			b.matrix_current = new float[16];
-			b.quaternion = new double[4];
-		}
-		for(RigidBody r: mRigidBody) {
-			r.cur_location = new float[4];
-			r.cur_r = new double[4];
-			r.cur_v = new double[4];
-			r.cur_a = new double[4];
-			r.tmp_r = new double[4];
-			r.tmp_v = new double[4];
-			r.tmp_a = new double[4];
-			r.prev_r = new double[4];
-		}
-	}
-	
-	
-	public void write(ObjectOutputStream os) throws IOException {
-		os.writeUTF(mFileName);
-		os.writeBoolean(mAnimation);
-		os.writeInt(mMaxBone);
-
-		// buffers
-		os.writeInt(mAllBuffer.capacity());
-		mAllBuffer.position(0);
-		for(int i = 0; i < mAllBuffer.capacity(); i++) {
-			os.writeFloat(mAllBuffer.get());
-		}
-		mAllBuffer.position(0);
-		
-		os.writeInt(mWeightBuffer.capacity());
-		mWeightBuffer.position(0);
-		for(int i = 0; i < mWeightBuffer.capacity(); i++) {
-			os.writeByte((byte) mWeightBuffer.get());
-		}
-		mWeightBuffer.position(0);
-
-		os.writeInt(mIndexBuffer.capacity());
-		mIndexBuffer.position(0);
-		for(int i = 0; i < mIndexBuffer.capacity(); i++) {
-			os.writeInt(mIndexBuffer.get());
-		}
-		mIndexBuffer.position(0);
-		os.reset();
-		os.flush();
-		
-		os.writeObject(mBone);
-		ObjRW.writeArrayList(os, mMaterial);
-		os.writeObject(mFace);
-		os.writeObject(mIK);
-		os.writeObject(mRigidBody);
-		os.writeObject(mJoint);
-		os.writeObject(mToonFileName);
-		
-		ObjRW.writeArrayList(os, mRendarList);
-		ObjRW.writeIntA(os, mIndexMaps);
-		os.writeObject(mFaceBase);
-	}
-
-	private void writeObject(ObjectOutputStream os) throws IOException {
-		os.defaultWriteObject();
-		write(os);
-	}
-
-	private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
-		is.defaultReadObject();
-		read(is);
-	}
-	
 }
