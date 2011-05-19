@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,9 +25,10 @@ public class MikuModel {
 	
 	// model data
 	public transient FloatBuffer				mToonCoordBuffer;
-	public transient FloatBuffer				mWeightBuffer;
-	public transient IntBuffer					mIndexBuffer;
+	public transient ShortBuffer				mIndexBuffer;
+	public transient IntBuffer					mIndexBufferI;
 	public transient FloatBuffer				mAllBuffer;
+	public transient ShortBuffer				mWeightBuffer;
 	
 	public transient ArrayList<Bone>			mBone;
 	public transient ArrayList<Material>		mMaterial;
@@ -38,7 +40,6 @@ public class MikuModel {
 	
 	// generated data
 	public transient ArrayList<Material>		mRendarList;
-//	public transient int[]						mIndexMaps;
 	public transient Face						mFaceBase;
 	
 	public transient HashMap<String, TexInfo>	mTexture;
@@ -67,6 +68,9 @@ public class MikuModel {
 		mMaxBone		= max_bone;
 		mAnimation		= animation;
 		mIsTextureLoaded= false;
+		mAllBuffer		= pmd.getVertexBuffer();
+		mIndexBuffer	= pmd.getIndexBufferS();
+		mWeightBuffer	= pmd.getWeightBuffer();
 		mBone			= pmd.getBone();
 		mMaterial		= pmd.getMaterial();
 		mFace			= pmd.getFace();
@@ -81,27 +85,23 @@ public class MikuModel {
 
 //		mMaterial = mergeMaterials(mMaterial);
 //		makeLoDIndex(pmd);
-		makeVertexBuffers(pmd);
-//		makeIndexSortedVertexBuffers(pmd);
 		if (animation) {
 			reconstructFace();
 			if(mBone.size() <= mMaxBone) {
-				buildBoneRenameIndexAll(pmd, mMaxBone);
+				buildBoneRenameIndexAll();
 				mRendarList = mMaterial;
 				if(mIsOneSkinning) {
 					clusterVertex();
 				}
-				pmd.recycleVertex();
 			} else {
-				pmd.recycleVertex();
-				reconstructMaterial(pmd, mMaxBone);
+				reconstructMaterial(mMaxBone);
 			}
 		} else {
 			mRendarList = mMaterial;
 			clusterVertex();
 			mFaceBase = null;
-			pmd.recycleVertex();
 		}
+		mWeightBuffer = null;	// no more use
 		pmd.recycle();
 	}
 	
@@ -125,112 +125,10 @@ public class MikuModel {
 		
 		// assume bg
 		mAllBuffer = mb.mVertBuffer.asFloatBuffer();
-		mIndexBuffer = mb.mIndexBuffer.asIntBuffer();
+		mIndexBufferI = mb.mIndexBuffer.asIntBuffer();
 		mRendarList = mMaterial;
 		clusterVertex();
 		mFaceBase = null;
-	}
-	
-	private void makeVertexBuffers(ModelFile pmd) {
-		// vertex, normal, texture buffer
-		ByteBuffer abb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 8 * 4);
-		abb.order(ByteOrder.nativeOrder());
-		mAllBuffer = abb.asFloatBuffer();
-	
-		// weight buffer
-		ByteBuffer wbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 2 * 4);
-		wbb.order(ByteOrder.nativeOrder());
-		mWeightBuffer = wbb.asFloatBuffer();
-	
-		// index buffer
-		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 4);
-		ibb.order(ByteOrder.nativeOrder());
-		mIndexBuffer = ibb.asIntBuffer();
-	
-		// reference cube
-		mCube = new CubeArea();
-	
-		// sort vertex by index order
-		ArrayList<Integer> index;
-		index = pmd.getIndex();
-		for (Integer idx : index) {
-			mIndexBuffer.put(idx);
-		}
-		for(Vertex ver: pmd.getVertex()) {
-			// vertex, normal, texture
-			mAllBuffer.put(ver.pos);
-			mAllBuffer.put(ver.normal);
-			mAllBuffer.put(ver.uv);
-
-			// weight
-			mWeightBuffer.put(ver.bone_weight / 100.0f);
-			mWeightBuffer.put((100 - ver.bone_weight) / 100.0f);
-
-			// update cube
-			mCube.set(ver.pos);
-		}
-		mIndexBuffer.position(0);
-		mWeightBuffer.position(0);
-		mAllBuffer.position(0);
-	
-		mCube.logOutput("PMDParser");
-	}
-	
-	private void makeIndexSortedVertexBuffers(ModelFile pmd) {
-		int[] index_map = new int[pmd.getVertex().size()];
-		for (int i = 0; i < index_map.length; i++) {
-			index_map[i] = -1; // not mapped yet
-		}
-		int vc = 0;
-	
-		// vertex, normal, texture buffer
-		ByteBuffer abb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 8 * 4);
-		abb.order(ByteOrder.nativeOrder());
-		mAllBuffer = abb.asFloatBuffer();
-	
-		// weight buffer
-		ByteBuffer wbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 2 * 4);
-		wbb.order(ByteOrder.nativeOrder());
-		mWeightBuffer = wbb.asFloatBuffer();
-	
-		// index buffer
-		ByteBuffer ibb = ByteBuffer.allocateDirect(pmd.getIndex().size() * 4);
-		ibb.order(ByteOrder.nativeOrder());
-		mIndexBuffer = ibb.asIntBuffer();
-	
-		// reference cube
-		mCube = new CubeArea();
-	
-		// sort vertex by index order
-		ArrayList<Integer> index;
-		index = pmd.getIndex();
-		for (Integer idx : index) {
-			if (index_map[idx] < 0) { // not mapped yet
-				Vertex ver = pmd.getVertex().get(idx);
-	
-				// vertex, normal, texture
-				mAllBuffer.put(ver.pos);
-				mAllBuffer.put(ver.normal);
-				mAllBuffer.put(ver.uv);
-	
-				// weight
-				mWeightBuffer.put(ver.bone_weight / 100.0f);
-				mWeightBuffer.put((100 - ver.bone_weight) / 100.0f);
-	
-				// update cube
-				mCube.set(ver.pos);
-	
-				// update map
-				index_map[idx] = vc++;
-			}
-	
-			mIndexBuffer.put(index_map[idx]);
-		}
-		mIndexBuffer.position(0);
-		mWeightBuffer.position(0);
-		mAllBuffer.position(0);
-	
-		mCube.logOutput("PMDParser");
 	}
 
 	private ArrayList<Material> mergeMaterials(ArrayList<Material> ma) {
@@ -279,8 +177,13 @@ public class MikuModel {
 			// initialize: each 3 vertices becomes one cluster
 			m.area = new SphereArea(mAllBuffer, m.weight, mBone);
 			int inc = 900;	// or 300?
-			for(int i = 0; i < m.face_vert_count;
-				i += m.area.initialSet(mIndexBuffer, m.face_vert_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));
+			if(mIndexBufferI != null) {
+				for(int i = 0; i < m.face_vert_count;
+				i += m.area.initialSet(mIndexBufferI, m.face_vert_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));				
+			} else {
+				for(int i = 0; i < m.face_vert_count;
+				i += m.area.initialSet(mIndexBuffer, m.face_vert_offset + i, i + inc > m.face_vert_count ? m.face_vert_count - i : inc));								
+			}
 			m.area.recycle();
 		}
 	}
@@ -389,35 +292,40 @@ public class MikuModel {
 	}
 
 
-	private void reconstructMaterial(ModelFile parser, int max_bone) {
+	private void reconstructMaterial(int max_bone) {
 		mRendarList = new ArrayList<Material>();
 		HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool = new HashMap<HashMap<Integer, Integer>, ByteBuffer>();
 		for (Material mat : mMaterial) {
-			reconstructMaterial1(parser, mat, 0, rename_pool, max_bone);
+			reconstructMaterial1(mat, 0, rename_pool, max_bone);
 		}
 	}
 	
-	private void reconstructMaterial1(ModelFile pmd, Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
-		ArrayList<Vertex> ver = pmd.getVertex();
+	private void reconstructMaterial1(Material mat, int offset, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		HashMap<Integer, Integer> rename = new HashMap<Integer, Integer>();
 		int acc = 0;
 		for (int j = offset; j < mat.face_vert_count; j += 3) {
-			acc = renameBone1(pmd, rename, mat.face_vert_offset + j + 0, ver, acc);
-			acc = renameBone1(pmd, rename, mat.face_vert_offset + j + 1, ver, acc);
-			acc = renameBone1(pmd, rename, mat.face_vert_offset + j + 2, ver, acc);
+			int acc_prev = acc;
+			acc = renameBone1(rename, mat.face_vert_offset + j + 0, acc);
+			acc = renameBone1(rename, mat.face_vert_offset + j + 1, acc);
+			acc = renameBone1(rename, mat.face_vert_offset + j + 2, acc);
 			if (acc > max_bone) {
-				Material mat_new = buildNewMaterial(pmd, mat, offset, j, rename, rename_pool, max_bone);
+				for(Entry<Integer, Integer> m: rename.entrySet()) {
+					if(m.getValue() >= acc_prev) {
+						rename.remove(m.getKey());
+					}
+				}
+				Material mat_new = buildNewMaterial(mat, offset, j, rename, rename_pool, max_bone);
 				mRendarList.add(mat_new);
-				reconstructMaterial1(pmd, mat, j, rename_pool, max_bone);
+				reconstructMaterial1(mat, j, rename_pool, max_bone);
 				return;
 			}
 		}
-		Material mat_new = buildNewMaterial(pmd, mat, offset, mat.face_vert_count, rename, rename_pool, max_bone);
+		Material mat_new = buildNewMaterial(mat, offset, mat.face_vert_count, rename, rename_pool, max_bone);
 		mRendarList.add(mat_new);
 	}
 
 
-	private Material buildNewMaterial(ModelFile pmd, Material mat_orig, int offset, int count, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
+	private Material buildNewMaterial(Material mat_orig, int offset, int count, HashMap<Integer, Integer> rename, HashMap<HashMap<Integer, Integer>, ByteBuffer> rename_pool, int max_bone) {
 		Material mat = new Material(mat_orig);
 		mat.face_vert_offset = mat_orig.face_vert_offset + offset;
 		mat.face_vert_count  = count - offset;
@@ -440,7 +348,7 @@ public class MikuModel {
 			if(bb != null) {
 				rename_pool.remove(map);
 				mat.weight = bb;
-				buildBoneRenamedWeightBuffers(pmd, mat, rename, max_bone);
+				buildBoneRenamedWeightBuffers(mat, rename, max_bone);
 				
 				map.putAll(rename);
 				rename_pool.put(map, bb);
@@ -451,8 +359,8 @@ public class MikuModel {
 		
 		// allocate new buffer
 //		Log.d("MikuModel", "Allocate new buffer");
-		buildNewBoneRenameHash(pmd, mat, rename);
-		buildBoneRenamedWeightBuffers(pmd, mat, rename, max_bone);
+		allocateWeightBuffer(mat, rename);
+		buildBoneRenamedWeightBuffers(mat, rename, max_bone);
 		
 		HashMap<Integer, Integer> new_map = new HashMap<Integer, Integer>(rename);
 		rename_pool.put(new_map, mat.weight);
@@ -466,8 +374,8 @@ public class MikuModel {
 		return mat;
 	}
 	
-	private void buildNewBoneRenameHash(ModelFile pmd, Material mat, HashMap<Integer, Integer> rename) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
+	private void allocateWeightBuffer(Material mat, HashMap<Integer, Integer> rename) {
+		ByteBuffer rbb = ByteBuffer.allocateDirect(mWeightBuffer.capacity());
 		rbb.order(ByteOrder.nativeOrder());
 		mat.weight = rbb;
 	}
@@ -498,54 +406,55 @@ public class MikuModel {
 		}
 	}
 
-	private void buildBoneRenamedWeightBuffers(ModelFile pmd, Material mat, HashMap<Integer, Integer> rename, int max_bone) {
+	private void buildBoneRenamedWeightBuffers(Material mat, HashMap<Integer, Integer> rename, int max_bone) {
 		buildBoneRenameInvMap(mat, rename, max_bone);
 		
 		int[] map = buildBoneRenameMap(mat, rename, max_bone);
 		
+		short[] weight = new short[3];
 		for (int i = mat.face_vert_offset; i < mat.face_vert_offset + mat.face_vert_count; i++) {
-			int pos = pmd.getIndex().get(i);
-			Vertex ver = pmd.getVertex().get(pos);
+			int pos = (0x0000ffff & mIndexBuffer.get(i));
+			mWeightBuffer.position(pos * 3);
+			mWeightBuffer.get(weight);
 			mat.weight.position(pos * 3);
-			mat.weight.put((byte) map[ver.bone_num_0]);
-			mat.weight.put((byte) map[ver.bone_num_1]);
-			mat.weight.put(ver.bone_weight);
+			mat.weight.put((byte) map[weight[0]]);
+			mat.weight.put((byte) map[weight[1]]);
+			mat.weight.put((byte) weight[2]);
 		}
 	
 		mat.weight.position(0);
 	}
 	
-	private void buildBoneRenameIndexAll(ModelFile pmd, int max_bone) {
-		ByteBuffer rbb = ByteBuffer.allocateDirect(pmd.getVertex().size() * 3);
+	private void buildBoneRenameIndexAll() {
+		ByteBuffer rbb = ByteBuffer.allocateDirect(mWeightBuffer.capacity());
 		rbb.order(ByteOrder.nativeOrder());
-	
-		for (int i = 0; i < pmd.getVertex().size(); i++) {
-			int pos = pmd.getIndex().get(i);
-			Vertex v = pmd.getVertex().get(pos);
-			rbb.position(pos * 3);
-			rbb.put((byte) v.bone_num_0);
-			rbb.put((byte) v.bone_num_1);
-			rbb.put((byte) v.bone_weight);				
+
+		mWeightBuffer.position(0);
+		for (int i = 0; i < mWeightBuffer.capacity(); i++) {
+			rbb.put((byte) mWeightBuffer.get());
 		}
 		rbb.position(0);
 	
 		for (Material m : mMaterial) {
 			m.weight = rbb;
 			m.bone_inv_map = null;
-			m.bone_num = pmd.getBone().size();
+			m.bone_num = mBone.size();
 		}
 	}
 
-	private int renameBone1(ModelFile pmd, HashMap<Integer, Integer> rename, int veridx, ArrayList<Vertex> ver, int acc) {
-		int idx = ver.get(pmd.getIndex().get(veridx)).bone_num_0;
-		Integer i = rename.get(idx);
+	private int renameBone1(HashMap<Integer, Integer> rename, int veridx, int acc) {
+		int pos = (0x0000ffff & mIndexBuffer.get(veridx));
+		mWeightBuffer.position(pos * 3);
+		short bone_num_0 = mWeightBuffer.get();
+		short bone_num_1 = mWeightBuffer.get();
+		
+		Integer i = rename.get((int)bone_num_0);
 		if (i == null) {
-			rename.put(idx, acc++);
+			rename.put((int) bone_num_0, acc++);
 		}
-		idx = ver.get(pmd.getIndex().get(veridx)).bone_num_1;
-		i = rename.get(idx);
+		i = rename.get((int)bone_num_1);
 		if (i == null) {
-			rename.put(idx, acc++);
+			rename.put((int) bone_num_1, acc++);
 		}
 	
 		return acc;

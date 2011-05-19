@@ -3,6 +3,7 @@ package jp.gauzau.MikuMikuDroid;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -217,7 +218,7 @@ public class SphereArea {
 	}
 
 	public int initialSet(IntBuffer idx, int pos, int size) {
-		Bone b = getBone(pos);
+		Bone b = getBone(idx.get(pos));
 		SphereBone sb = mSphB.get(b);
 		if(sb == null) {
 			sb = new SphereBone(b);
@@ -247,9 +248,51 @@ public class SphereArea {
 		
 		return i;
 	}
+	
+	public int initialSet(ShortBuffer idx, int pos, int size) {
+		Bone b = getBone(0x0000ffff & (int)idx.get(pos));
+		SphereBone sb = mSphB.get(b);
+		if(sb == null) {
+			sb = new SphereBone(b);
+			mSphB.put(b, sb);
+		}
+		
+		int i;
+		Sphere s = new Sphere(pos);
+		for(i = 0; i < size; i += 3) {
+			int idx_pos = (0x0000ffff & (int)idx.get(pos + i));
+			Bone bc = getBone(idx_pos);
+			if(bc == b || s.mComplex) {
+				addVertex(s, idx, pos + i    , b);
+				addVertex(s, idx, pos + i + 1, b);
+				addVertex(s, idx, pos + i + 2, b);
+			} else {
+				break;
+			}
+		}
+		
+		if(s.mComplex) {
+			sb.addComplex(s);
+//			sb.add(s);			
+		} else {
+			sb.add(s);			
+		}
+		
+		return i;
+	}
 
 	private void addVertex(Sphere s, IntBuffer idxA, int idx, Bone b) {
 		int idx_pos = idxA.get(idx);
+//		Vertex v = mVtx.get(idx_pos);
+		Bone ba = getBone(idx_pos);
+		if(ba != b) {
+			s.setComprex(true);
+		}
+		s.set(idx_pos);
+	}
+	
+	private void addVertex(Sphere s, ShortBuffer idxA, int idx, Bone b) {
+		int idx_pos = (0x0000ffff & (int)idxA.get(idx));
 //		Vertex v = mVtx.get(idx_pos);
 		Bone ba = getBone(idx_pos);
 		if(ba != b) {

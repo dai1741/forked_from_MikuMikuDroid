@@ -1,34 +1,27 @@
 package jp.gauzau.MikuMikuDroid;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Arrays;
 
-public class Material implements Serializable, SerializableExt {
-	private static final long serialVersionUID = 2851797827233142586L;
+public class Material {
+	public float diffuse_color[];
+	public float power;
+	public float specular_color[];
+	public float emmisive_color[];
+	public byte toon_index;
+	public byte edge_flag;
+	public int face_vert_count;
+	public String texture;
 
-	public transient float diffuse_color[];
-	public transient float power;
-	public transient float specular_color[];
-	public transient float emmisive_color[];
-	public transient byte toon_index;
-	public transient byte edge_flag;
-	public transient int face_vert_count;
-	public transient String texture;
+	public int face_vert_offset;
+	public String sphere;
+	public int bone_num;
+	public ByteBuffer weight;
+	public int[] bone_inv_map;
+	public SphereArea area;
 
-	public transient int face_vert_offset;
-	public transient String sphere;
-	public transient int bone_num;
-	public transient ByteBuffer weight;
-	public transient int[] bone_inv_map;
-	public transient SphereArea area;
-
-	public transient int lod_face_vert_offset;
-	public transient int lod_face_vert_count;
+	public int lod_face_vert_offset;
+	public int lod_face_vert_count;
 	
 	public Material(Material mat) {
 		diffuse_color		= mat.diffuse_color;
@@ -97,83 +90,5 @@ public class Material implements Serializable, SerializableExt {
 		} else {
 			return false;
 		}
-	}
-
-	public Material create() {
-		return new Material();
-	}
-	
-	public void write(ObjectOutputStream os) throws IOException {
-		ObjRW.writeFloatA(os, diffuse_color);
-		os.writeFloat(power);
-		ObjRW.writeFloatA(os, specular_color);
-		ObjRW.writeFloatA(os, emmisive_color);
-		os.writeByte(toon_index);
-		os.writeByte(edge_flag);
-		os.writeInt(face_vert_count);
-		ObjRW.writeString(os, texture);
-		
-		os.writeInt(face_vert_offset);
-		ObjRW.writeString(os, sphere);
-		os.writeInt(bone_num);
-//		ObjRW.writeIntA(os, rename_map);
-
-		// rename_index
-		if(weight == null) {
-			os.writeInt(0);
-		} else {
-			os.writeInt(weight.capacity());
-			weight.position(0);
-			for(int i = 0; i < weight.capacity(); i++) {
-				os.writeByte(weight.get());
-			}
-			weight.position(0);
-		}
-		
-		ObjRW.writeIntA(os, bone_inv_map);
-		os.reset();
-		os.flush();
-	}
-	
-	public void read(ObjectInputStream is) throws IOException {
-		diffuse_color	= ObjRW.readFloatA(is);
-		power			= is.readFloat();
-		specular_color	= ObjRW.readFloatA(is);
-		emmisive_color	= ObjRW.readFloatA(is);
-		toon_index		= is.readByte();
-		edge_flag		= is.readByte();
-		face_vert_count	= is.readInt();
-		texture			= ObjRW.readString(is);
-		
-		face_vert_offset= is.readInt();
-		sphere			= ObjRW.readString(is);
-		bone_num= is.readInt();
-//		rename_map		= ObjRW.readIntA(is);
-		
-		// rename_index
-		int len = is.readInt();
-		if(len == 0) {
-			weight = null;
-		} else {
-			ByteBuffer bb = ByteBuffer.allocateDirect(len/2);
-			bb.order(ByteOrder.nativeOrder());
-			weight = bb;
-			for(int i = 0; i < weight.capacity(); i++) {
-				weight.put(is.readByte());
-			}
-			weight.position(0);
-		}
-		
-		bone_inv_map = ObjRW.readIntA(is);
-	}
-	
-	private void writeObject(ObjectOutputStream os) throws IOException {
-		os.defaultWriteObject();
-		write(os);
-	}
-
-	private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
-		is.defaultReadObject();
-		read(is);
 	}
 }

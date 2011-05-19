@@ -30,7 +30,7 @@ public class ParserBase {
 	protected short getShort() {
 		return mBB.getShort();
 	}
-
+	
 	protected byte getByte() {
 		return mBB.get();
 	}

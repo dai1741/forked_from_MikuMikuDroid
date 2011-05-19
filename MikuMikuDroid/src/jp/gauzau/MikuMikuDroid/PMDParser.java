@@ -2,6 +2,11 @@ package jp.gauzau.MikuMikuDroid;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 import android.util.Log;
@@ -12,7 +17,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private String mModelName;
 	private String mDescription;
 	private ArrayList<Vertex> mVertex;
-	private ArrayList<Integer> mIndex;
+//	private ArrayList<Integer> mIndex;
 	private ArrayList<Material> mMaterial;
 	private ArrayList<Bone> mBone;
 	private ArrayList<IK> mIK;
@@ -30,6 +35,12 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private ArrayList<RigidBody> mRigidBody;
 	private ArrayList<Joint> mJoint;
 	private boolean mIsOneSkinning = true;
+	
+	public ShortBuffer	mIndexBuffer;
+	public FloatBuffer	mVertBuffer;
+	public ShortBuffer	mWeightBuffer;
+	
+	private int[] mInvMap;
 
 	public PMDParser(String base, String file) throws IOException {
 		super(file);
@@ -288,7 +299,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 				face.face_vert_cleared = new boolean[face.face_vert_count];
 				face.face_vert_updated = new boolean[face.face_vert_count];
 				for (int j = 0; j < face.face_vert_count; j++) {
-					face.face_vert_index[j] = getInt();
+					face.face_vert_index[j] = face.face_type == 0 ? mInvMap[getInt()] : getInt();
 					face.face_vert_offset[j * 3 + 0] = getFloat();
 					face.face_vert_offset[j * 3 + 1] = getFloat();
 					face.face_vert_offset[j * 3 + 2] = getFloat();
@@ -301,6 +312,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 		} else {
 			mFace = null;
 		}
+		mInvMap = null;
 	}
 
 	private void parsePMDIKList() {
@@ -442,13 +454,37 @@ public class PMDParser extends ParserBase implements ModelFile {
 		int num = getInt();
 		Log.d("PMDParser", "INDEX: " + String.valueOf(num));
 		if (num > 0) {
-			mIndex = new ArrayList<Integer>(num);
-			for (int i = 0; i < num; i++) {
-				mIndex.add(i, (0x0000ffff & getShort()));
+			mInvMap = new int[mVertex.size()];
+			for(int i = 0; i < mInvMap.length; i++) {
+				mInvMap[i] = -1;
 			}
+			mIndexBuffer = ByteBuffer.allocateDirect(num * 2).order(ByteOrder.nativeOrder()).asShortBuffer();
+			int acc = 0;
+			for (int i = 0; i < num; i++) {
+				int vi = (0x0000ffff & getShort());
+				if(mInvMap[vi] < 0) {
+					Vertex v = mVertex.get(vi);
+					mVertBuffer.put(v.pos);
+					mVertBuffer.put(v.normal);
+					mVertBuffer.put(v.uv);
+
+					mWeightBuffer.put(v.bone_num_0);
+					mWeightBuffer.put(v.bone_num_1);
+					mWeightBuffer.put(v.bone_weight);
+
+					mInvMap[vi] = acc++;
+				}
+				mIndexBuffer.put((short) mInvMap[vi]);
+			}
+			mIndexBuffer.position(0);
+			mVertBuffer.position(0);
+			mWeightBuffer.position(0);
 		} else {
-			mIndex = null;
+			mIndexBuffer = null;
+			mVertBuffer = null;
+			mWeightBuffer = null;
 		}
+		mVertex = null;
 	}
 
 	private void parsePMDVertexList() {
@@ -456,37 +492,38 @@ public class PMDParser extends ParserBase implements ModelFile {
 		int num = getInt();
 		Log.d("PMDParser", "VERTEX: " + String.valueOf(num));
 		if (num > 0) {
+			mVertBuffer = ByteBuffer.allocateDirect(num * 4 * 8).order(ByteOrder.nativeOrder()).asFloatBuffer();
+			mWeightBuffer = ByteBuffer.allocate(num * 2 * 3).asShortBuffer();
 			mVertex = new ArrayList<Vertex>(num);
 			for (int i = 0; i < num; i++) {
-				Vertex vertex = new Vertex();
-				vertex.pos = new float[3];
-				vertex.normal = new float[3];
-				vertex.uv = new float[2];
-
-				getFloat(vertex.pos);
-				getFloat(vertex.normal);
-				getFloat(vertex.uv);
-				vertex.bone_num_0 = getShort();
-				vertex.bone_num_1 = getShort();
-
-				vertex.bone_weight = getByte();
-				vertex.edge_flag = getByte();
-
-				if (vertex.bone_weight < 50) { // swap to make bone_num_0 as main bone
-					short tmp = vertex.bone_num_0;
-					vertex.bone_num_0 = vertex.bone_num_1;
-					vertex.bone_num_1 = tmp;
-					vertex.bone_weight = (byte) (100 - vertex.bone_weight);
+				Vertex v = new Vertex();
+				v.pos = new float[3];
+				v.normal = new float[3];
+				v.uv = new float[2];
+				
+				getFloat(v.pos);
+				getFloat(v.normal);
+				getFloat(v.uv);
+				v.bone_num_0 = getShort();
+				v.bone_num_1 = getShort();
+				v.bone_weight = getByte();
+				v.edge_flag = getByte();
+				
+				if (v.bone_weight < 50) { // swap to make bone_num_0 as main bone
+					short tmp = v.bone_num_0;
+					v.bone_num_0 = v.bone_num_1;
+					v.bone_num_1 = tmp;
+					v.bone_weight = (byte) (100 - v.bone_weight);
 				}
 				
-				if(vertex.bone_weight != 100 && vertex.bone_weight != 0) {
+				mVertex.add(v);
+				
+				if(v.bone_weight != 100 && v.bone_weight != 0) {
 					mIsOneSkinning = false;
 				}
-
-				mVertex.add(i, vertex);
 			}
 		} else {
-			mVertex = null;
+			mVertBuffer = null;
 		}
 	}
 
@@ -514,13 +551,29 @@ public class PMDParser extends ParserBase implements ModelFile {
 	public boolean isPmd() {
 		return mIsPmd;
 	}
+	
+	public FloatBuffer getVertexBuffer() {
+		return mVertBuffer;
+	}
+	
+	public IntBuffer getIndexBufferI() {
+		return null;
+	}
+
+	public ShortBuffer getIndexBufferS() {
+		return mIndexBuffer;
+	}
+
+	public ShortBuffer getWeightBuffer() {
+		return mWeightBuffer;
+	}
 
 	public ArrayList<Vertex> getVertex() {
-		return mVertex;
+		return null;
 	}
 
 	public ArrayList<Integer> getIndex() {
-		return mIndex;
+		return null;
 	}
 
 	public ArrayList<Material> getMaterial() {
@@ -562,8 +615,9 @@ public class PMDParser extends ParserBase implements ModelFile {
 	public void recycle() {
 		mModelName = null;
 		mDescription = null;
-		mVertex = null;
-		mIndex = null;
+		mVertBuffer = null;
+		mIndexBuffer = null;
+		mWeightBuffer = null;
 
 		mSkinDisp = null;
 		mEnglishModelName = null;
@@ -575,10 +629,6 @@ public class PMDParser extends ParserBase implements ModelFile {
 	}
 
 	public void recycleVertex() {
-		for (Vertex v : mVertex) {
-			v.normal = null;
-			v.pos = null;
-			v.uv = null;
-		}
+		mVertBuffer = null;
 	}
 }

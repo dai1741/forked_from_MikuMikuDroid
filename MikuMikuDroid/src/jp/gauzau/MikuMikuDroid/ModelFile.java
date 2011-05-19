@@ -1,9 +1,20 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 public interface ModelFile {
 	public boolean isPmd();
+	
+	public FloatBuffer getVertexBuffer();
+	
+	public IntBuffer getIndexBufferI();
+
+	public ShortBuffer getIndexBufferS();
+
+	public ShortBuffer getWeightBuffer();
 
 	public ArrayList<Vertex> getVertex();
 

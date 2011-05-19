@@ -2,6 +2,9 @@ package jp.gauzau.MikuMikuDroid;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 import android.util.Log;
@@ -48,6 +51,23 @@ public class XParser extends ParserBase implements ModelFile {
 	
 	public boolean isPmd() {
 		return mIsX;
+	}
+	
+	
+	public FloatBuffer getVertexBuffer() {
+		return null;
+	}
+	
+	public IntBuffer getIndexBufferI() {
+		return null;
+	}
+
+	public ShortBuffer getIndexBufferS() {
+		return null;
+	}
+
+	public ShortBuffer getWeightBuffer() {
+		return null;
 	}
 
 	public ArrayList<Vertex> getVertex() {

@@ -414,6 +414,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		*/
 
 		GLES20.glFlush();
+		checkGlError(TAG);
 		mCoreLogic.onDraw(pos);
 	}
 	
@@ -472,7 +473,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				drawOneMaterial(glsl, miku, mat);
 			}
 		}
-		miku.mIndexBuffer.position(0);
 	}
 	
 	private void drawAlpha(MikuModel miku, GLSL glsl, boolean alpha_test) {
@@ -520,7 +520,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				}
 			}
 		}
-		miku.mIndexBuffer.position(0);
 	}
 	
 	private void drawOneMaterial(GLSL glsl, MikuModel miku, Material mat) {
@@ -617,13 +616,23 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				int n = sba[i].makeRenderIndex(mCoreLogic.getProjectionMatrix());
 				int[] ri = sba[i].getRenderIndex();
 				for(int j = 0; j < n; j++) {
-					miku.mIndexBuffer.position(ri[j * 2]);
-					GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_INT, miku.mIndexBuffer);
+					if(miku.mIndexBufferI != null) {
+						miku.mIndexBufferI.position(ri[j * 2]);
+						GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_INT, miku.mIndexBufferI);
+					} else {
+						miku.mIndexBuffer.position(ri[j * 2]);
+						GLES20.glDrawElements(GLES20.GL_TRIANGLES, ri[j * 2 + 1], GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);						
+					}
 				}
 			}
 		} else {
-			miku.mIndexBuffer.position(mat.face_vert_offset);
-			GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_INT, miku.mIndexBuffer);
+			if(miku.mIndexBufferI != null) {
+				miku.mIndexBufferI.position(mat.face_vert_offset);
+				GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_INT, miku.mIndexBufferI);
+			} else {
+				miku.mIndexBuffer.position(mat.face_vert_offset);
+				GLES20.glDrawElements(GLES20.GL_TRIANGLES, mat.face_vert_count, GLES20.GL_UNSIGNED_SHORT, miku.mIndexBuffer);
+			}
 		}
 //		checkGlError("glDrawElements");
 	}
@@ -880,14 +889,21 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			} else {
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);				
 			}
-			TexInfo ti = TextureFile.loadTexture(model.mBase, texture, scale, mTexSize[0], mNpot);
-			if(ti != null) {
-				ti.tex = tex[0];
-				if(mNpot) {
-					GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-				}
+			try {
+				TexInfo ti = TextureFile.loadTexture(model.mBase, texture, scale, mTexSize[0], mNpot);
+				if(ti != null) {
+					ti.tex = tex[0];
+					if(mNpot) {
+						GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+					}
 
-				model.mTexture.put(texture, ti);				
+					model.mTexture.put(texture, ti);				
+				} else {
+					GLES20.glDeleteTextures(1, tex, 0);
+				}
+			} catch (OutOfMemoryError e) {
+				GLES20.glDeleteTextures(1, tex, 0);
+				throw new OutOfMemoryError();
 			}
 
 			int err = GLES20.glGetError();
@@ -924,7 +940,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private void checkGlError(String op) {
 		int error;
 		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
-			Log.e(TAG, op + ": glError " + error);
+			Log.e(TAG, op + ": glError " + error + " " + GLU.gluErrorString(error));
 //			throw new RuntimeException(op + ": glError " + error);
 		}
 	}
