@@ -14,12 +14,13 @@ public class XParser extends ParserBase implements ModelFile {
 	private String  mFileName;
 	private boolean mIsX;
 	private ArrayList<ByteBuffer> mVertex;
-	private ArrayList<ArrayList<Integer>> mIndex;
+	private ArrayList<ByteBuffer> mIndex;
 	private ArrayList<Material> mMaterial;
 	private ArrayList<Bone>		mBone;
 	private ArrayList<String> mToonFileName;
 
 	private ArrayList<ArrayList<Integer>> mRawFace;
+	private int mRawFaceNum;
 	private int mVertBase;
 	private int mVertNum;
 	private int mIdxBase;
@@ -147,7 +148,7 @@ public class XParser extends ParserBase implements ModelFile {
 	
 	private void parseXMesh(String base, String path, float scale) throws IOException {
 		mVertex = new ArrayList<ByteBuffer>();
-		mIndex = new ArrayList<ArrayList<Integer>>();
+		mIndex = new ArrayList<ByteBuffer>();
 		mMaterial = new ArrayList<Material>();
 		mVertBase = 0;
 		mIdxBase = 0;
@@ -163,7 +164,7 @@ public class XParser extends ParserBase implements ModelFile {
 			while(!(t.type == '}')) {
 				if(t.s.equals("MeshMaterialList")) {
 					nextLine();
-					parseMaterial(path, acc);
+					parseMaterial(base, path, acc);
 				} else if(t.s.equals("MeshTextureCoords")) {
 					nextLine();
 					parseTexCoord(acc);
@@ -211,19 +212,16 @@ public class XParser extends ParserBase implements ModelFile {
 		mVertBuffer.position(0);
 	}
 	
-	private void createIndexBuffer(ModelBuilder mb) {
+	private void createIndexBuffer(ModelBuilder mb) throws IOException {
 		int size = 0;
-		for(ArrayList<Integer> ai: mIndex) {
-			size += ai.size();
+		for(ByteBuffer ai: mIndex) {
+			size += ai.capacity() / 4;
 		}
 		mIndexBuffer = mb.createIndexBuffer(size);
-		int base = 0;
 		for(int i = 0; i < mIndex.size(); i++) {
-			ArrayList<Integer> ai = mIndex.get(i);
-			for(Integer idx: ai) {
-				mIndexBuffer.put(idx + base);
-			}
-			base += mVertex.get(i).capacity() / 8 / 4;
+			ByteBuffer ai = mIndex.get(i);
+			mIndexBuffer.put(ai.asIntBuffer());
+			LargeBuffer.close(ai);
 		}
 		mIndexBuffer.position(0);
 	}
@@ -233,7 +231,7 @@ public class XParser extends ParserBase implements ModelFile {
 		int n = (int) getToken(t);
 		nextLine();
 		
-		ByteBuffer avb = LargeBuffer.openTemp(base + "/.cache/XFILE" + Integer.valueOf(pos) + ".tmp", n * 8 * 4);
+		ByteBuffer avb = LargeBuffer.openTemp(base + "/.cache/XFILE_V" + Integer.valueOf(pos) + ".tmp", n * 8 * 4);
 		FloatBuffer av = avb.asFloatBuffer();
 		
 		for(int i = 0; i < n; i++) {
@@ -257,9 +255,11 @@ public class XParser extends ParserBase implements ModelFile {
 		nextLine();
 		
 		mRawFace = new ArrayList<ArrayList<Integer>>(n);
+		mRawFaceNum = 0;
 		for(int i = 0; i < n; i++) {
 			getToken(t);
 			int m = (int) t.num;
+			mRawFaceNum += m == 3 ? m : 6;
 			getToken(t);	// must be ';'
 			ArrayList<Integer> f = new ArrayList<Integer>(m);
 			for(int j = 0; j < m; j++) {
@@ -273,7 +273,7 @@ public class XParser extends ParserBase implements ModelFile {
 		Log.d("XParser", String.format("Face: %d", n));		
 	}
 	
-	private void parseMaterial(String path, int pos) throws IOException {
+	private void parseMaterial(String base, String path, int pos) throws IOException {
 		Token t = new Token();
 		
 		int mn = (int) getToken(t);
@@ -303,7 +303,9 @@ public class XParser extends ParserBase implements ModelFile {
 		int acc = mIdxBase;
 		// count index
 		
-		ArrayList<Integer> idx = new ArrayList<Integer>();
+		ByteBuffer aib = LargeBuffer.openTemp(base + "/.cache/XFILE_I" + Integer.valueOf(pos) + ".tmp", mRawFaceNum * 4);
+		IntBuffer idx = aib.asIntBuffer();
+
 		ArrayList<Material> mat = mMaterial;
 		for(int i = 0; i < mn; i++) {
 			Material m = new Material();
@@ -367,18 +369,18 @@ public class XParser extends ParserBase implements ModelFile {
 				ArrayList<Integer> face = mRawFace.get(rf.get(j));
 				if(face.size() == 3) {
 					acc += 3;
-					idx.add(face.get(0));
-					idx.add(face.get(1));
-					idx.add(face.get(2));
+					idx.put(face.get(0) + mVertBase);
+					idx.put(face.get(1) + mVertBase);
+					idx.put(face.get(2) + mVertBase);
 				} else if(face.size() == 4){	// must be face.size() == 4
 					acc += 6;
-					idx.add(face.get(0));
-					idx.add(face.get(1));
-					idx.add(face.get(2));
+					idx.put(face.get(0) + mVertBase);
+					idx.put(face.get(1) + mVertBase);
+					idx.put(face.get(2) + mVertBase);
 					
-					idx.add(face.get(0));
-					idx.add(face.get(2));
-					idx.add(face.get(3));
+					idx.put(face.get(0) + mVertBase);
+					idx.put(face.get(2) + mVertBase);
+					idx.put(face.get(3) + mVertBase);
 				} else {
 					Log.d("XParser", "Illegal face");
 				}
@@ -387,7 +389,7 @@ public class XParser extends ParserBase implements ModelFile {
 			mat.add(m);
 		}
 		mIdxBase = acc;
-		mIndex.add(pos, idx);
+		mIndex.add(pos, aib);
 		
 		getToken(t); // must be '}'
 		Log.d("XParser", String.format("Material: %d %d, index total %d", mn, fn, mIdxBase));
