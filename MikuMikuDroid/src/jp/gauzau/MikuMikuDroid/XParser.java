@@ -2,6 +2,7 @@ package jp.gauzau.MikuMikuDroid;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -12,8 +13,8 @@ import android.util.Log;
 public class XParser extends ParserBase implements ModelFile {
 	private String  mFileName;
 	private boolean mIsX;
-	private ArrayList<Vertex> mVertex;
-	private ArrayList<Integer> mIndex;
+	private ArrayList<ByteBuffer> mVertex;
+	private ArrayList<ArrayList<Integer>> mIndex;
 	private ArrayList<Material> mMaterial;
 	private ArrayList<Bone>		mBone;
 	private ArrayList<String> mToonFileName;
@@ -22,6 +23,10 @@ public class XParser extends ParserBase implements ModelFile {
 	private int mVertBase;
 	private int mVertNum;
 	private int mIdxBase;
+	
+	public IntBuffer	mIndexBuffer;
+	public FloatBuffer	mVertBuffer;
+	private ModelBuilder mMb;
 
 	public XParser(String base, String file, float scale) throws IOException {
 		super(file);
@@ -33,15 +38,9 @@ public class XParser extends ParserBase implements ModelFile {
 		try {
 			parseXHeader();
 			if(mIsX) {
-				parseXMesh(path, scale);
-				setDummyBone("センター");
-				
-				mToonFileName = new ArrayList<String>(11);
-				mToonFileName.add(0, base + "Data/toon0.bmp");
-				for (int i = 0; i < 10; i++) {
-					String str = String.format(base + "Data/toon%02d.bmp", i + 1);
-					mToonFileName.add(i + 1, str);
-				}
+				parseXMesh(base, path, scale);
+				createBuffers(base, file);
+
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -55,11 +54,11 @@ public class XParser extends ParserBase implements ModelFile {
 	
 	
 	public FloatBuffer getVertexBuffer() {
-		return null;
+		return mVertBuffer;
 	}
 	
 	public IntBuffer getIndexBufferI() {
-		return null;
+		return mIndexBuffer;
 	}
 
 	public ShortBuffer getIndexBufferS() {
@@ -71,11 +70,11 @@ public class XParser extends ParserBase implements ModelFile {
 	}
 
 	public ArrayList<Vertex> getVertex() {
-		return mVertex;
+		return null;
 	}
 
 	public ArrayList<Integer> getIndex() {
-		return mIndex;
+		return null;
 	}
 
 	public ArrayList<Material> getMaterial() {
@@ -113,6 +112,10 @@ public class XParser extends ParserBase implements ModelFile {
 	public boolean isOneSkinning() {
 		return true;
 	}
+	
+	public ModelBuilder getModelBuilder() {
+		return mMb;
+	}
 
 	public void recycle() {
 		mVertex = null;
@@ -122,11 +125,15 @@ public class XParser extends ParserBase implements ModelFile {
 	}
 
 	public void recycleVertex() {
-		for (Vertex v : mVertex) {
-			v.normal = null;
-			v.pos = null;
-			v.uv = null;
+		/*
+		for(ArrayList<Vertex> av: mVertex) {
+			for (Vertex v : av) {
+				v.normal = null;
+				v.pos = null;
+				v.uv = null;
+			}			
 		}
+		*/
 	}
 
 	private void parseXHeader() {
@@ -138,16 +145,17 @@ public class XParser extends ParserBase implements ModelFile {
 		nextLine();
 	}
 	
-	private void parseXMesh(String path, float scale) throws IOException {
-		mVertex = new ArrayList<Vertex>();
-		mIndex = new ArrayList<Integer>();
-		mMaterial = new ArrayList<Material>(0);
+	private void parseXMesh(String base, String path, float scale) throws IOException {
+		mVertex = new ArrayList<ByteBuffer>();
+		mIndex = new ArrayList<ArrayList<Integer>>();
+		mMaterial = new ArrayList<Material>();
 		mVertBase = 0;
 		mIdxBase = 0;
 
 		// find mesh body
+		int acc = 0;
 		while(skipToBody("Mesh")) {
-			parseVertex(scale);
+			parseVertex(base, scale, acc);
 			parseFace();
 
 			Token t = new Token();
@@ -155,45 +163,89 @@ public class XParser extends ParserBase implements ModelFile {
 			while(!(t.type == '}')) {
 				if(t.s.equals("MeshMaterialList")) {
 					nextLine();
-					parseMaterial(path);
+					parseMaterial(path, acc);
 				} else if(t.s.equals("MeshTextureCoords")) {
 					nextLine();
-					parseTexCoord();
+					parseTexCoord(acc);
 				} else {
 					break;
 				}
 				getToken(t);
 			}
 			mVertBase += mVertNum;
+			acc++;
 		}
 	}
 	
-	private void parseVertex(float scale) throws IOException {
+	private void createBuffers(String base, String modelf) throws IOException {
+		mMb = new ModelBuilder(modelf);
+		
+		createVertBuffer(mMb);
+		createIndexBuffer(mMb);
+		
+		setDummyBone("センター");
+		
+		mToonFileName = new ArrayList<String>(11);
+		mToonFileName.add(0, base + "Data/toon0.bmp");
+		for (int i = 0; i < 10; i++) {
+			String str = String.format(base + "Data/toon%02d.bmp", i + 1);
+			mToonFileName.add(i + 1, str);
+		}
+		
+		mMb.mMaterial = getMaterial();
+		mMb.mBone = getBone();
+		mMb.mToonFileName = getToonFileName();
+		mMb.mIsOneSkinning = isOneSkinning();
+	}
+	
+	private void createVertBuffer(ModelBuilder mb) throws IOException {
+		int size = 0;
+		for(ByteBuffer av: mVertex) {
+			size += av.capacity() / 8 / 4;
+		}
+		mVertBuffer = mb.createVertBuffer(size);
+		for(ByteBuffer av: mVertex) {
+			mVertBuffer.put(av.asFloatBuffer());
+			LargeBuffer.close(av);
+		}
+		mVertBuffer.position(0);
+	}
+	
+	private void createIndexBuffer(ModelBuilder mb) {
+		int size = 0;
+		for(ArrayList<Integer> ai: mIndex) {
+			size += ai.size();
+		}
+		mIndexBuffer = mb.createIndexBuffer(size);
+		int base = 0;
+		for(int i = 0; i < mIndex.size(); i++) {
+			ArrayList<Integer> ai = mIndex.get(i);
+			for(Integer idx: ai) {
+				mIndexBuffer.put(idx + base);
+			}
+			base += mVertex.get(i).capacity() / 8 / 4;
+		}
+		mIndexBuffer.position(0);
+	}
+	
+	private void parseVertex(String base, float scale, int pos) throws IOException {
 		Token t = new Token();
 		int n = (int) getToken(t);
 		nextLine();
 		
+		ByteBuffer avb = LargeBuffer.openTemp(base + "/.cache/XFILE" + Integer.valueOf(pos) + ".tmp", n * 8 * 4);
+		FloatBuffer av = avb.asFloatBuffer();
+		
 		for(int i = 0; i < n; i++) {
-			Vertex v = new Vertex();
-			v.pos = new float[3];
-			v.normal = new float[3];
-			v.uv = new float[2];
-
-			v.pos[0] = getToken(t) * scale;
+			av.position(i * 8);
+			av.put(getToken(t) * scale);
 			getToken(t);	// must be ','
-			v.pos[1] = getToken(t) * scale;
+			av.put(getToken(t) * scale);
 			getToken(t);	// must be ','
-			v.pos[2] = getToken(t) * scale;
-			getToken(t);	// must be ','
-			
-			v.bone_num_0 = 0;
-			v.bone_num_1 = 0;
-			v.bone_weight = 100;
-			v.edge_flag = 0;
-
-			mVertex.add(v);
+			av.put(getToken(t) * scale);
 			nextLine();
 		}
+		mVertex.add(pos, avb);
 		mVertNum = n;
 		Log.d("XParser", String.format("Vertex: %d, total %d", n, mVertBase + mVertNum));
 	}
@@ -221,7 +273,7 @@ public class XParser extends ParserBase implements ModelFile {
 		Log.d("XParser", String.format("Face: %d", n));		
 	}
 	
-	private void parseMaterial(String path) throws IOException {
+	private void parseMaterial(String path, int pos) throws IOException {
 		Token t = new Token();
 		
 		int mn = (int) getToken(t);
@@ -249,6 +301,10 @@ public class XParser extends ParserBase implements ModelFile {
 		
 		// read and reconstruct material and index
 		int acc = mIdxBase;
+		// count index
+		
+		ArrayList<Integer> idx = new ArrayList<Integer>();
+		ArrayList<Material> mat = mMaterial;
 		for(int i = 0; i < mn; i++) {
 			Material m = new Material();
 			
@@ -311,43 +367,46 @@ public class XParser extends ParserBase implements ModelFile {
 				ArrayList<Integer> face = mRawFace.get(rf.get(j));
 				if(face.size() == 3) {
 					acc += 3;
-					mIndex.add(face.get(0) + mVertBase);
-					mIndex.add(face.get(1) + mVertBase);
-					mIndex.add(face.get(2) + mVertBase);
+					idx.add(face.get(0));
+					idx.add(face.get(1));
+					idx.add(face.get(2));
 				} else if(face.size() == 4){	// must be face.size() == 4
 					acc += 6;
-					mIndex.add(face.get(0) + mVertBase);
-					mIndex.add(face.get(1) + mVertBase);
-					mIndex.add(face.get(2) + mVertBase);
+					idx.add(face.get(0));
+					idx.add(face.get(1));
+					idx.add(face.get(2));
 					
-					mIndex.add(face.get(0) + mVertBase);
-					mIndex.add(face.get(2) + mVertBase);
-					mIndex.add(face.get(3) + mVertBase);
+					idx.add(face.get(0));
+					idx.add(face.get(2));
+					idx.add(face.get(3));
 				} else {
 					Log.d("XParser", "Illegal face");
 				}
 			}
 			m.face_vert_count = acc - m.face_vert_offset;
-			mMaterial.add(m);
+			mat.add(m);
 		}
 		mIdxBase = acc;
+		mIndex.add(pos, idx);
 		
 		getToken(t); // must be '}'
 		Log.d("XParser", String.format("Material: %d %d, index total %d", mn, fn, mIdxBase));
 	}
 	
-	private void parseTexCoord() throws IOException {
+	private void parseTexCoord(int pos) throws IOException {
 		Token t = new Token();
 
 		int n = (int) getToken(t);
 		getToken(t);
 		
 		if(mVertNum == n) {
+			ByteBuffer vtxb = mVertex.get(pos);
+			FloatBuffer vtx = vtxb.asFloatBuffer();
 			for(int i = 0; i < n; i++) {
-				Vertex v = mVertex.get(i + mVertBase);
-				v.uv[0] = getToken(t);
+				vtx.position(i * 8 + 6);
+				vtx.put(getToken(t));
 				getToken(t);	// must be ';'
-				v.uv[1] = getToken(t);
+				vtx.put(getToken(t));
 				nextLine();
 			}
 			getToken(t);	// must be '}'

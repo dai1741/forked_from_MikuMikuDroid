@@ -8,7 +8,6 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map.Entry;
 
 import android.util.Log;
@@ -83,8 +82,6 @@ public class MikuModel {
 			Log.d("MikuModel", pmd.getFileName() + " has only one skinnings.");			
 		}
 
-//		mMaterial = mergeMaterials(mMaterial);
-//		makeLoDIndex(pmd);
 		if (animation) {
 			reconstructFace();
 			if(mBone.size() <= mMaxBone) {
@@ -131,26 +128,6 @@ public class MikuModel {
 		mFaceBase = null;
 	}
 
-	private ArrayList<Material> mergeMaterials(ArrayList<Material> ma) {
-		ArrayList<Material> man = new ArrayList<Material>();
-		Material prev = null;
-		for(Material m: ma) {
-			if(prev != null) {
-				if(prev.equals(m)) {
-					Material n = new Material(prev);
-					n.face_vert_count += m.face_vert_count;
-					prev = n;					
-				} else {
-					man.add(prev);
-					prev = m;
-				}
-			} else {
-				prev = m;
-			}
-		}
-		man.add(prev);
-		return man;
-	}
 	private void reconstructFace() {
 		mFaceBase = null;
 	
@@ -187,110 +164,6 @@ public class MikuModel {
 			m.area.recycle();
 		}
 	}
-	
-	private void makeLoDIndex(ModelFile pmd) {
-		HashSet<Integer> red = new HashSet<Integer>();
-		HashSet<Integer> eff = new HashSet<Integer>();
-		HashMap<Integer, Integer> vset = new HashMap<Integer, Integer>();
-		
-		ArrayList<Integer> idx = pmd.getIndex();
-		for(int i = 0; i < idx.size(); i += 3) {
-			int v0 = idx.get(i + 0);
-			int v1 = idx.get(i + 1);
-			int v2 = idx.get(i + 2);
-			
-			boolean r0 = red.contains(v0);
-			boolean r1 = red.contains(v1);
-			boolean r2 = red.contains(v2);
-			
-			if(r0 || r1 || r2) {
-				if(!r0) {
-					eff.add(v0);
-				}
-				if(!r1) {
-					eff.add(v1);
-				}
-				if(!r2) {
-					eff.add(v2);
-				}
-			} else {
-				boolean e0 = eff.contains(v0);
-				boolean e1 = eff.contains(v1);
-				boolean e2 = eff.contains(v2);
-				
-				if(!e0 && !e1) {
-					red.add(v0);
-					red.add(v1);
-					vset.put(v0, v1);
-					
-					eff.add(v2);
-				} else if(!e1 && !e2) {
-					red.add(v1);
-					red.add(v2);
-					vset.put(v1, v2);
-					
-					eff.add(v0);
-				} else if(!e2 && !e0) {
-					red.add(v2);
-					red.add(v0);
-					vset.put(v2, v0);
-					
-					eff.add(v1);
-				}
-			}
-		}
-	
-		mLoDIndex = new ArrayList<Integer>();
-		for(Material mat: pmd.getMaterial()) {
-			mat.lod_face_vert_offset = mLoDIndex.size();
-			for(int i = mat.face_vert_offset; i < mat.face_vert_offset + mat.face_vert_count; i += 3) {
-				int v0 = idx.get(i + 0);
-				int v1 = idx.get(i + 1);
-				int v2 = idx.get(i + 2);
-				
-				boolean r0 = red.contains(v0);
-				boolean r1 = red.contains(v1);
-				boolean r2 = red.contains(v2);
-				
-				if(r0 && !r1 && !r2) {
-					Integer ren = vset.get(v0);
-					if(ren != null) {
-						mLoDIndex.add(ren);
-					} else {
-						mLoDIndex.add(v0);
-					}
-					mLoDIndex.add(v1);
-					mLoDIndex.add(v2);					
-				} else if(!r0 && r1 && !r2) {
-					mLoDIndex.add(v0);
-					Integer ren = vset.get(v1);
-					if(ren != null) {
-						mLoDIndex.add(ren);
-					} else {
-						mLoDIndex.add(v1);
-					}
-					mLoDIndex.add(v2);					
-				} else if(!r0 && !r1 && r2) {
-					mLoDIndex.add(v0);
-					mLoDIndex.add(v1);
-					Integer ren = vset.get(v2);
-					if(ren != null) {
-						mLoDIndex.add(ren);
-					} else {
-						mLoDIndex.add(v2);
-					}
-				} else if(!r0 && !r1 && !r2) {
-					mLoDIndex.add(v0);
-					mLoDIndex.add(v1);
-					mLoDIndex.add(v2);
-				}
-			}
-			mat.lod_face_vert_count = mLoDIndex.size() - mat.lod_face_vert_offset;
-			Log.d("MikuModel", String.format("Material     offset %d, count %d", mat.face_vert_offset, mat.face_vert_count));
-			Log.d("MikuModel", String.format("Material LoD offset %d, count %d", mat.lod_face_vert_offset, mat.lod_face_vert_count));
-		}
-	}
-
 
 	private void reconstructMaterial(int max_bone) {
 		mRendarList = new ArrayList<Material>();
@@ -309,12 +182,7 @@ public class MikuModel {
 			acc = renameBone1(rename, mat.face_vert_offset + j + 1, acc);
 			acc = renameBone1(rename, mat.face_vert_offset + j + 2, acc);
 			if (acc > max_bone) {
-				for(Entry<Integer, Integer> m: rename.entrySet()) {
-					if(m.getValue() >= acc_prev) {
-						rename.remove(m.getKey());
-					}
-				}
-				Material mat_new = buildNewMaterial(mat, offset, j, rename, rename_pool, max_bone);
+				Material mat_new = buildNewMaterial(mat, offset, j, rename, rename_pool, acc_prev);
 				mRendarList.add(mat_new);
 				reconstructMaterial1(mat, j, rename_pool, max_bone);
 				return;

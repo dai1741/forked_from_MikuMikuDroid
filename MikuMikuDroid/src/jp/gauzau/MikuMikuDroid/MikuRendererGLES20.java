@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+
 import jp.gauzau.MikuMikuDroid.Miku.RenderSet;
 
 import android.graphics.BitmapFactory;
@@ -212,14 +213,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	// shader
 	private HashMap<String, RenderTarget> mRT;
 	private HashMap<String, GLSL>	mGLSL;
-	/*
-	private GLSL mGLSL;
-	private GLSL mGLSLA;
-	private GLSL mGLSLST;
-	private GLSL mGLSLSA;
-	private GLSL mGLSLBG;
-	private GLSL mGLSLD;
-	*/
 	
 	// for background
 	private MikuModel	mBG = new MikuModel();
@@ -332,6 +325,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 		// bind textures
 		initializeAllTexture(true);
+		initializeAllSkinningTexture();
 	}
 	
 	@Override
@@ -348,6 +342,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mRT.get("screen").switchTargetFrameBuffer();
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 		initializeAllTexture(false);
+		initializeAllSkinningTexture();
 
 		int pos = mCoreLogic.applyCurrentMotion();
 
@@ -395,23 +390,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			bindBgBuffer(glsl);
 			drawBg(bg);
 		}
-
-		////////////////////////////////////////////////////////////////////
-		//// Post Effects
-		/*
-		mRT.get(2).switchTargetFrameBuffer();
-		GLES20.glUseProgram(mGLSLBG.mProgram);
-		GLES20.glUniform1i(mGLSLBG.msTextureSampler, 1);
-		bindPostEffectBuffer(mGLSLBG);
-		drawPostEffect(1);
-		
-		mRT.get(0).switchTargetFrameBuffer();
-		GLES20.glUseProgram(mGLSLD.mProgram);
-		GLES20.glUniform1i(mGLSLD.msTextureSampler, 1);
-		GLES20.glUniform1i(mGLSLD.msSphereSampler, 2);
-		bindPostEffectBuffer(mGLSLD);
-		drawPostEffect2(1, 2);
-		*/
 
 		GLES20.glFlush();
 		checkGlError(TAG);
@@ -652,24 +630,23 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		}
 	}
 	
-	private void drawPostEffect(int buf) {
-		GLES20.glDisable(GLES20.GL_CULL_FACE);
-		GLES20.glDisable(GLES20.GL_BLEND);
-
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-		mRT.get(buf).bindTexture();
-		GLES20.glDrawElements(GLES20.GL_TRIANGLES, 6, GLES20.GL_UNSIGNED_SHORT, mBgIndex);
-	}
-	
-	private void drawPostEffect2(int buf1, int buf2) {
-		GLES20.glDisable(GLES20.GL_CULL_FACE);
-		GLES20.glDisable(GLES20.GL_BLEND);
-
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-		mRT.get(buf1).bindTexture();
-		GLES20.glActiveTexture(GLES20.GL_TEXTURE2);
-		mRT.get(buf2).bindTexture();
-		GLES20.glDrawElements(GLES20.GL_TRIANGLES, 6, GLES20.GL_UNSIGNED_SHORT, mBgIndex);
+	private boolean initializeAllSkinningTexture() {
+		// try binding
+		if (mCoreLogic.getMiku() != null) {
+			for (Miku miku : mCoreLogic.getMiku()) {
+				if(miku.mMotion != null) {
+					if(miku.mMotion.mIsTextureLoaded == false) {
+						if(initializeSkinningTextures(miku)) {
+							miku.mMotion.mIsTextureLoaded = true;
+						} else {
+							return false;
+						}
+					}					
+				}
+			}
+		}
+		
+		return true;
 	}
 
 	private void initializeAllTexture(boolean all) {
@@ -683,7 +660,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	}
 
 	private boolean deleteAllTexture() {
-		// try binding
 		if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
 				deleteTexture(miku.mModel);
@@ -732,6 +708,46 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		
 		return ret;
 	}
+	
+	private boolean initializeSkinningTextures(Miku miku) {
+		MikuMotion mm = miku.mMotion;
+		if(mm != null) {
+			for(Entry<String, MotionIndexA> mia: mm.getMotion().entrySet()) {
+				MotionIndexA mi = mia.getValue();
+				GLES20.glGenTextures(mi.texture.length, mi.texture, 0);
+				initializeSkinningTexture1(mi.texture, 0, mi.location_b);
+				initializeSkinningTexture1(mi.texture, 1, mi.rotation_b);
+				initializeSkinningTexture1(mi.texture, 2, mi.interp_x);
+				initializeSkinningTexture1(mi.texture, 3, mi.interp_y);
+				initializeSkinningTexture1(mi.texture, 4, mi.interp_z);
+				initializeSkinningTexture1(mi.texture, 5, mi.interp_a);
+			}
+		}
+		return true;
+	}
+	
+	private boolean initializeSkinningTexture1(int[] tex, int ofs, byte[] data) {
+		GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[ofs]);
+		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+		try {
+			ByteBuffer buf = ByteBuffer.allocateDirect(data.length).order(ByteOrder.nativeOrder());
+			buf.put(data);
+			GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, data.length / 4, 1, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
+		} catch (OutOfMemoryError e) {
+			GLES20.glDeleteTextures(1, tex, ofs);
+			throw new OutOfMemoryError();
+		}
+
+		int err = GLES20.glGetError();
+		if (err != 0) {
+			Log.d("MikuRendererGLES20", GLU.gluErrorString(err));
+		}
+		
+		return true;
+	}
 
 	private void bindBuffer(MikuModel miku, GLSL glsl) {
 		GLES20.glEnableVertexAttribArray(glsl.maPositionHandle);
@@ -759,37 +775,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		} else {
 			t = 0;
 		}
-		
-		// left
-		mBgVertex.put(2, s);
-		mBgVertex.put(6, s);
-
-		// right
-		mBgVertex.put(10, 1 - s);
-		mBgVertex.put(14, 1 - s);
-		
-		// top
-		mBgVertex.put(3, 1 - t);
-		mBgVertex.put(15, 1 - t);
-		
-		// bottom
-		mBgVertex.put(7, t);
-		mBgVertex.put(11, t);
-		
-		mBgVertex.position(0);
-
-		GLES20.glEnableVertexAttribArray(glsl.maPositionHandle);
-		mBgVertex.position(0);
-		GLES20.glVertexAttribPointer(glsl.maPositionHandle, 4, GLES20.GL_FLOAT, false, 0, mBgVertex);
-//		checkGlError("drawGLES20 VertexAttribPointer bg vertex");
-		
-		mBgVertex.position(0);
-	}
-	
-	private void bindPostEffectBuffer(GLSL glsl) {
-		float s, t;
-		s = 0;
-		t = 1;
 		
 		// left
 		mBgVertex.put(2, s);

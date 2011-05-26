@@ -16,8 +16,6 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private boolean mIsPmd;
 	private String mModelName;
 	private String mDescription;
-	private ArrayList<Vertex> mVertex;
-//	private ArrayList<Integer> mIndex;
 	private ArrayList<Material> mMaterial;
 	private ArrayList<Bone> mBone;
 	private ArrayList<IK> mIK;
@@ -40,6 +38,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 	public FloatBuffer	mVertBuffer;
 	public ShortBuffer	mWeightBuffer;
 	
+	private int mVertexPos;
 	private int[] mInvMap;
 
 	public PMDParser(String base, String file) throws IOException {
@@ -454,23 +453,40 @@ public class PMDParser extends ParserBase implements ModelFile {
 		int num = getInt();
 		Log.d("PMDParser", "INDEX: " + String.valueOf(num));
 		if (num > 0) {
-			mInvMap = new int[mVertex.size()];
+			mInvMap = new int[mVertBuffer.capacity() / 8];
 			for(int i = 0; i < mInvMap.length; i++) {
 				mInvMap[i] = -1;
 			}
 			mIndexBuffer = ByteBuffer.allocateDirect(num * 2).order(ByteOrder.nativeOrder()).asShortBuffer();
+			float[] data = new float[8]; 
 			int acc = 0;
 			for (int i = 0; i < num; i++) {
 				int vi = (0x0000ffff & getShort());
 				if(mInvMap[vi] < 0) {
-					Vertex v = mVertex.get(vi);
-					mVertBuffer.put(v.pos);
-					mVertBuffer.put(v.normal);
-					mVertBuffer.put(v.uv);
-
-					mWeightBuffer.put(v.bone_num_0);
-					mWeightBuffer.put(v.bone_num_1);
-					mWeightBuffer.put(v.bone_weight);
+					int pos = position();
+					position(mVertexPos + vi * 38);
+					getFloat(data);
+					short bone_num_0 = getShort();
+					short bone_num_1 = getShort();
+					byte bone_weight = getByte();
+//					byte edge_flag = getByte();
+					position(pos);
+					
+					if (bone_weight < 50) { // swap to make bone_num_0 as main bone
+						short tmp = bone_num_0;
+						bone_num_0 = bone_num_1;
+						bone_num_1 = tmp;
+						bone_weight = (byte) (100 - bone_weight);
+					}
+					
+					if(bone_weight != 100) {
+						mIsOneSkinning = false;
+					}
+					
+					mVertBuffer.put(data);
+					mWeightBuffer.put(bone_num_0);
+					mWeightBuffer.put(bone_num_1);
+					mWeightBuffer.put(bone_weight);
 
 					mInvMap[vi] = acc++;
 				}
@@ -484,7 +500,6 @@ public class PMDParser extends ParserBase implements ModelFile {
 			mVertBuffer = null;
 			mWeightBuffer = null;
 		}
-		mVertex = null;
 	}
 
 	private void parsePMDVertexList() {
@@ -492,36 +507,10 @@ public class PMDParser extends ParserBase implements ModelFile {
 		int num = getInt();
 		Log.d("PMDParser", "VERTEX: " + String.valueOf(num));
 		if (num > 0) {
+			mVertexPos = position();
 			mVertBuffer = ByteBuffer.allocateDirect(num * 4 * 8).order(ByteOrder.nativeOrder()).asFloatBuffer();
 			mWeightBuffer = ByteBuffer.allocate(num * 2 * 3).asShortBuffer();
-			mVertex = new ArrayList<Vertex>(num);
-			for (int i = 0; i < num; i++) {
-				Vertex v = new Vertex();
-				v.pos = new float[3];
-				v.normal = new float[3];
-				v.uv = new float[2];
-				
-				getFloat(v.pos);
-				getFloat(v.normal);
-				getFloat(v.uv);
-				v.bone_num_0 = getShort();
-				v.bone_num_1 = getShort();
-				v.bone_weight = getByte();
-				v.edge_flag = getByte();
-				
-				if (v.bone_weight < 50) { // swap to make bone_num_0 as main bone
-					short tmp = v.bone_num_0;
-					v.bone_num_0 = v.bone_num_1;
-					v.bone_num_1 = tmp;
-					v.bone_weight = (byte) (100 - v.bone_weight);
-				}
-				
-				mVertex.add(v);
-				
-				if(v.bone_weight != 100 && v.bone_weight != 0) {
-					mIsOneSkinning = false;
-				}
-			}
+			position(mVertexPos + num * 38);
 		} else {
 			mVertBuffer = null;
 		}

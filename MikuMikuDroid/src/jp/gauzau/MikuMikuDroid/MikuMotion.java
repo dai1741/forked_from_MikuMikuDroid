@@ -20,6 +20,8 @@ public class MikuMotion implements Serializable {
 
 	private transient HashMap<String, MotionIndexA> mIKMotion;
 
+	public boolean mIsTextureLoaded = false;
+
 	public MikuMotion(VMDParser vmd) {
 		mIKMotion		= null;
 		attachVMD(vmd);
@@ -83,11 +85,23 @@ public class MikuMotion implements Serializable {
 				mia.frame_no[i] = mi.frame_no;
 				System.arraycopy(mi.location, 0, mia.location, i*3, 3);
 				System.arraycopy(mi.rotation, 0, mia.rotation, i*4, 4);
-				if(mia.interp != null) {
+				for(int j = 0; j < 3; j++) {
+					mia.location_b[i * 3 + j] = (byte) (mi.location[j] * 16);
+					mia.rotation_b[i * 3 + j] = (byte) (mi.rotation[j] * 256);
+				}
+				mia.location_b[i * 3 + 3] = (byte) mi.frame_no;
+				mia.rotation_b[i * 3 + 3] = (byte) (mi.rotation[3] * 256);
+				if(mia.interp_x != null) {
 					if(mi.interp != null) {
-						System.arraycopy(mi.interp, 0, mia.interp, i*16, 16);
+						for(int j = 0; j < 4; j++) {
+							mia.interp_x[i * 4 + j] = mi.interp[j * 4 + 0];
+							mia.interp_y[i * 4 + j] = mi.interp[j * 4 + 1];
+							mia.interp_z[i * 4 + j] = mi.interp[j * 4 + 2];
+							mia.interp_a[i * 4 + j] = mi.interp[j * 4 + 3];
+						}
+//						System.arraycopy(mi.interp, 0, mia.interp, i*16, 16);
 					} else {
-						mia.interp[i * 16] = -1;	// magic number indicates null
+						mia.interp_x[i * 4] = -1;	// magic number indicates null
 					}
 				}
 			}
@@ -184,21 +198,21 @@ public class MikuMotion implements Serializable {
 			float a0 = frame - mi.frame_no[mp.m0];
 			float ratio = a0 / dif;
 
-			if (mi.interp == null || mi.interp[mp.m0 * 16] == -1) { // calcurated in preCalcIK
+			if (mi.interp_x == null || mi.interp_x[mp.m0 * 4] == -1) { // calcurated in preCalcIK
 				float t = ratio;
 				m.location[0] = mi.location[mp.m0 * 3 + 0] + (mi.location[mp.m1 * 3 + 0] - mi.location[mp.m0 * 3 + 0]) * t;
 				m.location[1] = mi.location[mp.m0 * 3 + 1] + (mi.location[mp.m1 * 3 + 1] - mi.location[mp.m0 * 3 + 1]) * t;
 				m.location[2] = mi.location[mp.m0 * 3 + 2] + (mi.location[mp.m1 * 3 + 2] - mi.location[mp.m0 * 3 + 2]) * t;
 				slerp(m.rotation, mi.rotation, mi.rotation, mp.m0 * 4, mp.m1 * 4, t);
 			} else {
-				double t = bazier(mi.interp, mp.m0 * 16, 4, ratio);
+				double t = bazier(mi.interp_x, mp.m0 * 4, 1, ratio);
 				m.location[0] = (float) (mi.location[mp.m0 * 3 + 0] + (mi.location[mp.m1 * 3 + 0] - mi.location[mp.m0 * 3 + 0]) * t);
-				t = bazier(mi.interp, mp.m0 * 16 + 1, 4, ratio);
+				t = bazier(mi.interp_y, mp.m0 * 4, 1, ratio);
 				m.location[1] = (float) (mi.location[mp.m0 * 3 + 1] + (mi.location[mp.m1 * 3 + 1] - mi.location[mp.m0 * 3 + 1]) * t);
-				t = bazier(mi.interp, mp.m0 * 16 + 2, 4, ratio);
+				t = bazier(mi.interp_z, mp.m0 * 4, 1, ratio);
 				m.location[2] = (float) (mi.location[mp.m0 * 3 + 2] + (mi.location[mp.m1 * 3 + 2] - mi.location[mp.m0 * 3 + 2]) * t);
 
-				slerp(m.rotation, mi.rotation, mi.rotation, mp.m0 * 4, mp.m1 * 4, bazier(mi.interp, mp.m0 * 16 + 3, 4, ratio));
+				slerp(m.rotation, mi.rotation, mi.rotation, mp.m0 * 4, mp.m1 * 4, bazier(mi.interp_a, mp.m0 * 4, 1, ratio));
 			}
 
 			return m;

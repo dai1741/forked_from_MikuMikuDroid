@@ -290,38 +290,15 @@ public class CoreLogic {
 		CacheFile c = new CacheFile(mBase, "xc");
 		c.addFile(modelf);
 		String xc = c.getCacheFileName();
-		ModelBuilder mb = new ModelBuilder(modelf);
 		if(!c.hasCache()) {
 			XParser x = new XParser(mBase, modelf, 10.0f);			
 			if(x.isPmd()) {
 				createTextureCache(x);
-				
-				FloatBuffer vb = mb.createVertBuffer(x.getVertex().size());
-				for(Vertex v: x.getVertex()) {
-					vb.put(v.pos);
-					vb.put(v.normal);
-					vb.put(v.uv);
-				}
-				vb.rewind();
-				
-				IntBuffer ib = mb.createIndexBuffer(x.getIndex().size());
-				for(Integer i: x.getIndex()) {
-					ib.put(i);
-				}
-				
-				mb.mMaterial = x.getMaterial();
-				mb.mBone = x.getBone();
-				mb.mToonFileName = x.getToonFileName();
-				mb.mIsOneSkinning = x.isOneSkinning();
-				
-				mb.writeToFile(xc);
-			} else {
-				return false;
+				x.getModelBuilder().writeToFile(xc);
 			}
 		}
-		mb = null;
 		
-		mb = new ModelBuilder(modelf);
+		ModelBuilder mb = new ModelBuilder(modelf);
 		mb.readFromFile(xc);
 		MikuModel model = new MikuModel(mBase, mb, mMaxBone, false);
 		Miku miku = new Miku(model);			
