@@ -184,8 +184,8 @@ public class PMDParser extends ParserBase implements ModelFile {
 			} else {
 				String toon = base + "Data/" + str;
 				if(!isExist(toon)) {
-					mIsPmd = false;
-					Log.d("PMDParser", String.format("Toon texture not found: %s", str));
+					mToonFileName.add(i + 1, String.format(base + "Data/toon%02d.bmp", i + 1));
+					Log.d("PMDParser", String.format("Toon texture not found: %s, fall thru to default texture.", str));
 				}
 				mToonFileName.add(i + 1, base + "Data/" + str);
 			}

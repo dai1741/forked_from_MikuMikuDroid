@@ -54,7 +54,6 @@ public class SphereArea {
 			
 			for(Integer idx: mIdx) {
 				getVertex(idx, mPos);
-//				Vertex v = mVtx.get(idx);
 				float x = mx - mPos[0];
 				float y = my - mPos[1];
 				float z = mz - mPos[2];
@@ -241,7 +240,6 @@ public class SphereArea {
 		
 		if(s.mComplex) {
 			sb.addComplex(s);
-//			sb.add(s);			
 		} else {
 			sb.add(s);			
 		}
@@ -273,7 +271,6 @@ public class SphereArea {
 		
 		if(s.mComplex) {
 			sb.addComplex(s);
-//			sb.add(s);			
 		} else {
 			sb.add(s);			
 		}
@@ -283,7 +280,6 @@ public class SphereArea {
 
 	private void addVertex(Sphere s, IntBuffer idxA, int idx, Bone b) {
 		int idx_pos = idxA.get(idx);
-//		Vertex v = mVtx.get(idx_pos);
 		Bone ba = getBone(idx_pos);
 		if(ba != b) {
 			s.setComprex(true);
@@ -293,7 +289,6 @@ public class SphereArea {
 	
 	private void addVertex(Sphere s, ShortBuffer idxA, int idx, Bone b) {
 		int idx_pos = (0x0000ffff & (int)idxA.get(idx));
-//		Vertex v = mVtx.get(idx_pos);
 		Bone ba = getBone(idx_pos);
 		if(ba != b) {
 			s.setComprex(true);

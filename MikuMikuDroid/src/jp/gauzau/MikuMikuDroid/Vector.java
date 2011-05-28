@@ -8,6 +8,18 @@ public class Vector {
 	private static float[] mInvTmps = new float[12];
 	private static float[] mInvDsts = new float[16];
 
+	public static void add(float[] d, float[] v1, float[] v2) {
+		for(int i = 0; i < d.length; i++) {
+			d[i] = v1[i] + v2[i];
+		}
+	}
+	
+	public static void sub(float[] d, float[] v1, float[] v2) {
+		for(int i = 0; i < d.length; i++) {
+			d[i] = v1[i] - v2[i];
+		}
+	}
+	
 	public static void cross(float[] d, float[] v1, float[] v2) {
 		d[0] = v1[1] * v2[2] - v1[2] * v2[1];
 		d[1] = v1[2] * v2[0] - v1[0] * v2[2];

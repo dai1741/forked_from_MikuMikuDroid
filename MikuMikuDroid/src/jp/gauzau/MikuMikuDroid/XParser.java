@@ -5,12 +5,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 import android.util.Log;
 
-public class XParser extends ParserBase implements ModelFile {
+public class XParser extends ParserBase {
 	private String  mFileName;
 	private boolean mIsX;
 	private ArrayList<ByteBuffer> mVertex;
@@ -19,28 +18,32 @@ public class XParser extends ParserBase implements ModelFile {
 	private ArrayList<Bone>		mBone;
 	private ArrayList<String> mToonFileName;
 
-	private ArrayList<ArrayList<Integer>> mRawFace;
+	private ByteBuffer mRawFace;
 	private int mRawFaceNum;
 	private int mVertBase;
 	private int mVertNum;
 	private int mIdxBase;
 	
-	public IntBuffer	mIndexBuffer;
-	public FloatBuffer	mVertBuffer;
+	private IntBuffer	mIndexBuffer;
+	private FloatBuffer	mVertBuffer;
 	private ModelBuilder mMb;
+	
+	// temp buffer
+	private float[] mD0 = new float[3];
+	private float[] mD1 = new float[3];
 
 	public XParser(String base, String file, float scale) throws IOException {
 		super(file);
 		mFileName = file;
 		mIsX = false;
-		File f = new File(file);
+		File f = new File(mFileName);
 		String path = f.getParent() + "/";
 
 		try {
 			parseXHeader();
 			if(mIsX) {
 				parseXMesh(base, path, scale);
-				createBuffers(base, file);
+				createBuffers(base, mFileName);
 
 			}
 		} catch (IOException e) {
@@ -49,92 +52,12 @@ public class XParser extends ParserBase implements ModelFile {
 		}
 	}
 	
-	public boolean isPmd() {
+	public boolean isX() {
 		return mIsX;
-	}
-	
-	
-	public FloatBuffer getVertexBuffer() {
-		return mVertBuffer;
-	}
-	
-	public IntBuffer getIndexBufferI() {
-		return mIndexBuffer;
-	}
-
-	public ShortBuffer getIndexBufferS() {
-		return null;
-	}
-
-	public ShortBuffer getWeightBuffer() {
-		return null;
-	}
-
-	public ArrayList<Vertex> getVertex() {
-		return null;
-	}
-
-	public ArrayList<Integer> getIndex() {
-		return null;
-	}
-
-	public ArrayList<Material> getMaterial() {
-		return mMaterial;
-	}
-
-	public ArrayList<Bone> getBone() {
-		return mBone;
-	}
-
-	public ArrayList<String> getToonFileName() {
-		return mToonFileName;
-	}
-
-	public ArrayList<IK> getIK() {
-		return null;
-	}
-
-	public ArrayList<Face> getFace() {
-		return null;
-	}
-	
-	public ArrayList<RigidBody> getRigidBody() {
-		return null;
-	}
-	
-	public ArrayList<Joint> getJoint() {
-		return null;
-	}
-	
-	public String getFileName() {
-		return mFileName;
-	}
-	
-	public boolean isOneSkinning() {
-		return true;
 	}
 	
 	public ModelBuilder getModelBuilder() {
 		return mMb;
-	}
-
-	public void recycle() {
-		mVertex = null;
-		mIndex = null;
-
-		close();
-	}
-
-	public void recycleVertex() {
-		/*
-		for(ArrayList<Vertex> av: mVertex) {
-			for (Vertex v : av) {
-				v.normal = null;
-				v.pos = null;
-				v.uv = null;
-			}			
-		}
-		*/
 	}
 
 	private void parseXHeader() {
@@ -152,29 +75,44 @@ public class XParser extends ParserBase implements ModelFile {
 		mMaterial = new ArrayList<Material>();
 		mVertBase = 0;
 		mIdxBase = 0;
+		boolean has_normal = false;
 
 		// find mesh body
 		int acc = 0;
 		while(skipToBody("Mesh")) {
 			parseVertex(base, scale, acc);
-			parseFace();
+			parseFace(base);
 
 			Token t = new Token();
 			getToken(t);
-			while(!(t.type == '}')) {
-				if(t.s.equals("MeshMaterialList")) {
-					nextLine();
-					parseMaterial(base, path, acc);
-				} else if(t.s.equals("MeshTextureCoords")) {
-					nextLine();
-					parseTexCoord(acc);
-				} else {
-					break;
+			while(t.type != '}') {
+				if(t.type == 's') {
+					if(t.s.equalsIgnoreCase("MeshMaterialList")) {
+						nextLine();
+						parseMaterial(base, path, acc);
+					} else if(t.s.equalsIgnoreCase("MeshTextureCoords")) {
+						nextLine();
+						parseTexCoord(acc);
+					} else if(t.s.equalsIgnoreCase("MeshNormals")) {
+						nextLine();
+						parseNormal(base, acc);
+						has_normal = true;
+					} else {
+						skipBody();
+					}					
 				}
-				getToken(t);
+				getToken(t);	// next header
 			}
 			mVertBase += mVertNum;
+			if(!has_normal) {
+				calcNormals(acc);
+			}
+			has_normal = false;
 			acc++;
+			if(mRawFace != null) {
+				LargeBuffer.close(mRawFace);
+				mRawFace = null;
+			}
 		}
 	}
 	
@@ -193,10 +131,10 @@ public class XParser extends ParserBase implements ModelFile {
 			mToonFileName.add(i + 1, str);
 		}
 		
-		mMb.mMaterial = getMaterial();
-		mMb.mBone = getBone();
-		mMb.mToonFileName = getToonFileName();
-		mMb.mIsOneSkinning = isOneSkinning();
+		mMb.mMaterial = mMaterial;
+		mMb.mBone = mBone;
+		mMb.mToonFileName = mToonFileName;
+		mMb.mIsOneSkinning = true;
 	}
 	
 	private void createVertBuffer(ModelBuilder mb) throws IOException {
@@ -248,26 +186,28 @@ public class XParser extends ParserBase implements ModelFile {
 		Log.d("XParser", String.format("Vertex: %d, total %d", n, mVertBase + mVertNum));
 	}
 	
-	private void parseFace() throws IOException {
+	private void parseFace(String base) throws IOException {
 		Token t = new Token();
 		
 		int n = (int) getToken(t);
 		nextLine();
 		
-		mRawFace = new ArrayList<ArrayList<Integer>>(n);
+		mRawFace = LargeBuffer.openTemp(base + "/.cache/XFILE_F.tmp", n * 4 * 5);
+		IntBuffer rfi = mRawFace.asIntBuffer();
 		mRawFaceNum = 0;
+		int[] data = new int[5];
 		for(int i = 0; i < n; i++) {
 			getToken(t);
 			int m = (int) t.num;
+			data[0] = m;
 			mRawFaceNum += m == 3 ? m : 6;
 			getToken(t);	// must be ';'
-			ArrayList<Integer> f = new ArrayList<Integer>(m);
 			for(int j = 0; j < m; j++) {
 				getToken(t);
-				f.add((int) t.num);
+				data[j + 1] = (int) t.num;
 				getToken(t);	// must be ',' or ';'
 			}
-			mRawFace.add(f);
+			rfi.put(data);
 			getToken(t);	// must be ','
 		}
 		Log.d("XParser", String.format("Face: %d", n));		
@@ -280,11 +220,7 @@ public class XParser extends ParserBase implements ModelFile {
 		nextLine();
 		int fn = (int) getToken(t);
 		nextLine();
-		if(fn != mRawFace.size()) {
-			mIsX = false;
-			return ;
-		}
-		
+
 		// initialize material map
 		ArrayList<ArrayList<Integer>> mmap = new ArrayList<ArrayList<Integer>>(mn);
 		for(int i = 0; i < mn; i++) {
@@ -300,13 +236,13 @@ public class XParser extends ParserBase implements ModelFile {
 		nextLine();
 		
 		// read and reconstruct material and index
-		int acc = mIdxBase;
-		// count index
-		
+		int acc = mIdxBase;		
 		ByteBuffer aib = LargeBuffer.openTemp(base + "/.cache/XFILE_I" + Integer.valueOf(pos) + ".tmp", mRawFaceNum * 4);
 		IntBuffer idx = aib.asIntBuffer();
 
 		ArrayList<Material> mat = mMaterial;
+		int[] data = new int[5];
+		IntBuffer rfi = mRawFace.asIntBuffer();
 		for(int i = 0; i < mn; i++) {
 			Material m = new Material();
 			
@@ -353,10 +289,10 @@ public class XParser extends ParserBase implements ModelFile {
 				getToken(t);	// must be '{'
 				getToken(t);
 				m.texture = path + t.s;
-				Log.d("XParser", String.format("Texture: %s", m.texture));
 				getToken(t); // must be ';'
 				getToken(t); // must be '}'
 				getToken(t); // must be '}'
+				Log.d("XParser", String.format("Texture: %s", m.texture));
 			} else {
 				// must be '}'
 				m.texture = null;
@@ -366,26 +302,28 @@ public class XParser extends ParserBase implements ModelFile {
 			m.face_vert_offset = acc;
 			ArrayList<Integer> rf = mmap.get(i);
 			for(int j = 0; j < rf.size(); j++) {
-				ArrayList<Integer> face = mRawFace.get(rf.get(j));
-				if(face.size() == 3) {
+				rfi.position(rf.get(j) * 5);
+				rfi.get(data);
+				if(data[0] == 3) {
 					acc += 3;
-					idx.put(face.get(0) + mVertBase);
-					idx.put(face.get(1) + mVertBase);
-					idx.put(face.get(2) + mVertBase);
-				} else if(face.size() == 4){	// must be face.size() == 4
+					idx.put(data[1] + mVertBase);
+					idx.put(data[2] + mVertBase);
+					idx.put(data[3] + mVertBase);
+				} else if(data[0] == 4){	// must be face.size() == 4
 					acc += 6;
-					idx.put(face.get(0) + mVertBase);
-					idx.put(face.get(1) + mVertBase);
-					idx.put(face.get(2) + mVertBase);
+					idx.put(data[1] + mVertBase);
+					idx.put(data[2] + mVertBase);
+					idx.put(data[3] + mVertBase);
 					
-					idx.put(face.get(0) + mVertBase);
-					idx.put(face.get(2) + mVertBase);
-					idx.put(face.get(3) + mVertBase);
+					idx.put(data[4] + mVertBase);
+					idx.put(data[1] + mVertBase);
+					idx.put(data[3] + mVertBase);
 				} else {
 					Log.d("XParser", "Illegal face");
 				}
 			}
 			m.face_vert_count = acc - m.face_vert_offset;
+			m.toon_index = 1;
 			mat.add(m);
 		}
 		mIdxBase = acc;
@@ -418,6 +356,135 @@ public class XParser extends ParserBase implements ModelFile {
 		}
 	}
 	
+	private void parseNormal(String base, int pos) throws IOException {
+		Token t = new Token();
+
+		int n = (int) getToken(t);
+		getToken(t);
+
+		IntBuffer idx = mIndex.get(pos).asIntBuffer();
+		FloatBuffer vtx = mVertex.get(pos).asFloatBuffer();
+		float[] nm = new float[3];
+		float[] nmo = new float[3];
+		
+		// initialize
+		nm[0] = nm[1] = nm[2] = 0;
+		for(int i = 0; i < mVertNum; i++) {
+			vtx.position(i * 8 + 3);
+			vtx.put(nm);
+		}
+		
+		// read normals
+		ByteBuffer norb = LargeBuffer.openTemp(base + "/.cache/XFILE_N.tmp", n * 4 * 3);
+		FloatBuffer nor = norb.asFloatBuffer();
+		for(int i = 0; i < n; i++) {
+			nor.put(getToken(t));
+			getToken(t);	// must be ';'
+			nor.put(getToken(t));
+			getToken(t);	// must be ';'
+			nor.put(getToken(t));
+			nextLine();
+		}
+		nor.position(0);
+
+		// read faces
+		int m = (int) getToken(t);
+		getToken(t);	// must be ;
+		for(int i = 0; i < m; i++) {
+			int f = (int) getToken(t);
+			getToken(t);
+			for(int j = 0; j < f; j++) {
+				int v = idx.get();
+				vtx.position(v * 8 + 3);
+				vtx.get(nm);
+				
+				nor.position((int) getToken(t) * 3);
+				nor.get(nmo);
+
+				Vector.add(nm, nm, nmo);
+				
+				vtx.position(v * 8 + 3);
+				vtx.put(nm);
+				
+				getToken(t);	// must be , or ;
+			}
+			if(f > 3) {	// must be 4
+				idx.position(idx.position() + 2);
+			}
+			nextLine();
+		}
+
+		// normalize
+		for(int i = 0; i < mVertNum; i++) {
+			vtx.position(i * 8 + 3);
+			vtx.get(nm);
+			Vector.normalize(nm);
+			vtx.position(i * 8 + 3);
+			vtx.put(nm);
+		}
+
+		getToken(t);	// must be '}'
+		LargeBuffer.close(norb);
+		Log.d("XParser", String.format("Normal: %d %d", n, m));
+	}
+
+	private void calcNormals(int pos) {
+		IntBuffer rfi = mRawFace.asIntBuffer();
+		FloatBuffer vtx = mVertex.get(pos).asFloatBuffer();
+		float[] nm = new float[3];
+		float[] nmo = new float[3];
+		
+		// initialize
+		nm[0] = nm[1] = nm[2] = 0;
+		for(int i = 0; i < mVertNum; i++) {
+			vtx.position(i * 8 + 3);
+			vtx.put(nm);
+		}
+		
+		// read faces
+		int[] data = new int[5];
+		float[] v0 = new float[3];
+		float[] v1 = new float[3];
+		float[] v2 = new float[3];
+		for(int i = 0; i < rfi.capacity() / 5; i++) {
+			rfi.get(data);
+			vtx.position(data[1] * 8);
+			vtx.get(v0);
+			vtx.position(data[2] * 8);
+			vtx.get(v1);
+			vtx.position(data[3] * 8);
+			vtx.get(v2);
+			
+			calcNormal(nmo, v0, v1, v2);
+			
+			for(int j = 0; j < data[0]; j++) {
+				vtx.position(data[j + 1] * 8 + 3);
+				vtx.get(nm);
+				
+				Vector.add(nm, nm, nmo);
+				
+				vtx.position(data[j + 1] * 8 + 3);
+				vtx.put(nm);
+			}
+		}
+
+		// normalize
+		for(int i = 0; i < mVertNum; i++) {
+			vtx.position(i * 8 + 3);
+			vtx.get(nm);
+			Vector.normalize(nm);
+			vtx.position(i * 8 + 3);
+			vtx.put(nm);
+		}
+	}
+
+	private void calcNormal(float[] dst, float[] v0, float[] v1, float[] v2) {
+		Vector.sub(mD0, v0, v1);
+		Vector.sub(mD1, v2, v1);
+		Vector.cross(dst, mD1, mD0);
+		Vector.normalize(dst);
+	}
+	
 	private void setDummyBone(String name) {
 		mBone = new ArrayList<Bone>(1);
 		Bone b = new Bone();
@@ -443,6 +510,27 @@ public class XParser extends ParserBase implements ModelFile {
 		b.is_leg = false;
 
 		mBone.add(b);
+	}
+	
+	private boolean skipBody() {
+		int level = 0;
+		Token t = new Token();
+		while(true) {
+			if(!getTokenEof(t)) {
+				return false;
+			}
+			if(!nextLineEof()) {
+				return false;
+			}
+			if(t.type == '{') {
+				level++;
+			} else if(t.type == '}') {
+				level--;
+				if(level == 0) {
+					return true;
+				}
+			}
+		}
 	}
 	
 	private boolean skipToBody(String b) {
@@ -565,6 +653,7 @@ public class XParser extends ParserBase implements ModelFile {
 		}		
 	}
 	
+	/*
 	private void printToken(Token t) {
 		if(t.type == ';') {
 			Log.d("XParser", "Token ;");
@@ -580,6 +669,5 @@ public class XParser extends ParserBase implements ModelFile {
 			Log.d("XParser", "Token Number " + String.valueOf(t.num));
 		}
 	}
-
-
+	*/
 }

@@ -9,8 +9,6 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.StringWriter;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.util.ArrayList;
 
 import android.content.Context;
@@ -292,32 +290,20 @@ public class CoreLogic {
 		String xc = c.getCacheFileName();
 		if(!c.hasCache()) {
 			XParser x = new XParser(mBase, modelf, 10.0f);			
-			if(x.isPmd()) {
-				createTextureCache(x);
+			if(x.isX()) {
 				x.getModelBuilder().writeToFile(xc);
 			}
 		}
 		
 		ModelBuilder mb = new ModelBuilder(modelf);
 		mb.readFromFile(xc);
+		createTextureCache(mb);
 		MikuModel model = new MikuModel(mBase, mb, mMaxBone, false);
 		Miku miku = new Miku(model);			
 		miku.addRenderSenario("builtin:nomotion", "screen");
 		miku.addRenderSenario("builtin:nomotion_alpha", "screen");
 		mMiku.add(miku);
 		return true;
-		
-		/*
-		try {
-			
-			ObjectInputStream oi = new ObjectInputStream(new FileInputStream(vmc));
-			motion = (MikuMotion)oi.readObject();
-			motion.attachVMD(vmd);
-		} catch (Exception e) {
-			motion = new MikuMotion(vmd);
-			vmc_success = false;
-		}
-		*/
 	}
 
 	public synchronized MikuModel loadStage(String file) throws IOException, OutOfMemoryError {
@@ -733,6 +719,18 @@ public class CoreLogic {
 	private void createTextureCache(ModelFile pmd) {
 		// create texture cache
 		for(Material mat: pmd.getMaterial()) {
+			if(mat.texture != null) {
+				TextureFile.createCache(mBase, mat.texture, 1);
+			}
+			if(mat.sphere != null) {
+				TextureFile.createCache(mBase, mat.sphere, 1);
+			}
+		}
+	}
+	
+	private void createTextureCache(ModelBuilder pmd) {
+		// create texture cache
+		for(Material mat: pmd.mMaterial) {
 			if(mat.texture != null) {
 				TextureFile.createCache(mBase, mat.texture, 1);
 			}
