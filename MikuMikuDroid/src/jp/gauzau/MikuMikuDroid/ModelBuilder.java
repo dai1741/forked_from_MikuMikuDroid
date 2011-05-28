@@ -12,6 +12,8 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 
 public class ModelBuilder {
+	private static final String		XC_HEADER = "XC01";	// version
+	
 	private String					mFileName;
 	
 	public ByteBuffer				mIndexBuffer;
@@ -57,7 +59,8 @@ public class ModelBuilder {
 		
 		RandomAccessFile raf = new RandomAccessFile(name, "rw");
 		MappedByteBuffer bb = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, size());
-		
+
+		writeHeader(bb);	// header
 		writeBuffer(bb, mVertBuffer);
 		writeBuffer(bb, mIndexBuffer);
 		writeMaterials(bb, mMaterial);
@@ -71,21 +74,27 @@ public class ModelBuilder {
 		mIndexBuffer.rewind();
 	}
 	
-	public void readFromFile(String name) throws FileNotFoundException, IOException {
+	public boolean readFromFile(String name) throws FileNotFoundException, IOException {
 		RandomAccessFile raf = new RandomAccessFile(name, "r");
 		MappedByteBuffer bb = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, raf.length());
 		
-		mVertBuffer		= readBuffer(bb);
-		mIndexBuffer	= readBuffer(bb);
-		mMaterial		= readMaterials(bb);
-		mBone			= readBones(bb);
-		mToonFileName	= new ArrayList<String>(11);
-		for(int i = 0; i < 11; i++) {
-			mToonFileName.add(readString(bb));
+		if(readHeader(bb)) {
+			mVertBuffer		= readBuffer(bb);
+			mIndexBuffer	= readBuffer(bb);
+			mMaterial		= readMaterials(bb);
+			mBone			= readBones(bb);
+			mToonFileName	= new ArrayList<String>(11);
+			for(int i = 0; i < 11; i++) {
+				mToonFileName.add(readString(bb));
+			}
+			mIsOneSkinning = bb.get() == 0 ? false : true;			
+		} else {
+			raf.close();
+			return false;
 		}
-		mIsOneSkinning = bb.get() == 0 ? false : true;
 		
 		raf.close();
+		return true;
 	}
 	
 	
@@ -240,5 +249,15 @@ public class ModelBuilder {
 			bb.putInt(b.length);
 			bb.put(b);
 		}
+	}
+	
+	private boolean readHeader(MappedByteBuffer bb) {
+		byte[] sb = new byte[XC_HEADER.length()];
+		bb.get(sb);
+		return new String(sb).compareToIgnoreCase(XC_HEADER) == 0;
+	}
+	
+	private void writeHeader(MappedByteBuffer bb) {
+		bb.put(new String(XC_HEADER).getBytes());
 	}
 }

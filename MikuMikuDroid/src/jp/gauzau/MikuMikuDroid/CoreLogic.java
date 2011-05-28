@@ -288,15 +288,18 @@ public class CoreLogic {
 		CacheFile c = new CacheFile(mBase, "xc");
 		c.addFile(modelf);
 		String xc = c.getCacheFileName();
-		if(!c.hasCache()) {
+		ModelBuilder mb = new ModelBuilder(modelf);
+		
+		if(!mb.readFromFile(xc)) {
 			XParser x = new XParser(mBase, modelf, 10.0f);			
 			if(x.isX()) {
 				x.getModelBuilder().writeToFile(xc);
 			}
+			if(!mb.readFromFile(xc)) {
+				return false;
+			}
 		}
 		
-		ModelBuilder mb = new ModelBuilder(modelf);
-		mb.readFromFile(xc);
 		createTextureCache(mb);
 		MikuModel model = new MikuModel(mBase, mb, mMaxBone, false);
 		Miku miku = new Miku(model);			
