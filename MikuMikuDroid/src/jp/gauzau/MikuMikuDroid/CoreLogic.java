@@ -290,7 +290,7 @@ public class CoreLogic {
 		String xc = c.getCacheFileName();
 		ModelBuilder mb = new ModelBuilder(modelf);
 		
-		if(!mb.readFromFile(xc)) {
+		if(!c.hasCache() || !mb.readFromFile(xc)) {
 			XParser x = new XParser(mBase, modelf, 10.0f);			
 			if(x.isX()) {
 				x.getModelBuilder().writeToFile(xc);
