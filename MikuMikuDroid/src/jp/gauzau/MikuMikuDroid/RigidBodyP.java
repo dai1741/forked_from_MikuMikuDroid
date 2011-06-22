@@ -2,7 +2,7 @@ package jp.gauzau.MikuMikuDroid;
 
 import java.io.Serializable;
 
-public class RigidBody implements Serializable {
+public class RigidBodyP implements Serializable {
 	private static final long serialVersionUID = -7562525045135372564L;
 	public String name;
 	public short bone_index;
@@ -27,5 +27,7 @@ public class RigidBody implements Serializable {
 	public transient double[] tmp_v;
 	public transient double[] tmp_a;
 	public transient double[] prev_r;
+	
+//	public transient RigidBody btrb;
 
 }

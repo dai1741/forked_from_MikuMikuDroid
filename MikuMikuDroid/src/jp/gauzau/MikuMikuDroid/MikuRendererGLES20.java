@@ -325,7 +325,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 		// bind textures
 		initializeAllTexture(true);
-		initializeAllSkinningTexture();
+//		initializeAllSkinningTexture();
 	}
 	
 	@Override
@@ -342,7 +342,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mRT.get("screen").switchTargetFrameBuffer();
 		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
 		initializeAllTexture(false);
-		initializeAllSkinningTexture();
+//		initializeAllSkinningTexture();
 
 		int pos = mCoreLogic.applyCurrentMotion();
 
@@ -630,25 +630,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		}
 	}
 	
-	private boolean initializeAllSkinningTexture() {
-		// try binding
-		if (mCoreLogic.getMiku() != null) {
-			for (Miku miku : mCoreLogic.getMiku()) {
-				if(miku.mMotion != null) {
-					if(miku.mMotion.mIsTextureLoaded == false) {
-						if(initializeSkinningTextures(miku)) {
-							miku.mMotion.mIsTextureLoaded = true;
-						} else {
-							return false;
-						}
-					}					
-				}
-			}
-		}
-		
-		return true;
-	}
-
 	private void initializeAllTexture(boolean all) {
 		for(int i = 1; i < 16; i *= 2) {
 			if(tryInitializeAllTexture(all, i)) {
@@ -709,46 +690,6 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		return ret;
 	}
 	
-	private boolean initializeSkinningTextures(Miku miku) {
-		MikuMotion mm = miku.mMotion;
-		if(mm != null) {
-			for(Entry<String, MotionIndexA> mia: mm.getMotion().entrySet()) {
-				MotionIndexA mi = mia.getValue();
-				GLES20.glGenTextures(mi.texture.length, mi.texture, 0);
-				initializeSkinningTexture1(mi.texture, 0, mi.location_b);
-				initializeSkinningTexture1(mi.texture, 1, mi.rotation_b);
-				initializeSkinningTexture1(mi.texture, 2, mi.interp_x);
-				initializeSkinningTexture1(mi.texture, 3, mi.interp_y);
-				initializeSkinningTexture1(mi.texture, 4, mi.interp_z);
-				initializeSkinningTexture1(mi.texture, 5, mi.interp_a);
-			}
-		}
-		return true;
-	}
-	
-	private boolean initializeSkinningTexture1(int[] tex, int ofs, byte[] data) {
-		GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[ofs]);
-		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
-		GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-		try {
-			ByteBuffer buf = ByteBuffer.allocateDirect(data.length).order(ByteOrder.nativeOrder());
-			buf.put(data);
-			GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, data.length / 4, 1, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-		} catch (OutOfMemoryError e) {
-			GLES20.glDeleteTextures(1, tex, ofs);
-			throw new OutOfMemoryError();
-		}
-
-		int err = GLES20.glGetError();
-		if (err != 0) {
-			Log.d("MikuRendererGLES20", GLU.gluErrorString(err));
-		}
-		
-		return true;
-	}
-
 	private void bindBuffer(MikuModel miku, GLSL glsl) {
 		GLES20.glEnableVertexAttribArray(glsl.maPositionHandle);
 		miku.mAllBuffer.position(0);

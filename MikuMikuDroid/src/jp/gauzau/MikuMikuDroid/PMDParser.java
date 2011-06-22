@@ -30,7 +30,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private ArrayList<String> mEnglishSkinName;
 	private ArrayList<String> mToonFileName;
 	private ArrayList<String> mEnglishBoneDispName;
-	private ArrayList<RigidBody> mRigidBody;
+	private ArrayList<RigidBodyP> mRigidBody;
 	private ArrayList<Joint> mJoint;
 	private boolean mIsOneSkinning = true;
 	
@@ -115,9 +115,9 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private void parsePMDRigidBody() {
 		int num = getInt();
 		Log.d("PMDParser", "RigidBody: " + String.valueOf(num));
-		mRigidBody = new ArrayList<RigidBody>(num);
+		mRigidBody = new ArrayList<RigidBodyP>(num);
 		for(int i = 0; i < num; i++) {
-			RigidBody rb = new RigidBody();
+			RigidBodyP rb = new RigidBodyP();
 			
 			rb.name			= getString(20);
 			rb.bone_index	= getShort();
@@ -136,7 +136,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 			rb.recoil		= getFloat();
 			rb.friction		= getFloat();
 			rb.type			= getByte();
-
+			
 			// for physics simulation
 			rb.cur_location	= new float[4];		// x, y, z, w
 			rb.cur_r 		= new double[4];	// quaternion
@@ -304,7 +304,15 @@ public class PMDParser extends ParserBase implements ModelFile {
 					face.face_vert_offset[j * 3 + 2] = getFloat();
 					face.face_vert_cleared[j] = true;
 				}
-
+				
+				// for NDK
+				face.face_vert_index_native  = ByteBuffer.allocateDirect(face.face_vert_count * 4).order(ByteOrder.nativeOrder()).asIntBuffer();
+				face.face_vert_offset_native = ByteBuffer.allocateDirect(face.face_vert_count * 4 * 3).order(ByteOrder.nativeOrder()).asFloatBuffer();
+				face.face_vert_index_native.put(face.face_vert_index);
+				face.face_vert_offset_native.put(face.face_vert_offset);
+				face.face_vert_index_native.position(0);
+				face.face_vert_offset_native.position(0);
+				
 				mFace.add(i, face);
 			}
 			Log.d("PMDParser", String.format("Total Face Vert: %d", acc));
@@ -585,7 +593,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 		return mFace;
 	}
 	
-	public ArrayList<RigidBody> getRigidBody() {
+	public ArrayList<RigidBodyP> getRigidBody() {
 		return mRigidBody;
 	}
 	

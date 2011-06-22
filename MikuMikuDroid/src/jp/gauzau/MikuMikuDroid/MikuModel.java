@@ -33,7 +33,7 @@ public class MikuModel {
 	public transient ArrayList<Material>		mMaterial;
 	public transient ArrayList<Face>			mFace;
 	public transient ArrayList<IK>				mIK;
-	public transient ArrayList<RigidBody>		mRigidBody;
+	public transient ArrayList<RigidBodyP>		mRigidBody;
 	public transient ArrayList<Joint>			mJoint;
 	public transient ArrayList<String>			mToonFileName;
 	

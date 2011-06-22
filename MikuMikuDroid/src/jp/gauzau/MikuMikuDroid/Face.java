@@ -1,6 +1,8 @@
 package jp.gauzau.MikuMikuDroid;
 
 import java.io.Serializable;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 public class Face implements Serializable {
 	private static final long serialVersionUID = 3872043545105902643L;
@@ -15,5 +17,7 @@ public class Face implements Serializable {
 	
 	public transient FaceIndexA motion;
 	public transient int current_motion;
+	public IntBuffer face_vert_index_native;
+	public FloatBuffer face_vert_offset_native;
 
 }

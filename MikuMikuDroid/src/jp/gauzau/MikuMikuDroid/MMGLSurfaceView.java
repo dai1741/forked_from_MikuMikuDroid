@@ -24,7 +24,8 @@ public class MMGLSurfaceView extends GLSurfaceView {
 		} else {
 			mMikuRendarer = new MikuRenderer(cl);
 		}
-		setRenderer(mMikuRendarer);
+//		setEGLConfigChooser(5, 6, 5, 0, 24, 0);
+		setRenderer(mMikuRendarer);			
 	}
 
 	private boolean detectOpenGLES20(Context ctx) {

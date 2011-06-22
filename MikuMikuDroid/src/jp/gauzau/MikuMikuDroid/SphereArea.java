@@ -13,8 +13,10 @@ import android.opengl.Visibility;
 
 public class SphereArea {
 	private class Sphere {
+		/*
 		public Sphere s1 = null;
 		public Sphere s2 = null;
+		*/
 		
 		public ArrayList<Integer> mIdx = null;
 		public float mCx = 0;
@@ -76,8 +78,10 @@ public class SphereArea {
 		
 		public Sphere merge(Sphere s) {
 			Sphere sph = new Sphere(mOfs);
+			/*
 			sph.s1 = this;
 			sph.s2 = s;
+			*/
 			sph.mCx = mCx + s.mCx;
 			sph.mCy = mCy + s.mCy;
 			sph.mCz = mCz + s.mCz;

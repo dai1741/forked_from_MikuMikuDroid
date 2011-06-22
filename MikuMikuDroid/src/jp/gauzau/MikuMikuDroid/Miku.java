@@ -1,5 +1,7 @@
 package jp.gauzau.MikuMikuDroid;
 
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -7,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import android.opengl.Matrix;
+import android.os.Build;
 import android.util.Log;
 
 public class Miku {
@@ -18,6 +21,9 @@ public class Miku {
 			target = t;
 		}
 	}
+	
+	// use NDK
+	private boolean mIsArm = false;
 	
 	// model data
 	public MikuModel mModel;
@@ -38,15 +44,26 @@ public class Miku {
 	private float axis[] = new float[3];
 	private float mMatworks[] = new float[16];
 	private double[] mQuatworks = new double[4];
+	private float tmpVecs[] = new float[3];
 
 	private FacePair mFacePair = new FacePair();
 	private FaceIndex mFaceIndex = new FaceIndex();
+
+//	private DiscreteDynamicsWorld mDynamicsWorld;
+
+    static {
+    	if(Build.CPU_ABI.contains("armeabi")) {
+            System.loadLibrary("bullet-jni");
+            Log.d("Miku", "Use ARM native codes.");
+    	}
+    }	
 
 	public Miku(MikuModel model) {
 		mModel = model;
 		mMwork.location = new float[3];
 		mMwork.rotation = new float[4];
-		physicsInitializer();
+		mIsArm = Build.CPU_ABI.contains("armeabi");
+//		initializePysics();
 	}
 
 	public void attachMotion(MikuMotion mm) {
@@ -63,7 +80,7 @@ public class Miku {
 		mRenderSenario.add(new RenderSet(s, t));
 	}
 
-	public void setBonePosByVMDFrame(float i) {
+	public void setBonePosByVMDFrame(float i, float step) {
 		ArrayList<Bone> ba = mModel.mBone;
 		if(ba != null) {
 			int max = ba.size();
@@ -76,13 +93,15 @@ public class Miku {
 			if(mModel.mIK != null && mMotion.getIKMotion() == null) {
 				ccdIK();
 			}
-			// fakePhysics(i);
 
 			for (int r = 0; r < max; r++) {
 				Bone b = ba.get(r);
 				updateBoneMatrix(b);
 			}
 
+			// exec physics simulation
+//			solvePhysics(step);
+			
 			for (int r = 0; r < max; r++) {
 				Bone b = ba.get(r);
 				Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
@@ -93,18 +112,22 @@ public class Miku {
 	
 	public void setFaceByVMDFrame(float i) {
 		if (mModel.mFaceBase != null) {
-			initFace(mModel.mFaceBase);
+			if(mIsArm) {	// use native code for ARM machine
+				initFaceNative(mModel.mAllBuffer, mModel.mFaceBase.face_vert_count, mModel.mFaceBase.face_vert_index_native, mModel.mFaceBase.face_vert_offset_native);
+				for (Face f : mModel.mFace) {
+					setFaceForNative(f, i);
+				}				
+			} else {		// use Java code
+				initFace(mModel.mFaceBase);
 
-			for (Face f : mModel.mFace) {
-				setFace(f, i);
+				for (Face f : mModel.mFace) {
+					setFace(f, i);
+				}
+
+				updateVertexFace(mModel.mFaceBase);
 			}
-
-			updateVertexFace(mModel.mFaceBase);
 		}
 	}
-
-	
-	
 	
 	private void initFace(Face f) {
 		for (int i = 0; i < f.face_vert_count; i++) {
@@ -139,24 +162,172 @@ public class Miku {
 		}
 		mModel.mAllBuffer.position(0);
 	}
+	
+	private void setFaceForNative(Face f, float i) {
+		FacePair mp = mMotion.findFace(f, i, mFacePair);
+		FaceIndex m = mMotion.interpolateLinear(mp, f.motion, i, mFaceIndex);
+		if (m != null && m.weight > 0) {
+			setFaceNative(mModel.mAllBuffer, mModel.mFaceBase.face_vert_index_native, f.face_vert_count, f.face_vert_index_native, f.face_vert_offset_native, m.weight);
+		}
+	}
+	
+	native private void initFaceNative(FloatBuffer vertex, int count, IntBuffer index, FloatBuffer offset);
+	
+	native private void setFaceNative(FloatBuffer vertex, IntBuffer pointer, int count, IntBuffer index, FloatBuffer offset, float weight);
 
+	/*
+	private void solvePhysics(float step) {
+		Transform m = new Transform();
+		
+		if(mModel.mRigidBody != null) {
+			mDynamicsWorld.stepSimulation(step);
+			for(int i = 0; i < mModel.mRigidBody.size(); i++) {
+				RigidBodyP rb = mModel.mRigidBody.get(i);
+				if(rb.bone_index >= 0 && rb.type != 0) {
+					Bone b = mModel.mBone.get(rb.bone_index);
+					DefaultMotionState myMotionState = (DefaultMotionState) rb.btrb.getMotionState();
+					m.set(myMotionState.graphicsWorldTrans);					
+					m.getOpenGLMatrix(b.matrix);
+				}
+			}
+		}
+	}
+	
 	private void fakePhysics(float i) {
 		if(mModel.mRigidBody != null) {
 			physicsFollowBone();
 			physicsFakeExec(i);
 			physicsCheckCollision();
-			physicsMoveBone();			
+			physicsMoveBone();
 		}
 	}
 	
-	private void physicsInitializer() {
+	private void initializePysics() {
+		///////////////////////////////////////////
+		// MAKE WORLD
+		
+		// collision configuration contains default setup for memory, collision setup
+		CollisionConfiguration collisionConfiguration = new DefaultCollisionConfiguration();
+
+		// use the default collision dispatcher. For parallel processing you can use a diffent dispatcher (see Extras/BulletMultiThreaded)
+		CollisionDispatcher dispatcher = new CollisionDispatcher(collisionConfiguration);
+
+		DbvtBroadphase broadphase = new DbvtBroadphase();
+
+		// the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
+		SequentialImpulseConstraintSolver solver = new SequentialImpulseConstraintSolver();
+		
+		mDynamicsWorld = new DiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+		
+		mDynamicsWorld.setGravity(new Vector3f(0f, -25f, 0f));
+		
+		///////////////////////////////////////////
+		// MAKE RIGID BODIES
+		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
+		if(rba != null) {
+			for(int i = 0; i < rba.size(); i++) {
+				RigidBodyP rb = rba.get(i);
+				
+				// create CollisionShape
+				CollisionShape cs;
+				switch(rb.shape) {
+				case 0: //sphere
+					cs = new SphereShape(rb.size[0]);
+					break;
+				case 1: // box
+					Vector3f bs = new Vector3f(rb.size[0], rb.size[1], rb.size[2]);
+					cs = new BoxShape(bs);
+					break;
+				case 2: // capsule
+					cs = new CapsuleShape(rb.size[0], rb.size[1]);
+					break;
+				default:
+					cs = null;	// NullPointerException
+					break;
+				}
+
+				// position and rotation
+				Transform transf = new Transform();
+				transf.setIdentity();
+				if(rb.bone_index < 0) {
+					transf.origin.set(rb.location);
+				} else {
+					Bone b = mModel.mBone.get(rb.bone_index);
+					Vector.add(tmpVecs, rb.location, b.head_pos);
+					transf.origin.set(tmpVecs);
+				}
+				transf.basis.rotZ(rb.rotation[2]);
+				transf.basis.rotY(rb.rotation[1]);
+				transf.basis.rotX(rb.rotation[0]);
+				
+				// inertia
+				Vector3f inertia = new Vector3f(0, 0, 0);
+				cs.calculateLocalInertia(rb.weight, inertia);
+				
+				// create rigid body with default motion state
+				DefaultMotionState ms = new DefaultMotionState(transf);
+				RigidBodyConstructionInfo rbi = new RigidBodyConstructionInfo(rb.type == 0 ? 0 : rb.weight, ms, cs, inertia);
+				rbi.linearDamping = rb.v_dim;
+				rbi.angularDamping = rb.r_dim;
+				rbi.restitution = rb.recoil;
+				rbi.friction = rb.friction;
+				rb.btrb = new RigidBody(rbi);
+				if(rb.type == 0) {
+					rb.btrb.setActivationState(RigidBody.DISABLE_DEACTIVATION);
+					rb.btrb.setCollisionFlags(rb.btrb.getCollisionFlags() | CollisionFlags.KINEMATIC_OBJECT);
+				}
+				
+				mDynamicsWorld.addRigidBody(rb.btrb, (short)(1 << rb.group_index), rb.group_target);
+			}
+		}
+		
+		///////////////////////////////////////////
+		// MAKE JOINTS
+		ArrayList<Joint> ja = mModel.mJoint;
+		if(ja != null) {
+			for(int i = 0; i < ja.size(); i++) {
+				Joint j = ja.get(i);
+				RigidBody rb1 = rba.get(j.rigidbody_a).btrb;
+				RigidBody rb2 = rba.get(j.rigidbody_b).btrb;
+				
+				Transform tr1 = new Transform();
+				rb1.getCenterOfMassTransform(tr1);
+				tr1.origin.x = j.position[0] - tr1.origin.x;
+				tr1.origin.y = j.position[1] - tr1.origin.y;
+				tr1.origin.z = j.position[2] - tr1.origin.z;
+
+				Transform tr2 = new Transform();
+				rb2.getCenterOfMassTransform(tr2);
+				tr2.origin.x = j.position[0] - tr2.origin.x;
+				tr2.origin.y = j.position[1] - tr2.origin.y;
+				tr2.origin.z = j.position[2] - tr2.origin.z;
+				
+				Generic6DofConstraint dof = new Generic6DofConstraint(rb1, rb2, tr1, tr2, true);
+
+				Vector3f lim = new Vector3f();
+				lim.set(j.const_rotation_1);
+				dof.setAngularLowerLimit(lim);
+				lim.set(j.const_rotation_2);
+				dof.setAngularUpperLimit(lim);
+				lim.set(j.const_position_1);
+				dof.setLinearLowerLimit(lim);
+				lim.set(j.const_position_2);
+				dof.setLinearUpperLimit(lim);
+
+				mDynamicsWorld.addConstraint(dof, true);	// disableCollisionsBetweenLinkedBodies
+			}
+		}
+
+	}
+
+	private void initializeFakePysics() {
 		float gravity[] = new float[4];
 		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;
 		
-		ArrayList<RigidBody> rba = mModel.mRigidBody;
+		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
 		if(rba != null) {
 			for(int i = 0; i < rba.size(); i++) {
-				RigidBody rb = rba.get(i);
+				RigidBodyP rb = rba.get(i);
 				if(rb.bone_index >= 0) {
 					Bone base = mModel.mBone.get(rb.bone_index);
 					rb.cur_location[0] = base.head_pos[0] + rb.location[0];
@@ -179,15 +350,15 @@ public class Miku {
 				Quaternion.setIndentity(rb.tmp_v);
 				Quaternion.setIndentity(rb.prev_r);			
 			}			
-		}
+		}		
 	}
 
 	private void physicsFollowBone() {
 		float time = 0.1f;	// must be fixed
 		
-		ArrayList<RigidBody> rba = mModel.mRigidBody;
+		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
-			RigidBody rb = rba.get(i);
+			RigidBodyP rb = rba.get(i);
 			if(rb.type == 0) { // follow bone
 				
 			} else if(rb.bone_index >= 0) {			// follow previous fake physics
@@ -213,7 +384,7 @@ public class Miku {
 		ArrayList<Joint> ja = mModel.mJoint;
 		for(int idx = 0; idx < ja.size(); idx++) {
 			Joint rb = ja.get(idx);
-			RigidBody target = mModel.mRigidBody.get(rb.rigidbody_b);
+			RigidBodyP target = mModel.mRigidBody.get(rb.rigidbody_b);
 			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
 				Bone base = mModel.mBone.get(target.bone_index);
 
@@ -296,16 +467,16 @@ public class Miku {
 		
 		float vec[] = new float[4];
 		vec[3] = 1;
-		ArrayList<RigidBody> rba = mModel.mRigidBody;
+		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
-			RigidBody rb = rba.get(i);
+			RigidBodyP rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mModel.mBone.get(rb.bone_index);
 				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
 			}
 		}
 		for(int i = 0; i < rba.size(); i++) {
-			RigidBody rb = rba.get(i);
+			RigidBodyP rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mModel.mBone.get(rb.bone_index);
 				float[] current = getCurrentMatrix(b);
@@ -320,13 +491,13 @@ public class Miku {
 		ArrayList<Joint> ja = mModel.mJoint;
 		for(int idx = 0; idx < ja.size(); idx++) {
 			Joint j = ja.get(idx);
-			RigidBody target = mModel.mRigidBody.get(j.rigidbody_b);
+			RigidBodyP target = mModel.mRigidBody.get(j.rigidbody_b);
 			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
 				for(int i = 0; i < rba.size(); i++) {
 					if(i == j.rigidbody_b) {
 						continue;
 					}
-					RigidBody rb = rba.get(i);
+					RigidBodyP rb = rba.get(i);
 					
 					float len = Matrix.length(
 							rb.cur_location[0] - target.cur_location[0],
@@ -362,9 +533,9 @@ public class Miku {
 		
 		float vec[] = new float[4];
 		vec[3] = 1;
-		ArrayList<RigidBody> rba = mModel.mRigidBody;
+		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
 		for(int i = 0; i < rba.size(); i++) {
-			RigidBody rb = rba.get(i);
+			RigidBodyP rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mModel.mBone.get(rb.bone_index);
 				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
@@ -372,7 +543,7 @@ public class Miku {
 			}
 		}
 		for(int i = 0; i < rba.size(); i++) {
-			RigidBody rb = rba.get(i);
+			RigidBodyP rb = rba.get(i);
 			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
 				Bone b = mModel.mBone.get(rb.bone_index);
 				updateBoneMatrix(b);
@@ -389,6 +560,8 @@ public class Miku {
 			b.updated = false;
 		}
 	}
+	*/
+
 
 	private void preCalcKeyFrameIK() {
 		float[] location = new float[3];

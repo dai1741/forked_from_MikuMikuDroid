@@ -200,7 +200,7 @@ public class CoreLogic {
 		if(mMiku != null) {
 			Miku miku = mMiku.get(mMiku.size() - 1);
 			miku.attachMotion(motion);
-			miku.setBonePosByVMDFrame(0);
+			miku.setBonePosByVMDFrame(0, 0);
 			miku.setFaceByVMDFrame(0);
 			
 			// store IK chache
@@ -253,7 +253,7 @@ public class CoreLogic {
 				// Create Miku
 				Miku miku = new Miku(model);
 				miku.attachMotion(motion);
-				miku.setBonePosByVMDFrame(0);
+				miku.setBonePosByVMDFrame(0, 0);
 				miku.setFaceByVMDFrame(0);
 				miku.addRenderSenario("builtin:default", "screen");
 				miku.addRenderSenario("builtin:default_alpha", "screen");
@@ -397,12 +397,15 @@ public class CoreLogic {
 	
 	public synchronized int applyCurrentMotion() {
 		double frame;
+		double prev;
+		prev = mPrevTime;
 		frame = nowFrames(32767);
+		float step = (float) (mPrevTime - prev) / 1000;
 
 		if (mMiku != null) {
 			for (Miku miku : mMiku) {
 				if(miku.hasMotion()) {
-					miku.setBonePosByVMDFrame((float) frame);
+					miku.setBonePosByVMDFrame((float) frame, step);
 					miku.setFaceByVMDFrame((float) frame);					
 				}
 			}
