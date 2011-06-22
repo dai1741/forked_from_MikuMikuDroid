@@ -141,8 +141,10 @@ public class MikuModel {
 			}
 	
 			// update base face
-			for(int i = 0; i < mFaceBase.face_vert_count; i++) {
-				mFaceBase.face_vert_index[i] = mFaceBase.face_vert_index[i] * 8;
+			if(mFaceBase.face_vert_index != null) { // for universal code
+				for(int i = 0; i < mFaceBase.face_vert_count; i++) {
+					mFaceBase.face_vert_index[i] = mFaceBase.face_vert_index[i] * 8;
+				}				
 			}
 		}
 	}

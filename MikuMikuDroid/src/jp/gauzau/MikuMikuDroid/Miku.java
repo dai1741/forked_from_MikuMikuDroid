@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 import android.opengl.Matrix;
-import android.os.Build;
 import android.util.Log;
 
 public class Miku {
@@ -52,7 +51,7 @@ public class Miku {
 //	private DiscreteDynamicsWorld mDynamicsWorld;
 
     static {
-    	if(Build.CPU_ABI.contains("armeabi")) {
+    	if(CoreLogic.isArm()) {
             System.loadLibrary("bullet-jni");
             Log.d("Miku", "Use ARM native codes.");
     	}
@@ -62,7 +61,7 @@ public class Miku {
 		mModel = model;
 		mMwork.location = new float[3];
 		mMwork.rotation = new float[4];
-		mIsArm = Build.CPU_ABI.contains("armeabi");
+		mIsArm = CoreLogic.isArm();
 //		initializePysics();
 	}
 

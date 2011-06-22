@@ -9,6 +9,7 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
+import android.os.Build;
 import android.util.Log;
 
 public class PMDParser extends ParserBase implements ModelFile {
@@ -280,9 +281,11 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private void parsePMDFaceList() {
 		short num = getShort();
 		int acc = 0;
+		boolean isArm = CoreLogic.isArm();
 		Log.d("PMDParser", "Face: " + String.valueOf(num));
 		if (num > 0) {
 			mFace = new ArrayList<Face>(num);
+			float[] buf = new float[3];
 			for (int i = 0; i < num; i++) {
 				Face face = new Face();
 
@@ -292,26 +295,31 @@ public class PMDParser extends ParserBase implements ModelFile {
 
 //				face.face_vert_data = new ArrayList<FaceVertData>(face.face_vert_count);
 				acc += face.face_vert_count;
-				face.face_vert_index   = new int[face.face_vert_count];
-				face.face_vert_offset  = new float[face.face_vert_count*3];
-				face.face_vert_base    = new float[face.face_vert_count*3];
-				face.face_vert_cleared = new boolean[face.face_vert_count];
-				face.face_vert_updated = new boolean[face.face_vert_count];
-				for (int j = 0; j < face.face_vert_count; j++) {
-					face.face_vert_index[j] = face.face_type == 0 ? mInvMap[getInt()] : getInt();
-					face.face_vert_offset[j * 3 + 0] = getFloat();
-					face.face_vert_offset[j * 3 + 1] = getFloat();
-					face.face_vert_offset[j * 3 + 2] = getFloat();
-					face.face_vert_cleared[j] = true;
+				if(isArm) {	// for ARM native code
+					face.face_vert_index_native  = ByteBuffer.allocateDirect(face.face_vert_count * 4).order(ByteOrder.nativeOrder()).asIntBuffer();
+					face.face_vert_offset_native = ByteBuffer.allocateDirect(face.face_vert_count * 4 * 3).order(ByteOrder.nativeOrder()).asFloatBuffer();
+					for (int j = 0; j < face.face_vert_count; j++) {
+						face.face_vert_index_native.put(face.face_type == 0 ? mInvMap[getInt()] : getInt());
+						getFloat(buf);
+						face.face_vert_offset_native.put(buf);
+					}
+					face.face_vert_index_native.position(0);
+					face.face_vert_offset_native.position(0);
+				} else {	// for universal code
+					face.face_vert_base    = new float[face.face_vert_count*3];
+					face.face_vert_cleared = new boolean[face.face_vert_count];
+					face.face_vert_updated = new boolean[face.face_vert_count];
+					face.face_vert_index   = new int[face.face_vert_count];
+					face.face_vert_offset  = new float[face.face_vert_count*3];
+					
+					for (int j = 0; j < face.face_vert_count; j++) {
+						face.face_vert_index[j] = face.face_type == 0 ? mInvMap[getInt()] : getInt();
+						face.face_vert_offset[j * 3 + 0] = getFloat();
+						face.face_vert_offset[j * 3 + 1] = getFloat();
+						face.face_vert_offset[j * 3 + 2] = getFloat();
+						face.face_vert_cleared[j] = true;
+					}
 				}
-				
-				// for NDK
-				face.face_vert_index_native  = ByteBuffer.allocateDirect(face.face_vert_count * 4).order(ByteOrder.nativeOrder()).asIntBuffer();
-				face.face_vert_offset_native = ByteBuffer.allocateDirect(face.face_vert_count * 4 * 3).order(ByteOrder.nativeOrder()).asFloatBuffer();
-				face.face_vert_index_native.put(face.face_vert_index);
-				face.face_vert_offset_native.put(face.face_vert_offset);
-				face.face_vert_index_native.position(0);
-				face.face_vert_offset_native.position(0);
 				
 				mFace.add(i, face);
 			}

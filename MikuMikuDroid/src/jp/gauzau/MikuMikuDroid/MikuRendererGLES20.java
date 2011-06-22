@@ -391,8 +391,8 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			drawBg(bg);
 		}
 
-		GLES20.glFlush();
-		checkGlError(TAG);
+//		GLES20.glFlush();
+//		checkGlError(TAG);
 		mCoreLogic.onDraw(pos);
 	}
 	

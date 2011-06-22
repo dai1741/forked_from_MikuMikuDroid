@@ -16,6 +16,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+APP_ABI			:= armeabi armeabi-v7a
 LOCAL_MODULE    := bullet-jni
 LOCAL_SRC_FILES := bullet-jni.cpp
 

@@ -17,6 +17,7 @@ import android.content.SharedPreferences.Editor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.opengl.Matrix;
+import android.os.Build;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.util.Log;
@@ -717,6 +718,10 @@ public class CoreLogic {
 		Log.d("CoreLogic", "freeMemory[KB] = " + (int)(runtime.freeMemory()/1024));
 		Log.d("CoreLogic", "usedMemory[KB] = " + (int)( (runtime.totalMemory() - runtime.freeMemory())/1024) );
 		Log.d("CoreLogic", "maxMemory[KB] = " + (int)(runtime.maxMemory()/1024));
+	}
+	
+	static boolean isArm() {
+		return Build.CPU_ABI.contains("armeabi");
 	}
 	
 	// ///////////////////////////////////////////////////////////
