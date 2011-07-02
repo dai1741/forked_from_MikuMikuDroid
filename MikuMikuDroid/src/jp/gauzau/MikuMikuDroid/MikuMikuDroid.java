@@ -52,6 +52,24 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mCoreLogic = new CoreLogic(this) {
 			@Override
 			public void onInitialize() {
+				try {
+					mCoreLogic.restoreState();
+					final int max = mCoreLogic.getDulation();
+					mSeekBar.post(new Runnable() {
+						@Override
+						public void run() {
+							mSeekBar.setMax(max);
+						}
+					});
+				} catch (OutOfMemoryError e) {
+					MikuMikuDroid.this.runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							Toast.makeText(MikuMikuDroid.this, "Out of Memory. Abort.", Toast.LENGTH_LONG).show();
+						}
+					});
+				}
+				/*
 				MikuMikuDroid.this.runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
@@ -87,6 +105,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 						ae.execute(mCoreLogic);
 					}
 				});
+				*/
 			}
 			
 			@Override
@@ -113,7 +132,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			private boolean mIsPlaying = false;
 
 			@Override
-			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+			public void onProgressChanged(SeekBar seekBar, final int progress, boolean fromUser) {
 				if(fromUser) {
 					mCoreLogic.seekTo(progress);
 				}

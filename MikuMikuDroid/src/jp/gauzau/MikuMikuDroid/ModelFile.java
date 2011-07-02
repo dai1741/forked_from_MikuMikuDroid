@@ -30,7 +30,7 @@ public interface ModelFile {
 
 	public ArrayList<Face> getFace();
 	
-	public ArrayList<RigidBodyP> getRigidBody();
+	public ArrayList<RigidBody> getRigidBody();
 	
 	public ArrayList<Joint> getJoint();
 	

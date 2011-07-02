@@ -48,21 +48,11 @@ public class Miku {
 	private FacePair mFacePair = new FacePair();
 	private FaceIndex mFaceIndex = new FaceIndex();
 
-//	private DiscreteDynamicsWorld mDynamicsWorld;
-
-    static {
-    	if(CoreLogic.isArm()) {
-            System.loadLibrary("bullet-jni");
-            Log.d("Miku", "Use ARM native codes.");
-    	}
-    }	
-
 	public Miku(MikuModel model) {
 		mModel = model;
 		mMwork.location = new float[3];
 		mMwork.rotation = new float[4];
 		mIsArm = CoreLogic.isArm();
-//		initializePysics();
 	}
 
 	public void attachMotion(MikuMotion mm) {
@@ -79,7 +69,7 @@ public class Miku {
 		mRenderSenario.add(new RenderSet(s, t));
 	}
 
-	public void setBonePosByVMDFrame(float i, float step) {
+	public void setBonePosByVMDFramePre(float i, float step, boolean initPhysics) {
 		ArrayList<Bone> ba = mModel.mBone;
 		if(ba != null) {
 			int max = ba.size();
@@ -97,10 +87,24 @@ public class Miku {
 				Bone b = ba.get(r);
 				updateBoneMatrix(b);
 			}
-
-			// exec physics simulation
-//			solvePhysics(step);
 			
+			if(mIsArm) {
+				if(initPhysics) {
+					initializePhysics();
+				}
+				solvePhysicsPre(step, initPhysics);				
+			}
+		}
+	}
+	
+	public void setBonePosByVMDFramePost() {
+		ArrayList<Bone> ba = mModel.mBone;
+		if(ba != null) {
+			int max = ba.size();
+			
+			if(mIsArm) {
+				solvePhysicsPost();
+			}
 			for (int r = 0; r < max; r++) {
 				Bone b = ba.get(r);
 				Matrix.translateM(b.matrix, 0, -b.head_pos[0], -b.head_pos[1], -b.head_pos[2]);
@@ -174,111 +178,45 @@ public class Miku {
 	
 	native private void setFaceNative(FloatBuffer vertex, IntBuffer pointer, int count, IntBuffer index, FloatBuffer offset, float weight);
 
-	/*
-	private void solvePhysics(float step) {
-		Transform m = new Transform();
-		
-		if(mModel.mRigidBody != null) {
-			mDynamicsWorld.stepSimulation(step);
-			for(int i = 0; i < mModel.mRigidBody.size(); i++) {
-				RigidBodyP rb = mModel.mRigidBody.get(i);
-				if(rb.bone_index >= 0 && rb.type != 0) {
-					Bone b = mModel.mBone.get(rb.bone_index);
-					DefaultMotionState myMotionState = (DefaultMotionState) rb.btrb.getMotionState();
-					m.set(myMotionState.graphicsWorldTrans);					
-					m.getOpenGLMatrix(b.matrix);
-				}
-			}
-		}
-	}
+	native private int btAddRigidBody(
+			int type, int shape, 
+			float w, float h, float d, 
+			float[] pos, float[] rot,
+			float mass, float v_dim, float r_dim, float recoil, float friction, 
+			byte group_index, short group_target);
+
+	native private int btAddJoint(int rb1, int rb2, float[] pos, float[] rot, float[] p1, float[] p2, float[] r1, float[] r2, float[] sp, float[] sr);
+
+	native private float btGetOpenGLMatrix(int rb, float[] matrix, float[] pos, float[] rot);
+
+	native private float btSetOpenGLMatrix(int rb, float[] matrix, float[] pos, float[] rot);
 	
-	private void fakePhysics(float i) {
-		if(mModel.mRigidBody != null) {
-			physicsFollowBone();
-			physicsFakeExec(i);
-			physicsCheckCollision();
-			physicsMoveBone();
-		}
-	}
-	
-	private void initializePysics() {
-		///////////////////////////////////////////
-		// MAKE WORLD
-		
-		// collision configuration contains default setup for memory, collision setup
-		CollisionConfiguration collisionConfiguration = new DefaultCollisionConfiguration();
+	native private float btForceOpenGLMatrix(int rb, float[] matrix, float[] pos, float[] rot);
 
-		// use the default collision dispatcher. For parallel processing you can use a diffent dispatcher (see Extras/BulletMultiThreaded)
-		CollisionDispatcher dispatcher = new CollisionDispatcher(collisionConfiguration);
-
-		DbvtBroadphase broadphase = new DbvtBroadphase();
-
-		// the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
-		SequentialImpulseConstraintSolver solver = new SequentialImpulseConstraintSolver();
-		
-		mDynamicsWorld = new DiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-		
-		mDynamicsWorld.setGravity(new Vector3f(0f, -25f, 0f));
-		
+	private void initializePhysics() {
 		///////////////////////////////////////////
 		// MAKE RIGID BODIES
-		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
+		ArrayList<RigidBody> rba = mModel.mRigidBody;
 		if(rba != null) {
 			for(int i = 0; i < rba.size(); i++) {
-				RigidBodyP rb = rba.get(i);
-				
-				// create CollisionShape
-				CollisionShape cs;
-				switch(rb.shape) {
-				case 0: //sphere
-					cs = new SphereShape(rb.size[0]);
-					break;
-				case 1: // box
-					Vector3f bs = new Vector3f(rb.size[0], rb.size[1], rb.size[2]);
-					cs = new BoxShape(bs);
-					break;
-				case 2: // capsule
-					cs = new CapsuleShape(rb.size[0], rb.size[1]);
-					break;
-				default:
-					cs = null;	// NullPointerException
-					break;
-				}
-
-				// position and rotation
-				Transform transf = new Transform();
-				transf.setIdentity();
-				if(rb.bone_index < 0) {
-					transf.origin.set(rb.location);
+				RigidBody rb = rba.get(i);
+				if(rb.bone_index == -1) {
+					tmpVecs[0] = rb.location[0];
+					tmpVecs[1] = rb.location[1];
+					tmpVecs[2] = rb.location[2];
 				} else {
 					Bone b = mModel.mBone.get(rb.bone_index);
 					Vector.add(tmpVecs, rb.location, b.head_pos);
-					transf.origin.set(tmpVecs);
 				}
-				transf.basis.rotZ(rb.rotation[2]);
-				transf.basis.rotY(rb.rotation[1]);
-				transf.basis.rotX(rb.rotation[0]);
-				
-				// inertia
-				Vector3f inertia = new Vector3f(0, 0, 0);
-				cs.calculateLocalInertia(rb.weight, inertia);
-				
-				// create rigid body with default motion state
-				DefaultMotionState ms = new DefaultMotionState(transf);
-				RigidBodyConstructionInfo rbi = new RigidBodyConstructionInfo(rb.type == 0 ? 0 : rb.weight, ms, cs, inertia);
-				rbi.linearDamping = rb.v_dim;
-				rbi.angularDamping = rb.r_dim;
-				rbi.restitution = rb.recoil;
-				rbi.friction = rb.friction;
-				rb.btrb = new RigidBody(rbi);
-				if(rb.type == 0) {
-					rb.btrb.setActivationState(RigidBody.DISABLE_DEACTIVATION);
-					rb.btrb.setCollisionFlags(rb.btrb.getCollisionFlags() | CollisionFlags.KINEMATIC_OBJECT);
-				}
-				
-				mDynamicsWorld.addRigidBody(rb.btrb, (short)(1 << rb.group_index), rb.group_target);
+
+				rb.btrb = btAddRigidBody(rb.type, rb.shape,
+						rb.size[0], rb.size[1], rb.size[2],
+						tmpVecs, rb.rotation,
+						rb.weight, rb.v_dim, rb.r_dim, rb.recoil, rb.friction,
+						rb.group_index, rb.group_target);				
 			}
 		}
+		
 		
 		///////////////////////////////////////////
 		// MAKE JOINTS
@@ -286,281 +224,49 @@ public class Miku {
 		if(ja != null) {
 			for(int i = 0; i < ja.size(); i++) {
 				Joint j = ja.get(i);
-				RigidBody rb1 = rba.get(j.rigidbody_a).btrb;
-				RigidBody rb2 = rba.get(j.rigidbody_b).btrb;
+				int rb1 = rba.get(j.rigidbody_a).btrb;
+				int rb2 = rba.get(j.rigidbody_b).btrb;
 				
-				Transform tr1 = new Transform();
-				rb1.getCenterOfMassTransform(tr1);
-				tr1.origin.x = j.position[0] - tr1.origin.x;
-				tr1.origin.y = j.position[1] - tr1.origin.y;
-				tr1.origin.z = j.position[2] - tr1.origin.z;
-
-				Transform tr2 = new Transform();
-				rb2.getCenterOfMassTransform(tr2);
-				tr2.origin.x = j.position[0] - tr2.origin.x;
-				tr2.origin.y = j.position[1] - tr2.origin.y;
-				tr2.origin.z = j.position[2] - tr2.origin.z;
-				
-				Generic6DofConstraint dof = new Generic6DofConstraint(rb1, rb2, tr1, tr2, true);
-
-				Vector3f lim = new Vector3f();
-				lim.set(j.const_rotation_1);
-				dof.setAngularLowerLimit(lim);
-				lim.set(j.const_rotation_2);
-				dof.setAngularUpperLimit(lim);
-				lim.set(j.const_position_1);
-				dof.setLinearLowerLimit(lim);
-				lim.set(j.const_position_2);
-				dof.setLinearUpperLimit(lim);
-
-				mDynamicsWorld.addConstraint(dof, true);	// disableCollisionsBetweenLinkedBodies
+				j.btcst = btAddJoint(rb1, rb2, j.position, j.rotation, j.const_position_1, j.const_position_2,
+						j.const_rotation_1, j.const_rotation_2, j.spring_position, j.spring_rotation);
 			}
-		}
-
-	}
-
-	private void initializeFakePysics() {
-		float gravity[] = new float[4];
-		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;
-		
-		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
-		if(rba != null) {
-			for(int i = 0; i < rba.size(); i++) {
-				RigidBodyP rb = rba.get(i);
-				if(rb.bone_index >= 0) {
-					Bone base = mModel.mBone.get(rb.bone_index);
-					rb.cur_location[0] = base.head_pos[0] + rb.location[0];
-					rb.cur_location[1] = base.head_pos[1] + rb.location[1];
-					rb.cur_location[2] = base.head_pos[2] + rb.location[2];
-					rb.cur_location[3] = 1;
-					calcPendulumA(rb.cur_a, base, rb.cur_location, gravity, 1);
-					calcPendulumA(rb.tmp_a, base, rb.cur_location, gravity, 1);
-				} else {
-					rb.cur_location[0] = rb.location[0];
-					rb.cur_location[1] = rb.location[1];
-					rb.cur_location[2] = rb.location[2];
-					rb.cur_location[3] = 1;
-					Quaternion.setIndentity(rb.cur_a);
-					Quaternion.setIndentity(rb.tmp_a);
-				}
-				Quaternion.setIndentity(rb.cur_r);
-				Quaternion.setIndentity(rb.cur_v);
-				Quaternion.setIndentity(rb.tmp_r);
-				Quaternion.setIndentity(rb.tmp_v);
-				Quaternion.setIndentity(rb.prev_r);			
-			}			
-		}		
-	}
-
-	private void physicsFollowBone() {
-		float time = 0.1f;	// must be fixed
-		
-		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
-		for(int i = 0; i < rba.size(); i++) {
-			RigidBodyP rb = rba.get(i);
-			if(rb.type == 0) { // follow bone
-				
-			} else if(rb.bone_index >= 0) {			// follow previous fake physics
-				Bone b = mModel.mBone.get(rb.bone_index);
-				
-				// calculate v, a from previous position
-				System.arraycopy(rb.cur_r, 0, rb.prev_r, 0, 4);
-				Quaternion.mulScale(rb.tmp_v, rb.cur_v, rb.cur_a, time);
-				Quaternion.mulScale(rb.tmp_r, rb.cur_r, rb.cur_v, time);
-//				quaternionLimit(rb.tmp_r, rb.tmp_r, j.const_rotation_1, j.const_rotation_2);
-
-				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.tmp_r);
-			}
-		}		
-	}
-
-	private void physicsFakeExec(float i) {
-		float time = 0.1f;	// must be fixed
-		
-		float gravity[] = new float[4];
-		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
-		
-		ArrayList<Joint> ja = mModel.mJoint;
-		for(int idx = 0; idx < ja.size(); idx++) {
-			Joint rb = ja.get(idx);
-			RigidBodyP target = mModel.mRigidBody.get(rb.rigidbody_b);
-			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
-				Bone base = mModel.mBone.get(target.bone_index);
-
-//				Log.d("Miku", String.format("Physics %d Bone %d: pos %f, %f, %f",
-//						rb.rigidbody_b, target.bone_index, target.cur_location[0], target.cur_location[1], target.cur_location[2]));
-
-				// calculate v, a from current position
-				float[] current = getCurrentMatrix(base);
-				targetVecs[0] = target.location[0];
-				targetVecs[1] = target.location[1];
-				targetVecs[2] = target.location[2];
-				targetVecs[3] = 1;
-				Matrix.multiplyMV(target.cur_location, 0, current, 0, targetVecs, 0);
-
-				calcPendulumA(target.tmp_a, base, target.cur_location, gravity, 1.0f);
-//				Log.d("Miku", String.format("  a2 %f, %f, %f %f", target.tmp_a[0], target.tmp_a[1], target.tmp_a[2], target.tmp_a[3]));
-//				Log.d("Miku", String.format("  a1 %f, %f, %f %f", target.cur_a[0], target.cur_a[1], target.cur_a[2], target.cur_a[3]));
-				
-				Quaternion.mulScale(mQuatworks, target.cur_v, target.tmp_a, time);
-//				Log.d("Miku", String.format("  v1 %f, %f, %f %f", mQuatworks[0], mQuatworks[1], mQuatworks[2], mQuatworks[3]));
-//				Log.d("Miku", String.format("  v2 %f, %f, %f %f", target.tmp_v[0], target.tmp_v[1], target.tmp_v[2], target.tmp_v[3]));
-				Quaternion.mul(target.cur_v, mQuatworks, target.tmp_v);
-				Quaternion.scale(target.cur_v, 0.5f);
-				
-				Quaternion.mulScale(mQuatworks, target.cur_r, target.tmp_v, time);
-//				Log.d("Miku", String.format("  r1 %f, %f, %f %f", mQuatworks[0], mQuatworks[1], mQuatworks[2], mQuatworks[3]));
-//				Log.d("Miku", String.format("  r2 %f, %f, %f %f", target.tmp_r[0], target.tmp_r[1], target.tmp_r[2], target.tmp_r[3]));
-				Quaternion.mul(target.cur_r, mQuatworks, target.tmp_r);
-				Quaternion.scale(target.cur_r, 0.5f);
-				Quaternion.limit(target.cur_r, target.cur_r, rb.const_rotation_1, rb.const_rotation_2);
-//				System.arraycopy(target.tmp_v, 0, target.cur_v, 0, 4);
-//				System.arraycopy(target.tmp_r, 0, target.cur_r, 0, 4);
-				
-
-			}
-		}		
-	}
-
-	private void calcPendulumA(double[] quat, Bone b, float[] location, float[] force, double delta) {
-		float[] current = getCurrentMatrix(b);
-		effecterVecs[0] = current[12] + force[0];
-		effecterVecs[1] = current[13] + force[1];
-		effecterVecs[2] = current[14] + force[2];
-		effecterVecs[3] = 1;
-		
-		Vector.invertM(mMatworks, 0, current, 0);
-		Matrix.multiplyMV(effecterInvs, 0, mMatworks, 0, effecterVecs, 0);
-		Matrix.multiplyMV(targetInvs, 0, mMatworks, 0, location, 0);
-		//Log.d("Miku", String.format("  eff %f, %f, %f", effecterInvs[0], effecterInvs[1], effecterInvs[2]));
-		//Log.d("Miku", String.format("  tar %f, %f, %f", targetInvs[0], targetInvs[1], targetInvs[2]));
-
-		// calculate rotation angle/axis
-		Vector.normalize(effecterInvs);
-		Vector.normalize(targetInvs);
-		double angle = Math.acos(Math.abs(Vector.dot(effecterInvs, targetInvs)));
-//		double angle = Math.acos(dot(effecterInvs, targetInvs));
-		angle *= delta;	// must add friction
-
-		if (!Double.isNaN(angle)) {
-			Vector.cross(axis, targetInvs, effecterInvs);
-			Vector.normalize(axis);
-			if (!Double.isNaN(axis[0]) && !Double.isNaN(axis[1]) && !Double.isNaN(axis[2])) {
-				Quaternion.createFromAngleAxis(quat, angle, axis);
-			} else {
-				Quaternion.setIndentity(quat);
-			}
-		} else {
-			Quaternion.setIndentity(quat);
 		}
 	}
 	
-	private void physicsCheckCollision() {
-		float gravity[] = new float[4];
-		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
-
-		// clear all
-		for (Bone b : mModel.mBone) {
-			b.updated = false;
-		}
-		
-		float vec[] = new float[4];
-		vec[3] = 1;
-		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
-		for(int i = 0; i < rba.size(); i++) {
-			RigidBodyP rb = rba.get(i);
-			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mModel.mBone.get(rb.bone_index);
-				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
-			}
-		}
-		for(int i = 0; i < rba.size(); i++) {
-			RigidBodyP rb = rba.get(i);
-			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mModel.mBone.get(rb.bone_index);
-				float[] current = getCurrentMatrix(b);
-				vec[0] = rb.location[0];
-				vec[1] = rb.location[1];
-				vec[2] = rb.location[2];
-				Matrix.multiplyMV(rb.cur_location, 0, current, 0, vec, 0);
-			}
-		}
-		
-		// check collision
-		ArrayList<Joint> ja = mModel.mJoint;
-		for(int idx = 0; idx < ja.size(); idx++) {
-			Joint j = ja.get(idx);
-			RigidBodyP target = mModel.mRigidBody.get(j.rigidbody_b);
-			if(target.type != 0 && target.bone_index >= 0) { // physics simulation
-				for(int i = 0; i < rba.size(); i++) {
-					if(i == j.rigidbody_b) {
-						continue;
-					}
-					RigidBodyP rb = rba.get(i);
-					
-					float len = Matrix.length(
-							rb.cur_location[0] - target.cur_location[0],
-							rb.cur_location[1] - target.cur_location[1],
-							rb.cur_location[2] - target.cur_location[2]);
-					
-//					if(len < rb.size[0] + target.size[0]) {	// collision
-					if(len < Math.max(rb.size[0], Math.max(rb.size[1], rb.size[2])) +
-							 Math.max(target.size[0], Math.max(target.size[1], target.size[2]))) { // collision
-						System.arraycopy(rb.prev_r, 0, rb.cur_r, 0, 4);
-//						rb.cur_v[3] = - rb.cur_v[3];
-						break;
+	private void solvePhysicsPre(float step, boolean initializePhysics) {
+		if(mModel.mRigidBody != null) {
+			for(int i = 0; i < mModel.mRigidBody.size(); i++) {
+				RigidBody rb = mModel.mRigidBody.get(i);
+				if(rb.bone_index >= 0) {
+					Bone b = mModel.mBone.get(rb.bone_index);
+					if(rb.type == 0) {
+						btSetOpenGLMatrix(rb.btrb, b.matrix, rb.location, rb.rotation);
+					} else if(initializePhysics) {
+						btForceOpenGLMatrix(rb.btrb, b.matrix, rb.location, rb.rotation);						
 					}
 				}
 			}
-		}		
-		
-		// clear all
-		for (Bone b : mModel.mBone) {
-			b.updated = false;
-		}
-
-	}
-
-	private void physicsMoveBone() {
-		float gravity[] = new float[4];
-		gravity[0] = 0; gravity[1] = -1; gravity[2] = 0; gravity[3] = 1;	// must add F
-
-		// clear all
-		for (Bone b : mModel.mBone) {
-			b.updated = false;
-		}
-		
-		float vec[] = new float[4];
-		vec[3] = 1;
-		ArrayList<RigidBodyP> rba = mModel.mRigidBody;
-		for(int i = 0; i < rba.size(); i++) {
-			RigidBodyP rb = rba.get(i);
-			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mModel.mBone.get(rb.bone_index);
-				Quaternion.toMatrixPreserveTranslate(b.matrix_current, rb.cur_r);
-				Quaternion.scale(rb.cur_v, 1 - rb.r_dim);
-			}
-		}
-		for(int i = 0; i < rba.size(); i++) {
-			RigidBodyP rb = rba.get(i);
-			if(rb.type != 0 && rb.bone_index >= 0) { // follow bone
-				Bone b = mModel.mBone.get(rb.bone_index);
-				updateBoneMatrix(b);
-				vec[0] = rb.location[0];
-				vec[1] = rb.location[1];
-				vec[2] = rb.location[2];
-				Matrix.multiplyMV(rb.cur_location, 0, b.matrix, 0, vec, 0);
-				calcPendulumA(rb.cur_a, b, rb.cur_location, gravity, 1.0f);
-			}
-		}
-		
-		// clear all
-		for (Bone b : mModel.mBone) {
-			b.updated = false;
 		}
 	}
-	*/
 
+	private void solvePhysicsPost() {
+		if(mModel.mRigidBody != null) {			
+			for(int i = 0; i < mModel.mRigidBody.size(); i++) {
+				RigidBody rb = mModel.mRigidBody.get(i);
+				if(rb.bone_index >= 0 && rb.type != 0) {
+					Bone b = mModel.mBone.get(rb.bone_index);
+					if(rb.type == 1) {
+						btGetOpenGLMatrix(rb.btrb, b.matrix, rb.location, rb.rotation);
+					} else { // rb.type == 2
+						btGetOpenGLMatrix(rb.btrb, b.matrix_current, rb.location, rb.rotation);
+						for(int j = 0; j < 12; j++) {
+							b.matrix[j] = b.matrix_current[j];
+						}
+					}
+				}
+			}
+		}
+	}
 
 	private void preCalcKeyFrameIK() {
 		float[] location = new float[3];

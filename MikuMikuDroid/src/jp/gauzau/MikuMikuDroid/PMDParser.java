@@ -9,7 +9,6 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
-import android.os.Build;
 import android.util.Log;
 
 public class PMDParser extends ParserBase implements ModelFile {
@@ -31,7 +30,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private ArrayList<String> mEnglishSkinName;
 	private ArrayList<String> mToonFileName;
 	private ArrayList<String> mEnglishBoneDispName;
-	private ArrayList<RigidBodyP> mRigidBody;
+	private ArrayList<RigidBody> mRigidBody;
 	private ArrayList<Joint> mJoint;
 	private boolean mIsOneSkinning = true;
 	
@@ -116,9 +115,9 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private void parsePMDRigidBody() {
 		int num = getInt();
 		Log.d("PMDParser", "RigidBody: " + String.valueOf(num));
-		mRigidBody = new ArrayList<RigidBodyP>(num);
+		mRigidBody = new ArrayList<RigidBody>(num);
 		for(int i = 0; i < num; i++) {
-			RigidBodyP rb = new RigidBodyP();
+			RigidBody rb = new RigidBody();
 			
 			rb.name			= getString(20);
 			rb.bone_index	= getShort();
@@ -138,15 +137,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 			rb.friction		= getFloat();
 			rb.type			= getByte();
 			
-			// for physics simulation
-			rb.cur_location	= new float[4];		// x, y, z, w
-			rb.cur_r 		= new double[4];	// quaternion
-			rb.cur_v		= new double[4];	// quaternion
-			rb.cur_a		= new double[4];	// quaternion
-			rb.tmp_r 		= new double[4];	// quaternion
-			rb.tmp_v		= new double[4];	// quaternion
-			rb.tmp_a		= new double[4];	// quaternion
-			rb.prev_r		= new double[4];	// quaternion
+			rb.btrb			= -1;	// physics is not initialized yet
 			
 			mRigidBody.add(rb);
 		}
@@ -385,7 +376,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 				bone.matrix_current = new float[16]; // for temporary (current bone matrix that is not include parent rotation
 				bone.updated = false; // whether matrix is updated by VMD or not
 				bone.is_leg = bone.name.contains("‚Ð‚´");
-
+				
 				if (bone.tail != -1) {
 					mBone.add(i, bone);
 				}
@@ -601,7 +592,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 		return mFace;
 	}
 	
-	public ArrayList<RigidBodyP> getRigidBody() {
+	public ArrayList<RigidBody> getRigidBody() {
 		return mRigidBody;
 	}
 	

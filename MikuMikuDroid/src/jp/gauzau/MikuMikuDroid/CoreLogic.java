@@ -45,10 +45,13 @@ public class CoreLogic {
 	private int					mWidth;
 	private int					mHeight;
 	private int					mAngle;
+	
+	private boolean				mIsSought = true;
 
 	// temporary data
 	private CameraIndex			mCameraIndex = new CameraIndex();
 	private CameraPair			mCameraPair  = new CameraPair();
+	
 	
 
 	private class FakeMedia {
@@ -145,12 +148,24 @@ public class CoreLogic {
 		}
 		
 	}
+	
+	native private void btMakeWorld();
 
+    static {
+    	if(isArm()) {
+            System.loadLibrary("bullet-jni");
+            Log.d("Miku", "Use ARM native codes.");
+    	}
+    }
+  
 	public CoreLogic(Context ctx) {
 		mCtx = ctx;
 		mFakeMedia = new FakeMedia(ctx);
-		
+
 		clearMember();
+		if(isArm()) {
+			btMakeWorld();
+		}
 		
 		if(new File("/sdcard/.MikuMikuDroid").exists()) {
 			mBase = "/sdcard/.MikuMikuDroid/";
@@ -201,8 +216,9 @@ public class CoreLogic {
 		if(mMiku != null) {
 			Miku miku = mMiku.get(mMiku.size() - 1);
 			miku.attachMotion(motion);
-			miku.setBonePosByVMDFrame(0, 0);
-			miku.setFaceByVMDFrame(0);
+//			miku.setBonePosByVMDFramePre(0, 0, true);
+//			miku.setBonePosByVMDFramePost();
+//			miku.setFaceByVMDFrame(0);
 			
 			// store IK chache
 			File f = new File(vmc);
@@ -254,8 +270,9 @@ public class CoreLogic {
 				// Create Miku
 				Miku miku = new Miku(model);
 				miku.attachMotion(motion);
-				miku.setBonePosByVMDFrame(0, 0);
-				miku.setFaceByVMDFrame(0);
+//				miku.setBonePosByVMDFramePre(0, 0, true);
+//				miku.setBonePosByVMDFramePost();
+//				miku.setFaceByVMDFrame(0);
 				miku.addRenderSenario("builtin:default", "screen");
 				miku.addRenderSenario("builtin:default_alpha", "screen");
 				
@@ -348,11 +365,14 @@ public class CoreLogic {
 			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
 			mMedia.setLooping(true);
 		}
+		mIsSought = true;
 	}
 
 	public synchronized void loadCamera(String camera) throws IOException {
 		mCamera = new MikuMotion(new VMDParser(camera));
 	}
+
+	native private void btClearAllData();
 
 	public synchronized ArrayList<MikuModel> clear() {
 		// get members for deleting textures
@@ -362,6 +382,9 @@ public class CoreLogic {
 		}
 		
 		clearMember();
+		
+		// clear physics world
+		btClearAllData();
 		
 		SharedPreferences sp = mCtx.getSharedPreferences("default", 0);
 		SharedPreferences.Editor ed = sp.edit();
@@ -396,7 +419,15 @@ public class CoreLogic {
 		}
 	}
 	
+	native private void btStepSimulation(float step);
+	
 	public synchronized int applyCurrentMotion() {
+		boolean initializePhysics = false;
+		if(mIsSought) {	 // NO ATOMIC!!! must be fixed
+			initializePhysics = true;
+			mIsSought = false;
+			btClearAllData();			
+		}
 		double frame;
 		double prev;
 		prev = mPrevTime;
@@ -406,12 +437,27 @@ public class CoreLogic {
 		if (mMiku != null) {
 			for (Miku miku : mMiku) {
 				if(miku.hasMotion()) {
-					miku.setBonePosByVMDFrame((float) frame, step);
+					miku.setBonePosByVMDFramePre((float) frame, step, initializePhysics);
 					miku.setFaceByVMDFrame((float) frame);					
 				}
 			}
 		}
+		
+		// exec physics simulation
+		if(isArm() && (step != 0 || !initializePhysics)) {
+			btStepSimulation(step);
+		}
+		
+		if (mMiku != null) {
+			for (Miku miku : mMiku) {
+				if(miku.hasMotion()) {
+					miku.setBonePosByVMDFramePost();
+				}
+			}
+		}		
+		
 		setCameraByVMDFrame(frame);
+
 		return (int) (frame * 1000 / 30);
 	}
 	
@@ -456,6 +502,7 @@ public class CoreLogic {
 		} else {
 			mFakeMedia.seekTo(pos);
 		}
+		mIsSought = true;
 	}
 	
 	public int getDulation() {

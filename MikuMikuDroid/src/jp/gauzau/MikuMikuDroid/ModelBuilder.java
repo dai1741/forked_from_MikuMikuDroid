@@ -23,7 +23,7 @@ public class ModelBuilder {
 	public ArrayList<Material>		mMaterial;
 	public ArrayList<Face>			mFace;
 	public ArrayList<IK>			mIK;
-	public ArrayList<RigidBodyP>		mRigidBody;
+	public ArrayList<RigidBody>		mRigidBody;
 	public ArrayList<Joint>			mJoint;
 	public ArrayList<String>		mToonFileName;
 	public boolean					mIsOneSkinning;
