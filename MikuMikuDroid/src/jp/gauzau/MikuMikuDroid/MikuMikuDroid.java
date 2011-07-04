@@ -19,6 +19,9 @@ import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.SeekBar;
@@ -30,6 +33,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	private MMGLSurfaceView mMMGLSurfaceView;
 	private RelativeLayout mRelativeLayout;
 	private SeekBar mSeekBar;
+	private Button mPlayPauseButton;
+	private Button mRewindButton;
 	
 	// Model
 	private CoreLogic mCoreLogic;
@@ -52,25 +57,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mCoreLogic = new CoreLogic(this) {
 			@Override
 			public void onInitialize() {
-				/*
-				try {
-					mCoreLogic.restoreState();
-					final int max = mCoreLogic.getDulation();
-					mSeekBar.post(new Runnable() {
-						@Override
-						public void run() {
-							mSeekBar.setMax(max);
-						}
-					});
-				} catch (OutOfMemoryError e) {
-					MikuMikuDroid.this.runOnUiThread(new Runnable() {
-						@Override
-						public void run() {
-							Toast.makeText(MikuMikuDroid.this, "Out of Memory. Abort.", Toast.LENGTH_LONG).show();
-						}
-					});
-				}
-				*/
 				MikuMikuDroid.this.runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
@@ -123,10 +109,12 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mRelativeLayout = new RelativeLayout(this);
 		mRelativeLayout.setVerticalGravity(Gravity.BOTTOM);
 		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic);
+	
 		LayoutParams p = new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT);
 		p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
 		mSeekBar = new SeekBar(this);
 		mSeekBar.setLayoutParams(p);
+		mSeekBar.setId(1024);
 		mSeekBar.setVisibility(SeekBar.INVISIBLE);
 		mSeekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 			private boolean mIsPlaying = false;
@@ -155,8 +143,47 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			}
 			
 		});
+		
+		p = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+		p.addRule(RelativeLayout.CENTER_HORIZONTAL);
+		p.addRule(RelativeLayout.ABOVE, mSeekBar.getId());
+		p.setMargins(5, 5, 5, 60);
+		mPlayPauseButton = new Button(this);
+		mPlayPauseButton.setLayoutParams(p);
+		mPlayPauseButton.setVisibility(Button.INVISIBLE);
+		mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
+		mPlayPauseButton.setId(mSeekBar.getId() + 1);
+		mPlayPauseButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if(mCoreLogic.toggleStartStop()) {
+					mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
+				} else {
+					mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);					
+				}
+			}
+		});
+
+		p = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+		p.addRule(RelativeLayout.ABOVE, mSeekBar.getId());
+		p.addRule(RelativeLayout.LEFT_OF, mPlayPauseButton.getId());
+		p.setMargins(5, 5, 60, 60);
+		mRewindButton = new Button(this);
+		mRewindButton.setLayoutParams(p);
+		mRewindButton.setVisibility(Button.INVISIBLE);
+		mRewindButton.setBackgroundResource(R.drawable.ic_media_previous);
+		mRewindButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				mCoreLogic.rewind();
+			}
+		});
+
+		
 		mRelativeLayout.addView(mMMGLSurfaceView);
 		mRelativeLayout.addView(mSeekBar);
+		mRelativeLayout.addView(mPlayPauseButton);
+		mRelativeLayout.addView(mRewindButton);
 		setContentView(mRelativeLayout);
 
 		if (mCoreLogic.checkFileIsPrepared() == false) {
@@ -197,7 +224,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST + 1, Menu.NONE, R.string.menu_load_camera);
 		menu.add(0, Menu.FIRST + 2, Menu.NONE, R.string.menu_load_music);
 		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_play_pause);
-		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_rewind);
+		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_toggle_physics);
 		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_initialize);
 
 		return ret;
@@ -360,7 +387,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			break;
 			
 		case (Menu.FIRST + 4):
-			mCoreLogic.rewind();
+			mCoreLogic.togglePhysics();
 			break;
 
 		case (Menu.FIRST + 5):
@@ -416,7 +443,15 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		if(event.getAction() == MotionEvent.ACTION_UP) {
+			if(mCoreLogic.isPlaying()) {
+				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
+			} else {
+				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);					
+			}
+			
 			mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE ? SeekBar.INVISIBLE : SeekBar.VISIBLE);
+			mPlayPauseButton.setVisibility(mPlayPauseButton.getVisibility() == Button.VISIBLE ? Button.INVISIBLE : Button.VISIBLE);
+			mRewindButton.setVisibility(mRewindButton.getVisibility() == Button.VISIBLE ? Button.INVISIBLE : Button.VISIBLE);
 			mRelativeLayout.requestLayout();
 		}
 		return false;

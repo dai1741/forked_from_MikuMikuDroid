@@ -106,12 +106,12 @@ public class Miku {
 		}
 	}
 	
-	public void setBonePosByVMDFramePost() {
+	public void setBonePosByVMDFramePost(boolean physics) {
 		ArrayList<Bone> ba = mModel.mBone;
 		if(ba != null) {
 			int max = ba.size();
 			
-			if(mIsArm) {
+			if(mIsArm && physics) {
 				solvePhysicsPost();
 			}
 			for (int r = 0; r < max; r++) {

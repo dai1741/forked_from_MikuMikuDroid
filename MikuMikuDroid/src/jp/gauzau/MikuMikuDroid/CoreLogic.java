@@ -46,6 +46,7 @@ public class CoreLogic {
 	private int					mWidth;
 	private int					mHeight;
 	private int					mAngle;
+	private boolean				mPhysics = false;
 	
 	// temporary data
 	private CameraIndex			mCameraIndex = new CameraIndex();
@@ -71,13 +72,14 @@ public class CoreLogic {
 			mMax = 0;
 		}
 		
-		public void toggleStartStop() {
+		public boolean toggleStartStop() {
 			updatePos();
 			if(mIsPlaying) {	// during play
 				stop();
 			} else {
 				start();
 			}
+			return mIsPlaying;
 		}
 		
 		public int getCurrentPosition() {
@@ -216,7 +218,7 @@ public class CoreLogic {
 			Miku miku = mMiku.get(mMiku.size() - 1);
 			miku.attachMotion(motion);
 			miku.setBonePosByVMDFramePre(0, 0, true);
-			miku.setBonePosByVMDFramePost();
+			miku.setBonePosByVMDFramePost(mPhysics);
 			miku.setFaceByVMDFrame(0);
 			
 			// store IK chache
@@ -270,7 +272,7 @@ public class CoreLogic {
 				Miku miku = new Miku(model);
 				miku.attachMotion(motion);
 				miku.setBonePosByVMDFramePre(0, 0, true);
-				miku.setBonePosByVMDFramePost();
+				miku.setBonePosByVMDFramePost(mPhysics);
 				miku.setFaceByVMDFrame(0);
 				miku.addRenderSenario("builtin:default", "screen");
 				miku.addRenderSenario("builtin:default_alpha", "screen");
@@ -369,6 +371,10 @@ public class CoreLogic {
 	public synchronized void loadCamera(String camera) throws IOException {
 		mCamera = new MikuMotion(new VMDParser(camera));
 	}
+	
+	public synchronized void togglePhysics() {
+		mPhysics = !mPhysics;
+	}
 
 	native private void btClearAllData();
 
@@ -441,14 +447,14 @@ public class CoreLogic {
 		}
 		
 		// exec physics simulation
-		if(isArm() && (step != 0 || !initializePhysics)) {
+		if(isArm() && mPhysics && (step != 0 || !initializePhysics)) {
 			btStepSimulation(step, 5);
 		}
 		
 		if (mMiku != null) {
 			for (Miku miku : mMiku) {
 				if(miku.hasMotion()) {
-					miku.setBonePosByVMDFramePost();
+					miku.setBonePosByVMDFramePost(mPhysics);
 				}
 			}
 		}
@@ -476,9 +482,8 @@ public class CoreLogic {
 				return true;
 			}
 		} else {
-			mFakeMedia.toggleStartStop();
+			return mFakeMedia.toggleStartStop();
 		}
-		return false;
 	}
 	
 	public boolean isPlaying() {
