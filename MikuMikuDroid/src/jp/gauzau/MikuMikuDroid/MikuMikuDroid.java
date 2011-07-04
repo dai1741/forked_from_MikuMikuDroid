@@ -52,6 +52,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mCoreLogic = new CoreLogic(this) {
 			@Override
 			public void onInitialize() {
+				/*
 				try {
 					mCoreLogic.restoreState();
 					final int max = mCoreLogic.getDulation();
@@ -69,7 +70,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 						}
 					});
 				}
-				/*
+				*/
 				MikuMikuDroid.this.runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
@@ -105,7 +106,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 						ae.execute(mCoreLogic);
 					}
 				});
-				*/
 			}
 			
 			@Override

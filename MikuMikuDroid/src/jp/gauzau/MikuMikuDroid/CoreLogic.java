@@ -30,6 +30,7 @@ public class CoreLogic {
 	private MediaPlayer			mMedia;
 	private FakeMedia			mFakeMedia;
 	private String				mMediaName;
+	private long				mCurTime;
 	private long				mPrevTime;
 	private long				mStartTime;
 	private double				mFPS;
@@ -46,8 +47,6 @@ public class CoreLogic {
 	private int					mHeight;
 	private int					mAngle;
 	
-	private boolean				mIsSought = true;
-
 	// temporary data
 	private CameraIndex			mCameraIndex = new CameraIndex();
 	private CameraPair			mCameraPair  = new CameraPair();
@@ -216,9 +215,9 @@ public class CoreLogic {
 		if(mMiku != null) {
 			Miku miku = mMiku.get(mMiku.size() - 1);
 			miku.attachMotion(motion);
-//			miku.setBonePosByVMDFramePre(0, 0, true);
-//			miku.setBonePosByVMDFramePost();
-//			miku.setFaceByVMDFrame(0);
+			miku.setBonePosByVMDFramePre(0, 0, true);
+			miku.setBonePosByVMDFramePost();
+			miku.setFaceByVMDFrame(0);
 			
 			// store IK chache
 			File f = new File(vmc);
@@ -270,9 +269,9 @@ public class CoreLogic {
 				// Create Miku
 				Miku miku = new Miku(model);
 				miku.attachMotion(motion);
-//				miku.setBonePosByVMDFramePre(0, 0, true);
-//				miku.setBonePosByVMDFramePost();
-//				miku.setFaceByVMDFrame(0);
+				miku.setBonePosByVMDFramePre(0, 0, true);
+				miku.setBonePosByVMDFramePost();
+				miku.setFaceByVMDFrame(0);
 				miku.addRenderSenario("builtin:default", "screen");
 				miku.addRenderSenario("builtin:default_alpha", "screen");
 				
@@ -365,7 +364,6 @@ public class CoreLogic {
 			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
 			mMedia.setLooping(true);
 		}
-		mIsSought = true;
 	}
 
 	public synchronized void loadCamera(String camera) throws IOException {
@@ -419,20 +417,19 @@ public class CoreLogic {
 		}
 	}
 	
-	native private void btStepSimulation(float step);
+	native private void btStepSimulation(float step, int max);
 	
 	public synchronized int applyCurrentMotion() {
 		boolean initializePhysics = false;
-		if(mIsSought) {	 // NO ATOMIC!!! must be fixed
+		
+		calcCurrentTime();
+		double frame = getCurrentFrames(32767);
+		float step = (float) (getDeltaTimeMills() / 1000.0);
+		if(step >= 0.2 || step < 0) {
+			step = 0;
 			initializePhysics = true;
-			mIsSought = false;
-			btClearAllData();			
+			btClearAllData();
 		}
-		double frame;
-		double prev;
-		prev = mPrevTime;
-		frame = nowFrames(32767);
-		float step = (float) (mPrevTime - prev) / 1000;
 
 		if (mMiku != null) {
 			for (Miku miku : mMiku) {
@@ -445,7 +442,7 @@ public class CoreLogic {
 		
 		// exec physics simulation
 		if(isArm() && (step != 0 || !initializePhysics)) {
-			btStepSimulation(step);
+			btStepSimulation(step, 5);
 		}
 		
 		if (mMiku != null) {
@@ -454,7 +451,7 @@ public class CoreLogic {
 					miku.setBonePosByVMDFramePost();
 				}
 			}
-		}		
+		}
 		
 		setCameraByVMDFrame(frame);
 
@@ -502,7 +499,6 @@ public class CoreLogic {
 		} else {
 			mFakeMedia.seekTo(pos);
 		}
-		mIsSought = true;
 	}
 	
 	public int getDulation() {
@@ -798,31 +794,39 @@ public class CoreLogic {
 		}
 	}
 
-	protected double nowFrames(int max_frame) {
-		double frame;
-		long timeMedia;
+	private void calcCurrentTime() {
+		// update previous time
+		mPrevTime = mCurTime;
+		
+		// calculate current time
 		if (mMedia != null) {
-			timeMedia = mMedia.getCurrentPosition();
+			mCurTime = mMedia.getCurrentPosition();
 			if(mMedia.isPlaying()) {
 				long timeLocal = System.currentTimeMillis();
-				if (Math.abs(timeLocal - mStartTime - timeMedia) > 500 || mMedia.isPlaying() == false) {
-					mStartTime = timeLocal - timeMedia;
+				if (Math.abs(timeLocal - mStartTime - mCurTime) > 500 || mMedia.isPlaying() == false) {
+					mStartTime = timeLocal - mCurTime;
 				} else {
-					timeMedia = timeLocal - mStartTime;
+					mCurTime = timeLocal - mStartTime;
 				}				
 			}
 		} else {
-			timeMedia = mFakeMedia.getCurrentPosition();
+			mCurTime = mFakeMedia.getCurrentPosition();
 		}
-
-		frame = ((float) timeMedia * 30.0 / 1000.0);
+	}
+	
+	protected double getCurrentFrames(int max_frame) {
+		double frame;
+		frame = ((float) mCurTime * 30.0 / 1000.0);
 		if (frame > max_frame) {
 			frame = max_frame;
 		}
-		mFPS = 1000.0 / (timeMedia - mPrevTime);
-		mPrevTime = timeMedia;
+		mFPS = 1000.0 / (mCurTime - mPrevTime);
 
 		return frame;
+	}
+	
+	private long getDeltaTimeMills() {
+		return mCurTime - mPrevTime;
 	}
 
 	protected void setCameraByVMDFrame(double frame) {

@@ -4,9 +4,10 @@
 #include <btBulletDynamicsCommon.h>
 #include <btBulletCollisionCommon.h>
 
-btDiscreteDynamicsWorld *mDynamicsWorld;
-btRigidBody *rb[4096];
-btDefaultMotionState *ms[4096];
+btDiscreteDynamicsWorld *g_DynamicsWorld;
+btRigidBody *g_rb[4096];
+btDefaultMotionState *g_ms[4096];
+btTransform *g_pos[4096];
 int g_ptr;
 
 btGeneric6DofSpringConstraint *g_cst[4096];
@@ -50,10 +51,10 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btMakeWorld(JNIEnv* env, 
 	btCollisionDispatcher *dispatcher = new btCollisionDispatcher(collisionConfiguration);
 	btDbvtBroadphase *broadphase = new btDbvtBroadphase();
 	btSequentialImpulseConstraintSolver *solver = new btSequentialImpulseConstraintSolver();
-	mDynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+	g_DynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
 
-	btVector3 *g = new btVector3(0, -9.8, 0);
-	mDynamicsWorld->setGravity(*g);
+	btVector3 *g = new btVector3(0, -9.8 * 2.5, 0);
+	g_DynamicsWorld->setGravity(*g);
 	
 	g_ptr = 0;
 	g_cptr = 0;
@@ -95,7 +96,7 @@ btTransform createBtTransform(JNIEnv* env, jfloatArray pos, jfloatArray rot)
 extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddRigidBody(JNIEnv* env, jobject thiz,
 		jint type, jint shape,
 		jfloat w, jfloat h, jfloat d,
-		jfloatArray pos, jfloatArray rot, 
+		jfloatArray pos, jfloatArray rot, jfloatArray head_pos, jfloatArray bone,
 		jfloat mass, jfloat v_dim, jfloat r_dim, jfloat recoil, jfloat friction,
 		jbyte group_index, jshort group_target)
 {
@@ -118,27 +119,36 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddRigidBody(JNIEnv* env, jo
 
 	// position and rotation
 	btTransform transf = createBtTransform(env, pos, rot);
+	btMatrix3x3 norot;
+	norot.setIdentity();
+	g_pos[g_ptr] = new btTransform(btTransform(norot, createBtVector3(env, head_pos)) * transf);
+	
+	float* bone_native = env->GetFloatArrayElements(bone, 0);
+	btTransform tr;
+	tr.setFromOpenGLMatrix(bone_native);
+	env->ReleaseFloatArrayElements(bone, bone_native, 0);
+	transf = tr * transf;
 
 	// inertia
 	btVector3 inertia(0, 0, 0);
 	cs->calculateLocalInertia(type == 0 ? 0 : mass, inertia);
 	
 	// create rigid body with default motion state
-	ms[g_ptr] = new btDefaultMotionState(transf);
+	g_ms[g_ptr] = new btDefaultMotionState(transf);
 	
-	btRigidBody :: btRigidBodyConstructionInfo* rbi = new btRigidBody :: btRigidBodyConstructionInfo(type == 0 ? 0 : mass, ms[g_ptr], cs, inertia);
+	btRigidBody :: btRigidBodyConstructionInfo* rbi = new btRigidBody :: btRigidBodyConstructionInfo(type == 0 ? 0 : mass, g_ms[g_ptr], cs, inertia);
 	rbi->m_linearDamping = v_dim;
 	rbi->m_angularDamping = r_dim;
 	rbi->m_restitution = recoil;
 	rbi->m_friction = friction;
-	rb[g_ptr] = new btRigidBody(*rbi);
+	g_rb[g_ptr] = new btRigidBody(*rbi);
 	
 	if(type == 0) {
-		rb[g_ptr]->setActivationState(DISABLE_DEACTIVATION);
-		rb[g_ptr]->setCollisionFlags(rb[g_ptr]->getCollisionFlags() | btCollisionObject :: CF_KINEMATIC_OBJECT);
+		g_rb[g_ptr]->setActivationState(DISABLE_DEACTIVATION);
+		g_rb[g_ptr]->setCollisionFlags(g_rb[g_ptr]->getCollisionFlags() | btCollisionObject :: CF_KINEMATIC_OBJECT);
 	}
 
-	mDynamicsWorld->addRigidBody(rb[g_ptr], (1 << group_index), group_target);
+	g_DynamicsWorld->addRigidBody(g_rb[g_ptr], (1 << group_index), group_target);
 	
 	return g_ptr++;
 }
@@ -148,9 +158,11 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobjec
 {
 	btTransform jt = createBtTransform(env, pos, rot);
 	
-	btTransform tr1 = rb[rb1]->getCenterOfMassTransform().inverse() * jt;
-	btTransform tr2 = rb[rb2]->getCenterOfMassTransform().inverse() * jt;
-	btGeneric6DofSpringConstraint* dof = new btGeneric6DofSpringConstraint(*rb[rb1], *rb[rb2], tr1, tr2, true);
+//	btTransform tr1 = g_rb[rb1]->getCenterOfMassTransform().inverse() * jt;
+//	btTransform tr2 = g_rb[rb2]->getCenterOfMassTransform().inverse() * jt;
+	btTransform tr1 = g_pos[rb1]->inverse() * jt;
+	btTransform tr2 = g_pos[rb2]->inverse() * jt;
+	btGeneric6DofSpringConstraint* dof = new btGeneric6DofSpringConstraint(*g_rb[rb1], *g_rb[rb2], tr1, tr2, true);
 	
 	dof->setLinearLowerLimit(createBtVector3(env, p1));
 	dof->setLinearUpperLimit(createBtVector3(env, p2));
@@ -169,7 +181,7 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobjec
 	env->ReleaseFloatArrayElements(sp, sp_n, 0);
 	env->ReleaseFloatArrayElements(sr, sr_n, 0);
 	
-	mDynamicsWorld->addConstraint(dof, true);	// disableCollisionsBetweenLinkedBodies
+	g_DynamicsWorld->addConstraint(dof, true);	// disableCollisionsBetweenLinkedBodies
 	g_cst[g_cptr] = dof;
 	
 	return g_cptr++;
@@ -178,27 +190,28 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobjec
 extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btClearAllData(JNIEnv* env, jobject thiz)
 {
 	for(int i = 0; i < g_cptr; i++) {
-		mDynamicsWorld->removeConstraint(g_cst[i]);
+		g_DynamicsWorld->removeConstraint(g_cst[i]);
 		delete g_cst[i];
 		g_cst[i] = 0;
 	}
 	
 	for(int i = 0; i < g_ptr; i++) {
-		mDynamicsWorld->removeRigidBody(rb[i]);
-		delete rb[i];
-		delete ms[i];
-		rb[i] = 0;
-		ms[i] = 0;
+		g_DynamicsWorld->removeRigidBody(g_rb[i]);
+		delete g_rb[i];
+		delete g_ms[i];
+		delete g_pos[i];
+		g_rb[i] = 0;
+		g_ms[i] = 0;
+		g_pos[i] = 0;
 	}
 	
 	g_ptr = 0;
 	g_cptr = 0;
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btStepSimulation(JNIEnv* env, jobject thiz, jfloat step)
+extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btStepSimulation(JNIEnv* env, jobject thiz, jfloat step, jint max)
 {
-	mDynamicsWorld->stepSimulation(step, 4);
-//	mDynamicsWorld->stepSimulation(step, 0);
+	g_DynamicsWorld->stepSimulation(step, max);
 }
 
 extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btGetOpenGLMatrix(JNIEnv* env, jobject thiz, jint rb,	jfloatArray matrix, jfloatArray pos, jfloatArray rot)
@@ -208,7 +221,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btGetOpenGLMatrix(JNIEnv* env,
 
 	// rigid body in dynamics world
 	btTransform tr;
-	ms[rb]->getWorldTransform(tr);
+	g_ms[rb]->getWorldTransform(tr);
 
 	tr = tr * rbt.inverse();
 
@@ -231,26 +244,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btSetOpenGLMatrix(JNIEnv* env,
 
 		tr = tr * rbt;	
 	
-		ms[rb]->setWorldTransform(tr);
+		g_ms[rb]->setWorldTransform(tr);
 	}
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btForceOpenGLMatrix(JNIEnv* env, jobject thiz, jint rbi, jfloatArray matrix, jfloatArray pos, jfloatArray rot)
-{
-	// rigid body initial position & rotation
-	btTransform rbt = createBtTransform(env, pos, rot);
-	
-	// rigid body in VMD world
-	float* matrix_native = env->GetFloatArrayElements(matrix, 0);
-	btTransform tr;
-	tr.setFromOpenGLMatrix(matrix_native);
-	env->ReleaseFloatArrayElements(matrix, matrix_native, 0);
-
-	tr = tr * rbt;	
-	
-	btVector3 zero(0, 0, 0);
-	ms[rbi]->setWorldTransform(tr);
-	rb[rbi]->setLinearVelocity(zero);
-	rb[rbi]->setAngularVelocity(zero);
-	rb[rbi]->setCenterOfMassTransform(tr);
-}

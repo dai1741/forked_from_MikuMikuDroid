@@ -48,11 +48,20 @@ public class Miku {
 	private FacePair mFacePair = new FacePair();
 	private FaceIndex mFaceIndex = new FaceIndex();
 
+	private Bone mZeroBone;
+
 	public Miku(MikuModel model) {
 		mModel = model;
 		mMwork.location = new float[3];
 		mMwork.rotation = new float[4];
 		mIsArm = CoreLogic.isArm();
+		
+		// for physics simulation
+		mZeroBone = new Bone();
+		mZeroBone.matrix = new float[16];
+		mZeroBone.head_pos = new float[3];
+		Matrix.setIdentityM(mZeroBone.matrix, 0);
+		mZeroBone.head_pos[0] = 0; mZeroBone.head_pos[1] = 0; mZeroBone.head_pos[2] = 0;
 	}
 
 	public void attachMotion(MikuMotion mm) {
@@ -92,7 +101,7 @@ public class Miku {
 				if(initPhysics) {
 					initializePhysics();
 				}
-				solvePhysicsPre(step, initPhysics);				
+				solvePhysicsPre();				
 			}
 		}
 	}
@@ -178,12 +187,7 @@ public class Miku {
 	
 	native private void setFaceNative(FloatBuffer vertex, IntBuffer pointer, int count, IntBuffer index, FloatBuffer offset, float weight);
 
-	native private int btAddRigidBody(
-			int type, int shape, 
-			float w, float h, float d, 
-			float[] pos, float[] rot,
-			float mass, float v_dim, float r_dim, float recoil, float friction, 
-			byte group_index, short group_target);
+	native private int btAddRigidBody(int type, int shape, float w, float h, float d, float[] pos, float[] rot, float[] head_pos, float[] bone, float mass, float v_dim, float r_dim, float recoil, float friction, byte group_index, short group_target);
 
 	native private int btAddJoint(int rb1, int rb2, float[] pos, float[] rot, float[] p1, float[] p2, float[] r1, float[] r2, float[] sp, float[] sr);
 
@@ -191,8 +195,6 @@ public class Miku {
 
 	native private float btSetOpenGLMatrix(int rb, float[] matrix, float[] pos, float[] rot);
 	
-	native private float btForceOpenGLMatrix(int rb, float[] matrix, float[] pos, float[] rot);
-
 	private void initializePhysics() {
 		///////////////////////////////////////////
 		// MAKE RIGID BODIES
@@ -200,18 +202,10 @@ public class Miku {
 		if(rba != null) {
 			for(int i = 0; i < rba.size(); i++) {
 				RigidBody rb = rba.get(i);
-				if(rb.bone_index == -1) {
-					tmpVecs[0] = rb.location[0];
-					tmpVecs[1] = rb.location[1];
-					tmpVecs[2] = rb.location[2];
-				} else {
-					Bone b = mModel.mBone.get(rb.bone_index);
-					Vector.add(tmpVecs, rb.location, b.head_pos);
-				}
-
+				Bone b = rb.bone_index == -1 ? mZeroBone : mModel.mBone.get(rb.bone_index);
 				rb.btrb = btAddRigidBody(rb.type, rb.shape,
 						rb.size[0], rb.size[1], rb.size[2],
-						tmpVecs, rb.rotation,
+						rb.location, rb.rotation, b.head_pos, b.matrix,
 						rb.weight, rb.v_dim, rb.r_dim, rb.recoil, rb.friction,
 						rb.group_index, rb.group_target);				
 			}
@@ -233,17 +227,13 @@ public class Miku {
 		}
 	}
 	
-	private void solvePhysicsPre(float step, boolean initializePhysics) {
+	private void solvePhysicsPre() {
 		if(mModel.mRigidBody != null) {
 			for(int i = 0; i < mModel.mRigidBody.size(); i++) {
 				RigidBody rb = mModel.mRigidBody.get(i);
-				if(rb.bone_index >= 0) {
+				if(rb.bone_index >= 0 && rb.type == 0) {
 					Bone b = mModel.mBone.get(rb.bone_index);
-					if(rb.type == 0) {
-						btSetOpenGLMatrix(rb.btrb, b.matrix, rb.location, rb.rotation);
-					} else if(initializePhysics) {
-						btForceOpenGLMatrix(rb.btrb, b.matrix, rb.location, rb.rotation);						
-					}
+					btSetOpenGLMatrix(rb.btrb, b.matrix, rb.location, rb.rotation);
 				}
 			}
 		}
@@ -263,6 +253,7 @@ public class Miku {
 							b.matrix[j] = b.matrix_current[j];
 						}
 					}
+					b.updated = true;
 				}
 			}
 		}
