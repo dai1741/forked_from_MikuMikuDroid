@@ -87,11 +87,11 @@ public class MikuModel {
 			if(mBone.size() <= mMaxBone) {
 				buildBoneRenameIndexAll();
 				mRendarList = mMaterial;
-				if(mIsOneSkinning) {
-					clusterVertex();
-				}
 			} else {
 				reconstructMaterial(mMaxBone);
+			}
+			if(mIsOneSkinning) {
+				clusterVertex();
 			}
 		} else {
 			mRendarList = mMaterial;

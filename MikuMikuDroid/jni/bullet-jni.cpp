@@ -53,7 +53,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btMakeWorld(JNIEnv* env, 
 	btSequentialImpulseConstraintSolver *solver = new btSequentialImpulseConstraintSolver();
 	g_DynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
 
-	btVector3 *g = new btVector3(0, -9.8 * 2.5, 0);
+	btVector3 *g = new btVector3(0, -9.8 * 5, 0);
 	g_DynamicsWorld->setGravity(*g);
 	
 	g_ptr = 0;

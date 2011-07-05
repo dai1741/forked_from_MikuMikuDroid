@@ -431,30 +431,48 @@ public class CoreLogic {
 		calcCurrentTime();
 		double frame = getCurrentFrames(32767);
 		float step = (float) (getDeltaTimeMills() / 1000.0);
-		if(step >= 0.2 || step < 0) {
+		if(step >= 1 || step < 0) {
 			step = 0;
 			initializePhysics = true;
 			btClearAllData();
+		}
+		
+		double prev_frame = calcPrevFrame(frame, step);
+		
+		int max_step = 4;
+		float fixed_delta = (float) (1.0 / 60.0);
+		float delta = Math.max(fixed_delta, step / max_step);
+
+		// exec physics simulation: 60Hz
+		if(isArm() && mPhysics && mMiku != null && (step != 0 || !initializePhysics)) {
+			for(; step > 0.00001; step -= delta) {
+				prev_frame += step > delta ? delta * 30 : step * 30;
+				for (Miku miku : mMiku) {
+					if(miku.hasMotion()) {
+						miku.setBonePosByVMDFramePre((float) prev_frame, delta, false);
+					}
+				}
+				if(delta == fixed_delta) {
+					btStepSimulation(delta, 1);					
+				} else {
+					btStepSimulation(delta, 0);
+				}
+				for (Miku miku : mMiku) {
+					if(miku.hasMotion()) {
+						for(Bone b: miku.mModel.mBone) {
+							b.updated = false;
+						}
+					}
+				}
+			}
 		}
 
 		if (mMiku != null) {
 			for (Miku miku : mMiku) {
 				if(miku.hasMotion()) {
-					miku.setBonePosByVMDFramePre((float) frame, step, initializePhysics);
-					miku.setFaceByVMDFrame((float) frame);					
-				}
-			}
-		}
-		
-		// exec physics simulation
-		if(isArm() && mPhysics && (step != 0 || !initializePhysics)) {
-			btStepSimulation(step, 5);
-		}
-		
-		if (mMiku != null) {
-			for (Miku miku : mMiku) {
-				if(miku.hasMotion()) {
+					miku.setBonePosByVMDFramePre((float) frame, 0, initializePhysics);
 					miku.setBonePosByVMDFramePost(mPhysics);
+					miku.setFaceByVMDFrame((float) frame);					
 				}
 			}
 		}
@@ -464,6 +482,10 @@ public class CoreLogic {
 		return (int) (frame * 1000 / 30);
 	}
 	
+	private double calcPrevFrame(double frame, float step) {
+		return frame - step * 30;
+	}
+
 	public void pause() {
 		if (mMedia != null) {
 			mMedia.pause();
