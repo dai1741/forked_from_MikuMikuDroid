@@ -1,10 +1,23 @@
 #include <string.h>
 #include <jni.h>
+#include <android/log.h>
 
 #include <btBulletDynamicsCommon.h>
 #include <btBulletCollisionCommon.h>
+#include "BulletMultiThreaded/SpuNarrowPhaseCollisionTask/SpuGatheringCollisionTask.h"
+#include "BulletMultiThreaded/btParallelConstraintSolver.h"
+#include "BulletMultiThreaded/SequentialThreadSupport.h"
+#include "BulletMultiThreaded/SpuGatheringCollisionDispatcher.h"
+#include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
+
+
+//#define USE_PARALLEL_COLLISION
+//#define USE_PARALLEL_CONSTRAINT
+//#define USZE_AS3_BROADPHASE
+
 
 btDiscreteDynamicsWorld *g_DynamicsWorld;
+
 btRigidBody *g_rb[4096];
 btDefaultMotionState *g_ms[4096];
 btTransform *g_pos[4096];
@@ -47,11 +60,48 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_setFaceNative(JNIEnv* env, job
 extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btMakeWorld(JNIEnv* env, jobject thiz)
 {
 	// make world
-	btCollisionConfiguration *collisionConfiguration = new btDefaultCollisionConfiguration();
+	////// Collision Configuration
+	btDefaultCollisionConstructionInfo cci;
+	cci.m_defaultMaxPersistentManifoldPoolSize = 32768;
+	btCollisionConfiguration *collisionConfiguration = new btDefaultCollisionConfiguration(cci);
+
+	////// Collision Dispatcher
+#ifdef USE_PARALLEL_COLLISION
+	SequentialThreadSupport::SequentialThreadConstructionInfo colCI("collision", processCollisionTask, createCollisionLocalStoreMemory);
+	SequentialThreadSupport* threadSupportCollision = new SequentialThreadSupport(colCI);
+	SpuGatheringCollisionDispatcher *dispatcher = new SpuGatheringCollisionDispatcher(threadSupportCollision, 4, collisionConfiguration);
+#else
 	btCollisionDispatcher *dispatcher = new btCollisionDispatcher(collisionConfiguration);
+#endif
+
+	////// Broadphase
+#ifdef USZE_AS3_BROADPHASE
+	btVector3 worldAabbMin(-1000,-1000,-1000);
+	btVector3 worldAabbMax(1000,1000,1000);
+	btAxisSweep3 *broadphase = new btAxisSweep3(worldAabbMin, worldAabbMax);
+#else
 	btDbvtBroadphase *broadphase = new btDbvtBroadphase();
+#endif
+
+	////// Constraint Solver
+#ifdef USE_PARALLEL_CONSTRAINT
+	SequentialThreadSupport :: SequentialThreadConstructionInfo tci("solverThreads", SolverThreadFunc, SolverlsMemoryFunc);
+	SequentialThreadSupport* threadSupport = new SequentialThreadSupport(tci);
+	threadSupport->startSPU();
+	btParallelConstraintSolver *solver = new btParallelConstraintSolver(threadSupport);
+	dispatcher->setDispatcherFlags(btCollisionDispatcher::CD_DISABLE_CONTACTPOOL_DYNAMIC_ALLOCATION);
+#else
 	btSequentialImpulseConstraintSolver *solver = new btSequentialImpulseConstraintSolver();
+#endif
+	
+	
+	////// Create Dynamics World
 	g_DynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+	
+	g_DynamicsWorld->getSimulationIslandManager()->setSplitIslands(false);
+	g_DynamicsWorld->getSolverInfo().m_numIterations = 4;
+	g_DynamicsWorld->getSolverInfo().m_solverMode = SOLVER_SIMD + SOLVER_USE_WARMSTARTING;
+	g_DynamicsWorld->getDispatchInfo().m_enableSPU = true;
 
 	btVector3 *g = new btVector3(0, -9.8 * 5, 0);
 	g_DynamicsWorld->setGravity(*g);
@@ -131,7 +181,9 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddRigidBody(JNIEnv* env, jo
 
 	// inertia
 	btVector3 inertia(0, 0, 0);
-	cs->calculateLocalInertia(type == 0 ? 0 : mass, inertia);
+	if(type != 0) {
+		cs->calculateLocalInertia(mass, inertia);
+	}
 	
 	// create rigid body with default motion state
 	g_ms[g_ptr] = new btDefaultMotionState(transf);
@@ -141,6 +193,9 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddRigidBody(JNIEnv* env, jo
 	rbi->m_angularDamping = r_dim;
 	rbi->m_restitution = recoil;
 	rbi->m_friction = friction;
+	rbi->m_linearSleepingThreshold = 0;
+	rbi->m_angularSleepingThreshold = 0;
+	
 	g_rb[g_ptr] = new btRigidBody(*rbi);
 	
 	if(type == 0) {
@@ -158,8 +213,6 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobjec
 {
 	btTransform jt = createBtTransform(env, pos, rot);
 	
-//	btTransform tr1 = g_rb[rb1]->getCenterOfMassTransform().inverse() * jt;
-//	btTransform tr2 = g_rb[rb2]->getCenterOfMassTransform().inverse() * jt;
 	btTransform tr1 = g_pos[rb1]->inverse() * jt;
 	btTransform tr2 = g_pos[rb2]->inverse() * jt;
 	btGeneric6DofSpringConstraint* dof = new btGeneric6DofSpringConstraint(*g_rb[rb1], *g_rb[rb2], tr1, tr2, true);
@@ -172,11 +225,20 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobjec
 	float *sp_n = env->GetFloatArrayElements(sp, 0);
 	float *sr_n = env->GetFloatArrayElements(sr, 0);	
 	for(int i = 0; i < 3; i++) {
-		dof->enableSpring(i, true);
-		dof->setStiffness(i, sp_n[i]);
+		if(sp_n[i] > 0) {
+			dof->enableSpring(i, true);
+			dof->setStiffness(i, sp_n[i]);
+		} else {
+			dof->enableSpring(i, false);
+		}
 
-		dof->enableSpring(i + 3, true);
-		dof->setStiffness(i + 3, sr_n[i]);
+		if(sr_n[i] > 0) {
+			dof->enableSpring(i + 3, true);
+			dof->setStiffness(i + 3, sr_n[i]);
+		} else {
+			dof->enableSpring(i + 3, false);
+		}
+
 	}
 	env->ReleaseFloatArrayElements(sp, sp_n, 0);
 	env->ReleaseFloatArrayElements(sr, sr_n, 0);
@@ -248,3 +310,9 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btSetOpenGLMatrix(JNIEnv* env,
 	}
 }
 
+extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btDumpAll(JNIEnv* env, jobject thiz)
+{
+#ifndef BT_NO_PROFILE
+	CProfileManager::dumpAll();
+#endif
+}

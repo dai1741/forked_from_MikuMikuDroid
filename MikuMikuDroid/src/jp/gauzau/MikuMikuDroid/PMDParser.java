@@ -84,64 +84,67 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private void parsePMDJoint() {
 		int num = getInt();
 		Log.d("PMDParser", "Joint: " + String.valueOf(num));
-		mJoint = new ArrayList<Joint>(num);
-		for(int i = 0; i < num; i++) {
-			Joint j = new Joint();
-			j.name				= getString(20);
-			j.rigidbody_a		= getInt();
-			j.rigidbody_b		= getInt();
-			j.position			= new float[3];
-			j.rotation			= new float[3];
-			j.const_position_1	= new float[3];
-			j.const_position_2	= new float[3];
-			j.const_rotation_1	= new float[3];
-			j.const_rotation_2	= new float[3];
-			j.spring_position	= new float[3];
-			j.spring_rotation	= new float[3];
-			
-			getFloat(j.position);
-			getFloat(j.rotation);
-			getFloat(j.const_position_1);
-			getFloat(j.const_position_2);
-			getFloat(j.const_rotation_1);
-			getFloat(j.const_rotation_2);
-			getFloat(j.spring_position);
-			getFloat(j.spring_rotation);
-			
-			mJoint.add(j);
+		if(num > 0) {
+			mJoint = new ArrayList<Joint>(num);
+			for(int i = 0; i < num; i++) {
+				Joint j = new Joint();
+				j.name				= getString(20);
+				j.rigidbody_a		= getInt();
+				j.rigidbody_b		= getInt();
+				j.position			= new float[3];
+				j.rotation			= new float[3];
+				j.const_position_1	= new float[3];
+				j.const_position_2	= new float[3];
+				j.const_rotation_1	= new float[3];
+				j.const_rotation_2	= new float[3];
+				j.spring_position	= new float[3];
+				j.spring_rotation	= new float[3];
+				
+				getFloat(j.position);
+				getFloat(j.rotation);
+				getFloat(j.const_position_1);
+				getFloat(j.const_position_2);
+				getFloat(j.const_rotation_1);
+				getFloat(j.const_rotation_2);
+				getFloat(j.spring_position);
+				getFloat(j.spring_rotation);
+				
+				mJoint.add(j);
+			}
 		}
 	}
 
 	private void parsePMDRigidBody() {
 		int num = getInt();
 		Log.d("PMDParser", "RigidBody: " + String.valueOf(num));
-		mRigidBody = new ArrayList<RigidBody>(num);
-		for(int i = 0; i < num; i++) {
-			RigidBody rb = new RigidBody();
-			
-			rb.name			= getString(20);
-			rb.bone_index	= getShort();
-			rb.group_index	= getByte();
-			rb.group_target = getShort();
-			rb.shape		= getByte();
-			rb.size			= new float[3];		// w, h, d
-			rb.location		= new float[3];		// x, y, z
-			rb.rotation		= new float[3];
-			getFloat(rb.size);
-			getFloat(rb.location);
-			getFloat(rb.rotation);
-			rb.weight		= getFloat();
-			rb.v_dim		= getFloat();
-			rb.r_dim		= getFloat();
-			rb.recoil		= getFloat();
-			rb.friction		= getFloat();
-			rb.type			= getByte();
-			
-			rb.btrb			= -1;	// physics is not initialized yet
-			
-			mRigidBody.add(rb);
+		if(num > 0) {
+			mRigidBody = new ArrayList<RigidBody>(num);
+			for(int i = 0; i < num; i++) {
+				RigidBody rb = new RigidBody();
+				
+				rb.name			= getString(20);
+				rb.bone_index	= getShort();
+				rb.group_index	= getByte();
+				rb.group_target = getShort();
+				rb.shape		= getByte();
+				rb.size			= new float[3];		// w, h, d
+				rb.location		= new float[3];		// x, y, z
+				rb.rotation		= new float[3];
+				getFloat(rb.size);
+				getFloat(rb.location);
+				getFloat(rb.rotation);
+				rb.weight		= getFloat();
+				rb.v_dim		= getFloat();
+				rb.r_dim		= getFloat();
+				rb.recoil		= getFloat();
+				rb.friction		= getFloat();
+				rb.type			= getByte();
+				
+				rb.btrb			= -1;	// physics is not initialized yet
+				
+				mRigidBody.add(rb);
+			}			
 		}
-		
 	}
 
 	private void parsePMDEnglish() throws IOException {
@@ -158,10 +161,12 @@ public class PMDParser extends ParserBase implements ModelFile {
 
 	private void parsePMDEnglishBoneDispName() throws IOException {
 		int num = mBoneDispName.size();
-		mEnglishBoneDispName = new ArrayList<String>(num);
-		for (int i = 0; i < num; i++) {
-			String str = getString(50);
-			mEnglishBoneDispName.add(i, str);
+		if(num > 0) {
+			mEnglishBoneDispName = new ArrayList<String>(num);
+			for (int i = 0; i < num; i++) {
+				String str = getString(50);
+				mEnglishBoneDispName.add(i, str);
+			}			
 		}
 	}
 
@@ -187,20 +192,24 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private void parsePMDEnglishSkinList() throws IOException {
 		int num = mSkinDisp.size();
 		Log.d("PMDParser", "EnglishSkinName: " + String.valueOf(num));
-		mEnglishSkinName = new ArrayList<String>(num);
-		for (int i = 0; i < num; i++) {
-			String str = getString(20);
-			mEnglishSkinName.add(i, str);
+		if(num > 0) {
+			mEnglishSkinName = new ArrayList<String>(num);
+			for (int i = 0; i < num; i++) {
+				String str = getString(20);
+				mEnglishSkinName.add(i, str);
+			}			
 		}
 	}
 
 	private void parsePMDEnglishBoneList() throws IOException {
 		int num = mBone.size();
 		Log.d("PMDParser", "EnglishBoneName: " + String.valueOf(num));
-		mEnglishBoneName = new ArrayList<String>(num);
-		for (int i = 0; i < num; i++) {
-			String str = getString(20);
-			mEnglishBoneName.add(i, str);
+		if(num > 0) {
+			mEnglishBoneName = new ArrayList<String>(num);
+			for (int i = 0; i < num; i++) {
+				String str = getString(20);
+				mEnglishBoneName.add(i, str);
+			}			
 		}
 	}
 

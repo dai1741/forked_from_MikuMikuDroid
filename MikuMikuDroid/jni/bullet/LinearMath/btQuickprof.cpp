@@ -50,6 +50,11 @@ static btClock gProfileClock;
 
 #else //_WIN32
 #include <sys/time.h>
+
+#include <android/log.h>
+#define  LOG_TAG    "bullet"
+#define  printf(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+
 #endif //_WIN32
 
 #define mymin(a,b) (a > b ? a : b)

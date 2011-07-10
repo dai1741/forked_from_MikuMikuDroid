@@ -19,11 +19,29 @@ include $(CLEAR_VARS)
 #LOCAL_ARM_MODE := arm
 #LOCAL_ARM_NEON := true
 
-LOCAL_CPPFLAGS	:= -O3 -DNDEBUG -I./bullet -DUSE_MINICL
+LOCAL_CPPFLAGS	:= -O3 -DNDEBUG -I./bullet -DUSE_MINICL -DBT_NO_PROFILE
+#LOCAL_CPPFLAGS	:= -O3 -DNDEBUG -I./bullet -DUSE_MINICL
+#LOCAL_CPPFLAGS	:= -O3 -DNDEBUG -I./bullet -DUSE_MINICL -DBT_USE_NEON
+
+LOCAL_LDLIBS    := -llog
 
 LOCAL_MODULE    := bullet-jni
 
 LOCAL_SRC_FILES := bullet-jni.cpp \
+./bullet/BulletCollision/CollisionShapes/btConvexPointCloudShape.cpp \
+./bullet/BulletCollision/CollisionShapes/btTriangleIndexVertexArray.cpp \
+./bullet/BulletCollision/CollisionShapes/btStridingMeshInterface.cpp \
+./bullet/BulletMultiThreaded/SpuNarrowPhaseCollisionTask/SpuCollisionShapes.cpp \
+./bullet/BulletMultiThreaded/SpuNarrowPhaseCollisionTask/SpuContactResult.cpp \
+./bullet/BulletMultiThreaded/SpuNarrowPhaseCollisionTask/SpuGatheringCollisionTask.cpp \
+./bullet/BulletMultiThreaded/SpuGatheringCollisionDispatcher.cpp \
+./bullet/BulletMultiThreaded/btParallelConstraintSolver.cpp \
+./bullet/BulletMultiThreaded/btThreadSupportInterface.cpp \
+./bullet/BulletMultiThreaded/SequentialThreadSupport.cpp \
+./bullet/BulletMultiThreaded/SpuCollisionTaskProcess.cpp \
+./bullet/BulletMultiThreaded/SpuFakeDma.cpp \
+./bullet/BulletMultiThreaded/SpuContactManifoldCollisionAlgorithm.cpp \
+./bullet/BulletCollision/BroadphaseCollision/btAxisSweep3.cpp \
 ./bullet/BulletCollision/BroadphaseCollision/btCollisionAlgorithm.cpp \
 ./bullet/BulletCollision/BroadphaseCollision/btDbvt.cpp \
 ./bullet/BulletCollision/BroadphaseCollision/btDbvtBroadphase.cpp \

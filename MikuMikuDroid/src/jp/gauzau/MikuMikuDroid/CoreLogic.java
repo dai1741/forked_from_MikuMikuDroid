@@ -47,6 +47,7 @@ public class CoreLogic {
 	private int					mHeight;
 	private int					mAngle;
 	private boolean				mPhysics = false;
+	private boolean				mPrevPhysics = false;
 	
 	// temporary data
 	private CameraIndex			mCameraIndex = new CameraIndex();
@@ -151,6 +152,9 @@ public class CoreLogic {
 	}
 	
 	native private void btMakeWorld();
+	
+	native private void btDumpAll();
+
 
     static {
     	if(isArm()) {
@@ -374,6 +378,9 @@ public class CoreLogic {
 	
 	public synchronized void togglePhysics() {
 		mPhysics = !mPhysics;
+		if(!mPhysics) {	// Dump Physics profile
+			btDumpAll();
+		}
 	}
 
 	native private void btClearAllData();
@@ -426,15 +433,19 @@ public class CoreLogic {
 	native private void btStepSimulation(float step, int max);
 	
 	public synchronized int applyCurrentMotion() {
-		boolean initializePhysics = false;
-		
+		boolean initializePhysics = !mPrevPhysics && mPhysics;
+		mPrevPhysics = mPhysics;
+
 		calcCurrentTime();
 		double frame = getCurrentFrames(32767);
 		float step = (float) (getDeltaTimeMills() / 1000.0);
 		if(step >= 1 || step < 0) {
 			step = 0;
 			initializePhysics = true;
-			btClearAllData();
+		}
+		
+		if(initializePhysics) {
+			btClearAllData();			
 		}
 		
 		double prev_frame = calcPrevFrame(frame, step);
