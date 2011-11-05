@@ -79,7 +79,7 @@ public class ParserBase {
 		}
 	}
 
-	protected String toString(byte[] bb) {
+	protected static String toString(byte[] bb) {
 		for (int n = 0; n < bb.length; n++) {
 			if (bb[n] == '\0') {
 				try {

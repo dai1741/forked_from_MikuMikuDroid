@@ -205,12 +205,12 @@ public class MikuMotion implements Serializable {
 				m.location[2] = mi.location[mp.m0 * 3 + 2] + (mi.location[mp.m1 * 3 + 2] - mi.location[mp.m0 * 3 + 2]) * t;
 				slerp(m.rotation, mi.rotation, mi.rotation, mp.m0 * 4, mp.m1 * 4, t);
 			} else {
-				double t = bazier(mi.interp_x, mp.m0 * 4, 1, ratio);
-				m.location[0] = (float) (mi.location[mp.m0 * 3 + 0] + (mi.location[mp.m1 * 3 + 0] - mi.location[mp.m0 * 3 + 0]) * t);
+				float t = bazier(mi.interp_x, mp.m0 * 4, 1, ratio);
+				m.location[0] = mi.location[mp.m0 * 3 + 0] + (mi.location[mp.m1 * 3 + 0] - mi.location[mp.m0 * 3 + 0]) * t;
 				t = bazier(mi.interp_y, mp.m0 * 4, 1, ratio);
-				m.location[1] = (float) (mi.location[mp.m0 * 3 + 1] + (mi.location[mp.m1 * 3 + 1] - mi.location[mp.m0 * 3 + 1]) * t);
+				m.location[1] = mi.location[mp.m0 * 3 + 1] + (mi.location[mp.m1 * 3 + 1] - mi.location[mp.m0 * 3 + 1]) * t;
 				t = bazier(mi.interp_z, mp.m0 * 4, 1, ratio);
-				m.location[2] = (float) (mi.location[mp.m0 * 3 + 2] + (mi.location[mp.m1 * 3 + 2] - mi.location[mp.m0 * 3 + 2]) * t);
+				m.location[2] = mi.location[mp.m0 * 3 + 2] + (mi.location[mp.m1 * 3 + 2] - mi.location[mp.m0 * 3 + 2]) * t;
 
 				slerp(m.rotation, mi.rotation, mi.rotation, mp.m0 * 4, mp.m1 * 4, bazier(mi.interp_a, mp.m0 * 4, 1, ratio));
 			}
@@ -323,23 +323,23 @@ public class MikuMotion implements Serializable {
 				float a0 = frame - mp.m0.frame_no;
 				float ratio = a0 / dif;
 
-				double t = bazier(mp.m0.interp, 0, 6, ratio);
-				m.location[0] = (float) (mp.m0.location[0] + (mp.m1.location[0] - mp.m0.location[0]) * t);
+				float t = bazier(mp.m0.interp, 0, 6, ratio);
+				m.location[0] = mp.m0.location[0] + (mp.m1.location[0] - mp.m0.location[0]) * t;
 				t = bazier(mp.m0.interp, 1, 6, ratio);
-				m.location[1] = (float) (mp.m0.location[1] + (mp.m1.location[1] - mp.m0.location[1]) * t);
+				m.location[1] = mp.m0.location[1] + (mp.m1.location[1] - mp.m0.location[1]) * t;
 				t = bazier(mp.m0.interp, 2, 6, ratio);
-				m.location[2] = (float) (mp.m0.location[2] + (mp.m1.location[2] - mp.m0.location[2]) * t);
+				m.location[2] = mp.m0.location[2] + (mp.m1.location[2] - mp.m0.location[2]) * t;
 
 				t = bazier(mp.m0.interp, 3, 6, ratio);
-				m.rotation[0] = (float) (mp.m0.rotation[0] + (mp.m1.rotation[0] - mp.m0.rotation[0]) * t);
-				m.rotation[1] = (float) (mp.m0.rotation[1] + (mp.m1.rotation[1] - mp.m0.rotation[1]) * t);
-				m.rotation[2] = (float) (mp.m0.rotation[2] + (mp.m1.rotation[2] - mp.m0.rotation[2]) * t);
+				m.rotation[0] = mp.m0.rotation[0] + (mp.m1.rotation[0] - mp.m0.rotation[0]) * t;
+				m.rotation[1] = mp.m0.rotation[1] + (mp.m1.rotation[1] - mp.m0.rotation[1]) * t;
+				m.rotation[2] = mp.m0.rotation[2] + (mp.m1.rotation[2] - mp.m0.rotation[2]) * t;
 
 				t = bazier(mp.m0.interp, 4, 6, ratio);
-				m.length = (float) (mp.m0.length + (mp.m1.length - mp.m0.length) * t);
+				m.length = mp.m0.length + (mp.m1.length - mp.m0.length) * t;
 
 				t = bazier(mp.m0.interp, 5, 6, ratio);
-				m.view_angle = (float) (mp.m0.view_angle + (mp.m1.view_angle - mp.m0.view_angle) * t);
+				m.view_angle = mp.m0.view_angle + (mp.m1.view_angle - mp.m0.view_angle) * t;
 
 			}
 
@@ -347,7 +347,7 @@ public class MikuMotion implements Serializable {
 		}
 	}
 	
-	private void slerp(float p[], float[] q, float[] r, int m0, int m1, double t) {
+	private static void slerp(float p[], float[] q, float[] r, int m0, int m1, double t) {
 		double qr = q[m0 + 0] * r[m1 + 0] + q[m0 + 1] * r[m1 + 1] + q[m0 + 2] * r[m1 + 2] + q[m0 + 3] * r[m1 + 3];
 		double ss = 1.0 - qr * qr;
 
@@ -393,35 +393,35 @@ public class MikuMotion implements Serializable {
 		}
 	}
 
-	private double bazier(byte[] ip, int ofs, int size, float t) {
-		double xa = ip[ofs] / 256;
-		double xb = ip[size * 2 + ofs] / 256;
-		double ya = ip[size + ofs] / 256;
-		double yb = ip[size * 3 + ofs] / 256;
+	private static float bazier(byte[] ip, int ofs, int size, float t) {
+		float xa = ip[ofs] / 256;
+		float xb = ip[size * 2 + ofs] / 256;
+		float ya = ip[size + ofs] / 256;
+		float yb = ip[size * 3 + ofs] / 256;
 
-		double min = 0;
-		double max = 1;
+		float min = 0;
+		float max = 1;
 
-		double ct = t;
+		float ct = t;
 		while (true) {
-			double x11 = xa * ct;
-			double x12 = xa + (xb - xa) * ct;
-			double x13 = xb + (1 - xb) * ct;
+			float x11 = xa * ct;
+			float x12 = xa + (xb - xa) * ct;
+			float x13 = xb + (1 - xb) * ct;
 
-			double x21 = x11 + (x12 - x11) * ct;
-			double x22 = x12 + (x13 - x12) * ct;
+			float x21 = x11 + (x12 - x11) * ct;
+			float x22 = x12 + (x13 - x12) * ct;
 
-			double x3 = x21 + (x22 - x21) * ct;
+			float x3 = x21 + (x22 - x21) * ct;
 
-			if (Math.abs(x3 - t) < 0.0001) {
-				double y11 = ya * ct;
-				double y12 = ya + (yb - ya) * ct;
-				double y13 = yb + (1 - yb) * ct;
+			if (Math.abs(x3 - t) < 0.0001f) {
+				float y11 = ya * ct;
+				float y12 = ya + (yb - ya) * ct;
+				float y13 = yb + (1 - yb) * ct;
 
-				double y21 = y11 + (y12 - y11) * ct;
-				double y22 = y12 + (y13 - y12) * ct;
+				float y21 = y11 + (y12 - y11) * ct;
+				float y22 = y12 + (y13 - y12) * ct;
 
-				double y3 = y21 + (y22 - y21) * ct;
+				float y3 = y21 + (y22 - y21) * ct;
 
 				return y3;
 			} else if (x3 < t) {
@@ -429,7 +429,7 @@ public class MikuMotion implements Serializable {
 			} else {
 				max = ct;
 			}
-			ct = min * 0.5 + max * 0.5;
+			ct = min * 0.5f + max * 0.5f;
 		}
 	}
 	

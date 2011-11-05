@@ -493,7 +493,7 @@ public class CoreLogic {
 		return (int) (frame * 1000 / 30);
 	}
 	
-	private double calcPrevFrame(double frame, float step) {
+	private static double calcPrevFrame(double frame, float step) {
 		return frame - step * 30;
 	}
 
@@ -753,7 +753,7 @@ public class CoreLogic {
 		return (File[])list.toArray(new File[0]);
 	}
 	
-	private ArrayList<File> listRecursive1(File file, String[] ext) {
+	private static ArrayList<File> listRecursive1(File file, String[] ext) {
 		ArrayList<File> files = new ArrayList<File>();
 		if(file.exists()) {
 			if(file.isFile()) {
