@@ -26,7 +26,7 @@ int g_ptr;
 btGeneric6DofSpringConstraint *g_cst[4096];
 int g_cptr;
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_initFaceNative(JNIEnv* env, jobject thiz, jobject vertex, jint count, jobject index, jobject offset)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_Miku_initFaceNative(JNIEnv* env, jobject thiz, jobject vertex, jint count, jobject index, jobject offset)
 {
 	float* vert = (float*)env->GetDirectBufferAddress(vertex);
 	int*   idx  = (int*)  env->GetDirectBufferAddress(index);
@@ -41,7 +41,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_initFaceNative(JNIEnv* env, jo
 	return ;
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_setFaceNative(JNIEnv* env, jobject thiz, jobject vertex, jobject pointer, jint count, jobject index, jobject offset, jfloat weight)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_Miku_setFaceNative(JNIEnv* env, jobject thiz, jobject vertex, jobject pointer, jint count, jobject index, jobject offset, jfloat weight)
 {
 	float* vert = (float*)env->GetDirectBufferAddress(vertex);
 	int*   ptr  = (int*)  env->GetDirectBufferAddress(pointer);
@@ -57,7 +57,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_setFaceNative(JNIEnv* env, job
 	return ;
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btMakeWorld(JNIEnv* env, jobject thiz)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_CoreLogic_btMakeWorld(JNIEnv* env, jobject thiz)
 {
 	// make world
 	////// Collision Configuration
@@ -143,7 +143,7 @@ btTransform createBtTransform(JNIEnv* env, jfloatArray pos, jfloatArray rot)
 }
 
 
-extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddRigidBody(JNIEnv* env, jobject thiz,
+extern "C" jint Java_jp_gauzau_MikuMikuDroidmod_Miku_btAddRigidBody(JNIEnv* env, jobject thiz,
 		jint type, jint shape,
 		jfloat w, jfloat h, jfloat d,
 		jfloatArray pos, jfloatArray rot, jfloatArray head_pos, jfloatArray bone,
@@ -208,7 +208,7 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddRigidBody(JNIEnv* env, jo
 	return g_ptr++;
 }
 
-extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobject thiz,
+extern "C" jint Java_jp_gauzau_MikuMikuDroidmod_Miku_btAddJoint(JNIEnv* env, jobject thiz,
 			jint rb1, jint rb2, jfloatArray pos, jfloatArray rot, jfloatArray p1, jfloatArray p2, jfloatArray r1, jfloatArray r2, jfloatArray sp, jfloatArray sr)
 {
 	btTransform jt = createBtTransform(env, pos, rot);
@@ -249,7 +249,7 @@ extern "C" jint Java_jp_gauzau_MikuMikuDroid_Miku_btAddJoint(JNIEnv* env, jobjec
 	return g_cptr++;
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btClearAllData(JNIEnv* env, jobject thiz)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_CoreLogic_btClearAllData(JNIEnv* env, jobject thiz)
 {
 	for(int i = 0; i < g_cptr; i++) {
 		g_DynamicsWorld->removeConstraint(g_cst[i]);
@@ -271,12 +271,12 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btClearAllData(JNIEnv* en
 	g_cptr = 0;
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btStepSimulation(JNIEnv* env, jobject thiz, jfloat step, jint max)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_CoreLogic_btStepSimulation(JNIEnv* env, jobject thiz, jfloat step, jint max)
 {
 	g_DynamicsWorld->stepSimulation(step, max);
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btGetOpenGLMatrix(JNIEnv* env, jobject thiz, jint rb,	jfloatArray matrix, jfloatArray pos, jfloatArray rot)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_Miku_btGetOpenGLMatrix(JNIEnv* env, jobject thiz, jint rb,	jfloatArray matrix, jfloatArray pos, jfloatArray rot)
 {
 	// rigid body initial position & rotation
 	btTransform rbt = createBtTransform(env, pos, rot);
@@ -292,7 +292,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btGetOpenGLMatrix(JNIEnv* env,
 	env->ReleaseFloatArrayElements(matrix, matrix_native, 0);
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btSetOpenGLMatrix(JNIEnv* env, jobject thiz, jint rb, jfloatArray matrix, jfloatArray pos, jfloatArray rot)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_Miku_btSetOpenGLMatrix(JNIEnv* env, jobject thiz, jint rb, jfloatArray matrix, jfloatArray pos, jfloatArray rot)
 {
 	if(rb < g_ptr) {
 		// rigid body initial position & rotation
@@ -310,7 +310,7 @@ extern "C" void Java_jp_gauzau_MikuMikuDroid_Miku_btSetOpenGLMatrix(JNIEnv* env,
 	}
 }
 
-extern "C" void Java_jp_gauzau_MikuMikuDroid_CoreLogic_btDumpAll(JNIEnv* env, jobject thiz)
+extern "C" void Java_jp_gauzau_MikuMikuDroidmod_CoreLogic_btDumpAll(JNIEnv* env, jobject thiz)
 {
 #ifndef BT_NO_PROFILE
 	CProfileManager::dumpAll();

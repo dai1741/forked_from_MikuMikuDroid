@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hello">MikuMikuDroid</string>
-    <string name="app_name">MikuMikuDroid</string>
+    <string name="app_name">MikuMikuDroid_mod</string>
 <string name="select_ok">OK</string><string name="setup_alert_title">Setup alert</string>
 <string name="setup_alert_text">Please put toon??.bmp files in MikuMikuDance Ver5.x on /sdcard/MikuMikuDroid/Data/ .</string>
 
