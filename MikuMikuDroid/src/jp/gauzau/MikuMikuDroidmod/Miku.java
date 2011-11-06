@@ -3,11 +3,7 @@ package jp.gauzau.MikuMikuDroidmod;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.Map.Entry;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -293,9 +289,9 @@ public class Miku {
 
 			// gather frames
 			SortedSet<Integer> frames = new TreeSet<Integer>();
-			for (Entry<Integer, Bone> bones : parents.entrySet()) {
-				if (bones.getValue().motion != null) {
-					for(int fn : bones.getValue().motion.frame_no) {
+			for (Bone bone : parents.values()) {
+				if (bone.motion != null) {
+					for(int fn : bone.motion.frame_no) {
 						frames.add(fn);
 					}
 					/*
