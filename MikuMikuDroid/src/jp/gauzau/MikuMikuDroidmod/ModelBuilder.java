@@ -201,7 +201,7 @@ public class ModelBuilder {
 		b.matrix = new float[16]; // for skin-mesh animation
 		b.matrix_current = new float[16]; // for temporary (current bone matrix that is not include parent rotation
 		b.updated = false; // whether matrix is updated by VMD or not
-		b.is_leg = b.name.contains("�Ђ�");
+		b.is_leg = b.name.contains("ひざ");
 		
 		return b;
 	}

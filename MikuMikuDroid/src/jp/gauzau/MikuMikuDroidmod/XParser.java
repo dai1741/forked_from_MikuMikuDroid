@@ -122,7 +122,7 @@ public class XParser extends ParserBase {
 		createVertBuffer(mMb);
 		createIndexBuffer(mMb);
 		
-		setDummyBone("�Z���^�[");
+		setDummyBone("センター");
 		
 		mToonFileName = new ArrayList<String>(11);
 		mToonFileName.add(0, base + "Data/toon0.bmp");
