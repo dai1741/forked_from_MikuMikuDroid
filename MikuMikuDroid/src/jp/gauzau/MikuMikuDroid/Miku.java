@@ -6,7 +6,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Map.Entry;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import android.opengl.Matrix;
 import android.util.Log;
@@ -288,11 +292,11 @@ public class Miku {
 			}
 
 			// gather frames
-			HashMap<Integer, Integer> frames = new HashMap<Integer, Integer>();
+			SortedSet<Integer> frames = new TreeSet<Integer>();
 			for (Entry<Integer, Bone> bones : parents.entrySet()) {
 				if (bones.getValue().motion != null) {
-					for(int i = 0; i < bones.getValue().motion.frame_no.length; i++) {
-						frames.put(bones.getValue().motion.frame_no[i], bones.getValue().motion.frame_no[i]);
+					for(int fn : bones.getValue().motion.frame_no) {
+						frames.add(fn);
 					}
 					/*
 					for (MotionIndex frame : bones.getValue().motion) {
@@ -302,19 +306,9 @@ public class Miku {
 				}
 			}
 
-			ArrayList<Integer> framesInteger = new ArrayList<Integer>();
-			for (Entry<Integer, Integer> ff : frames.entrySet()) {
-				framesInteger.add(ff.getKey());
-			}
-			Collections.sort(framesInteger, new Comparator<Integer>() {
-				public int compare(Integer m0, Integer m1) {
-					return m0 - m1;
-				}
-			});
-
 			// calc IK
 			HashMap<Short, ArrayList<MotionIndex>> mhash = new HashMap<Short, ArrayList<MotionIndex>>();
-			for (Integer frame : framesInteger) {
+			for (Integer frame : frames) {
 				for (Bone b : mModel.mBone) {
 					setBoneMatrix(b, frame);
 				}

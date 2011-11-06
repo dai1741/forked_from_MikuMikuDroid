@@ -8,6 +8,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import android.util.Log;
 
@@ -34,9 +35,9 @@ public class PMDParser extends ParserBase implements ModelFile {
 	private ArrayList<Joint> mJoint;
 	private boolean mIsOneSkinning = true;
 	
-	public ShortBuffer	mIndexBuffer;
-	public FloatBuffer	mVertBuffer;
-	public ShortBuffer	mWeightBuffer;
+	private ShortBuffer	mIndexBuffer; //public
+	private FloatBuffer	mVertBuffer;
+	private ShortBuffer	mWeightBuffer;
 	
 	private int mVertexPos;
 	private int[] mInvMap;
@@ -384,7 +385,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 				bone.matrix = new float[16]; // for skin-mesh animation
 				bone.matrix_current = new float[16]; // for temporary (current bone matrix that is not include parent rotation
 				bone.updated = false; // whether matrix is updated by VMD or not
-				bone.is_leg = bone.name.contains("‚Ð‚´");
+				bone.is_leg = bone.name.contains("ï¿½Ð‚ï¿½");
 				
 				if (bone.tail != -1) {
 					mBone.add(i, bone);
@@ -470,9 +471,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 		Log.d("PMDParser", "INDEX: " + String.valueOf(num));
 		if (num > 0) {
 			mInvMap = new int[mVertBuffer.capacity() / 8];
-			for(int i = 0; i < mInvMap.length; i++) {
-				mInvMap[i] = -1;
-			}
+			Arrays.fill(mInvMap, -1);
 			mIndexBuffer = ByteBuffer.allocateDirect(num * 2).order(ByteOrder.nativeOrder()).asShortBuffer();
 			float[] data = new float[8]; 
 			int acc = 0;
