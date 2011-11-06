@@ -9,7 +9,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
 public class ParserBase {
-	private byte buf[];
+	private final byte buf[] = new byte[512]; // temp buffer
 	private MappedByteBuffer mBB;
 	private RandomAccessFile mRaf;
 
@@ -19,45 +19,43 @@ public class ParserBase {
 		mBB.position(0);
 		mBB.order(ByteOrder.LITTLE_ENDIAN);
 
-		// temp buffer
-		buf = new byte[512];
 	}
 
-	protected int getInt() {
+	protected final int getInt() {
 		return mBB.getInt();
 	}
 
-	protected short getShort() {
+	protected final short getShort() {
 		return mBB.getShort();
 	}
 	
-	protected byte getByte() {
+	protected final byte getByte() {
 		return mBB.get();
 	}
 
-	protected void getBytes(byte dst[], int size) {
+	protected final void getBytes(byte dst[], int size) {
 		mBB.get(dst, 0, size);
 	}
 
-	protected float getFloat() {
+	protected final float getFloat() {
 		return mBB.getFloat();
 	}
 
-	protected void getFloat(float[] f) {
+	protected final void getFloat(float[] f) {
 		for (int i = 0; i < f.length; i++) {
 			f[i] = mBB.getFloat();
 		}
 	}
 	
-	protected int position() {
+	protected final int position() {
 		return mBB.position();
 	}
 
-	protected void position(int pos) {
+	protected final void position(int pos) {
 		mBB.position(pos);
 	}
 
-	protected String getString(int i) {
+	protected final String getString(int i) {
 		mBB.get(buf, 0, i);
 		for (int n = 0; n < i; n++) {
 			if (buf[n] == '\0') {
@@ -79,7 +77,7 @@ public class ParserBase {
 		}
 	}
 
-	protected static String toString(byte[] bb) {
+	protected final static String toString(byte[] bb) {
 		for (int n = 0; n < bb.length; n++) {
 			if (bb[n] == '\0') {
 				try {
@@ -100,7 +98,7 @@ public class ParserBase {
 		}
 	}
 	
-	protected byte[] getStringBytes(byte[] tmp, int i) {
+	protected final byte[] getStringBytes(byte[] tmp, int i) {
 		mBB.get(tmp, 0, i);
 		for(int j = 0; j < i; j++) {
 			if(tmp[j] == '\0') { // null
@@ -113,7 +111,7 @@ public class ParserBase {
 		return tmp;
 	}
 	
-	protected boolean isEof() {
+	protected final boolean isEof() {
 		return mBB.remaining() == 0;
 	}
 
