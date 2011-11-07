@@ -3,6 +3,7 @@ package jp.gauzau.MikuMikuDroidmod;
 import android.graphics.PointF;
 import android.util.Log;
 import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.ScaleGestureDetector.OnScaleGestureListener;
 
@@ -10,20 +11,20 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
         OnScaleGestureListener {
 
     private static final String TAG = "CameraLocrotGestureListner";
-    
+
     private boolean mIsOnTranslate;
     private boolean mIsOnZoom;
-    
+
     private float mZoomRate = 1;
     private float mPreviousZoomRate = 1;
     private final float[] mLocationRate = new float[] { 0, 0, 0 };
     private final float[] mPreviousLocationRate = new float[] { 0, 0, 0 };
     private final float[] mRotationRate = new float[] { 0, 0, 0 };
     private final float[] mPreviousRotationRate = new float[] { 0, 0, 0 };
-    
+
     private final PointF mPreviousFocus = new PointF();
     private final PointF mFocusDiffRate = new PointF();
-    
+
     private float mSmallerScreenWidth = 1;
 
     private final CoreLogic mCoreLogic;
@@ -40,7 +41,8 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
             if (changeRate > 1.3f) {
                 Log.d(TAG, "Start zooming");
                 mIsOnZoom = true;
-            } else {
+            }
+            else {
                 mFocusDiffRate.set((detector.getFocusX() - mPreviousFocus.x)
                         / mSmallerScreenWidth, (detector.getFocusY() - mPreviousFocus.y)
                         / mSmallerScreenWidth);
@@ -53,9 +55,15 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
             }
         }
         if (mIsOnTranslate) {
-
-        } else if(mIsOnZoom) {
-            
+            // TODO: 3d
+            mLocationRate[0] = mPreviousLocationRate[0]
+                    + (detector.getFocusX() - mPreviousFocus.x) / mSmallerScreenWidth;
+            mLocationRate[1] = mPreviousLocationRate[1]
+                    + (detector.getFocusX() - mPreviousFocus.x) / mSmallerScreenWidth;
+        }
+        else if (mIsOnZoom) {
+            float factor = detector.getScaleFactor();
+            mZoomRate = mPreviousZoomRate * factor;
         }
         return true;
     }
@@ -65,6 +73,10 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
         mPreviousFocus.set(detector.getFocusX(), detector.getFocusY());
         mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
                 .getScreenHeight());
+
+        mPreviousZoomRate = mZoomRate;
+        System.arraycopy(mLocationRate, 0, mPreviousLocationRate, 0, 3);
+        System.arraycopy(mRotationRate, 0, mPreviousRotationRate, 0, 3);
         return true;
     }
 
@@ -72,5 +84,14 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
     public void onScaleEnd(ScaleGestureDetector detector) {
         mIsOnTranslate = mIsOnZoom = false;
     }
+
+    @Override
+    public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
+            float distanceY) {
+        // TODO Auto-generated method stub
+        return super.onScroll(e1, e2, distanceX, distanceY);
+    }
+    
+    
 
 }
