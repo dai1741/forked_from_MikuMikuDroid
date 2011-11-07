@@ -15,10 +15,12 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -194,7 +196,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			ad.setPositiveButton(R.string.select_ok, null);
 			ad.show();
 		}
+		
+		CameraLocrotGestureListner listener = new CameraLocrotGestureListner(mCoreLogic);
+		mGestureDetector = new GestureDetector(listener);
+		mScaleGestureDetector = new ScaleGestureDetector(this, listener);
 	}
+	
+	private GestureDetector mGestureDetector;  
+    private ScaleGestureDetector mScaleGestureDetector;
 	
 	@Override
 	protected void onResume() {
@@ -442,6 +451,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
+	    mGestureDetector.onTouchEvent(event);
+	    mScaleGestureDetector.onTouchEvent(event);
+	    
+	    
 		if(event.getAction() == MotionEvent.ACTION_UP) {
 			if(mCoreLogic.isPlaying()) {
 				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);

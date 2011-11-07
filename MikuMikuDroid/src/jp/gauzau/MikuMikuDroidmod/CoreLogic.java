@@ -866,6 +866,11 @@ public class CoreLogic {
 	private long getDeltaTimeMills() {
 		return mCurTime - mPrevTime;
 	}
+	
+	// Those variables updated by CameraLocrotGestureListner
+	protected float mCameraZoom;
+    //private final float[] mCameraLocation = new float[] { 0, 10, 0 };
+    //private final float[] mCameraRotation = new float[] { 0, 0, 0 };
 
 	protected void setCameraByVMDFrame(double frame) {
 		if (mCamera != null) {
@@ -882,7 +887,7 @@ public class CoreLogic {
 				mCameraIndex.rotation[0] = 0;
 				mCameraIndex.rotation[1] = 0;
 				mCameraIndex.rotation[2] = 0;
-				setCamera(-35f, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight); // -38f
+				setCamera(mCameraZoom, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight); // -38f
 			} else {
 				mCameraIndex.location[0] = 0;
 				mCameraIndex.location[1] = 10;

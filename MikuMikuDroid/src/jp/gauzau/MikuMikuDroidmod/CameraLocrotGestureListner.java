@@ -28,9 +28,15 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
     private float mSmallerScreenWidth = 1;
 
     private final CoreLogic mCoreLogic;
-
+    
+    private void applyZoom() {
+        mCoreLogic.mCameraZoom = -35 * mZoomRate;
+    }
+    
+    
     public CameraLocrotGestureListner(CoreLogic coreLogic) {
         mCoreLogic = coreLogic;
+        applyZoom();
     }
 
     @Override
@@ -64,6 +70,7 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
         else if (mIsOnZoom) {
             float factor = detector.getScaleFactor();
             mZoomRate = mPreviousZoomRate * factor;
+            applyZoom();
         }
         return true;
     }
