@@ -10,6 +10,10 @@ import android.view.ScaleGestureDetector.OnScaleGestureListener;
 public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener implements
         OnScaleGestureListener {
 
+    private static final float MIN_START_TRANSLATE_DISTANCE_SQR = 0.07f;
+
+    private static final float MIN_ZOOM_START_FACTOR = 1.1f;
+
     private static final String TAG = "CameraLocrotGestureListner";
 
     private boolean mIsOnTranslate;
@@ -44,7 +48,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         if (!mIsOnTranslate && !mIsOnZoom) {
             float factor = detector.getScaleFactor();
             float changeRate = factor >= 1 ? factor : 1 / factor;
-            if (changeRate > 1.3f) {
+            if (changeRate > MIN_ZOOM_START_FACTOR) {
                 Log.d(TAG, "Start zooming");
                 mIsOnZoom = true;
             }
@@ -54,7 +58,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
                         / mSmallerScreenWidth);
                 float movedDistanceRateSqr = mFocusDiffRate.x * mFocusDiffRate.x
                         + mFocusDiffRate.y * mFocusDiffRate.y;
-                if (movedDistanceRateSqr > 0.1f) {
+                if (movedDistanceRateSqr > MIN_START_TRANSLATE_DISTANCE_SQR) {
                     Log.d(TAG, "Start translating");
                     mIsOnTranslate = true;
                 }
