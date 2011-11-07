@@ -7,7 +7,7 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.ScaleGestureDetector.OnScaleGestureListener;
 
-public class CameraLocrotGestureListner extends SimpleOnGestureListener implements
+public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener implements
         OnScaleGestureListener {
 
     private static final String TAG = "CameraLocrotGestureListner";
@@ -34,7 +34,7 @@ public class CameraLocrotGestureListner extends SimpleOnGestureListener implemen
     }
     
     
-    public CameraLocrotGestureListner(CoreLogic coreLogic) {
+    public CameraLocrotscaleGestureListener(CoreLogic coreLogic) {
         mCoreLogic = coreLogic;
         applyZoom();
     }

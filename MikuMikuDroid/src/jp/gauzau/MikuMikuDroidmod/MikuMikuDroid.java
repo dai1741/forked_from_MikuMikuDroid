@@ -197,7 +197,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			ad.show();
 		}
 		
-		CameraLocrotGestureListner listener = new CameraLocrotGestureListner(mCoreLogic);
+		CameraLocrotscaleGestureListener listener = new CameraLocrotscaleGestureListener(mCoreLogic);
 		mGestureDetector = new GestureDetector(listener);
 		mScaleGestureDetector = new ScaleGestureDetector(this, listener);
 	}
