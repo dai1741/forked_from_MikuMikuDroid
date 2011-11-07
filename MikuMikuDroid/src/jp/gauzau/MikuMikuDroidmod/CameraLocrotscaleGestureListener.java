@@ -38,10 +38,19 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mCoreLogic.mCameraZoom = -35 / mZoomRate;
     }
     
+    private static final float TRANSLATE_RATE = 10;
+    
+    private void applyLocation() {
+        mCoreLogic.mCameraLocation[0] = -mLocationRate[0] * TRANSLATE_RATE;
+        mCoreLogic.mCameraLocation[1] = 10 + mLocationRate[1] * TRANSLATE_RATE;
+        mCoreLogic.mCameraLocation[2] = -mLocationRate[2] * TRANSLATE_RATE;
+    }
+    
     
     public CameraLocrotscaleGestureListener(CoreLogic coreLogic) {
         mCoreLogic = coreLogic;
         applyZoom();
+        applyLocation();
     }
 
     @Override
@@ -71,7 +80,8 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
             mLocationRate[0] = mBeginningLocationRate[0]
                     + (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth;
             mLocationRate[1] = mBeginningLocationRate[1]
-                    + (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth;
+                    + (detector.getFocusY() - mBeginningFocus.y) / mSmallerScreenWidth;
+            applyLocation();
         }
         else if (mIsOnZoom) {
             float factor = detector.getCurrentSpan() / mBeginningSpan;
