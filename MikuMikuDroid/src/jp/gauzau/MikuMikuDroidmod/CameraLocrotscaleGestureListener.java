@@ -10,9 +10,9 @@ import android.view.ScaleGestureDetector.OnScaleGestureListener;
 public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener implements
         OnScaleGestureListener {
 
-    private static final float MIN_START_TRANSLATE_DISTANCE_SQR = 0.07f;
+    private static final float MIN_START_TRANSLATE_DISTANCE_SQR = 0.0075f;
 
-    private static final float MIN_ZOOM_START_FACTOR = 1.1f;
+    private static final float MIN_ZOOM_START_FACTOR = 1.2f;
 
     private static final String TAG = "CameraLocrotGestureListner";
 
@@ -20,21 +20,22 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     private boolean mIsOnZoom;
 
     private float mZoomRate = 1;
-    private float mPreviousZoomRate = 1;
+    private float mBeginningZoomRate = 1;
     private final float[] mLocationRate = new float[] { 0, 0, 0 };
-    private final float[] mPreviousLocationRate = new float[] { 0, 0, 0 };
+    private final float[] mBeginningLocationRate = new float[] { 0, 0, 0 };
     private final float[] mRotationRate = new float[] { 0, 0, 0 };
-    private final float[] mPreviousRotationRate = new float[] { 0, 0, 0 };
+    private final float[] mBeginningRotationRate = new float[] { 0, 0, 0 };
 
-    private final PointF mPreviousFocus = new PointF();
+    private final PointF mBeginningFocus = new PointF();
     private final PointF mFocusDiffRate = new PointF();
+    private float mBeginningSpan;
 
     private float mSmallerScreenWidth = 1;
 
     private final CoreLogic mCoreLogic;
     
     private void applyZoom() {
-        mCoreLogic.mCameraZoom = -35 * mZoomRate;
+        mCoreLogic.mCameraZoom = -35 / mZoomRate;
     }
     
     
@@ -46,18 +47,19 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     @Override
     public boolean onScale(ScaleGestureDetector detector) {
         if (!mIsOnTranslate && !mIsOnZoom) {
-            float factor = detector.getScaleFactor();
+            float factor = detector.getCurrentSpan() / mBeginningSpan;
             float changeRate = factor >= 1 ? factor : 1 / factor;
             if (changeRate > MIN_ZOOM_START_FACTOR) {
                 Log.d(TAG, "Start zooming");
                 mIsOnZoom = true;
             }
             else {
-                mFocusDiffRate.set((detector.getFocusX() - mPreviousFocus.x)
-                        / mSmallerScreenWidth, (detector.getFocusY() - mPreviousFocus.y)
+                mFocusDiffRate.set((detector.getFocusX() - mBeginningFocus.x)
+                        / mSmallerScreenWidth, (detector.getFocusY() - mBeginningFocus.y)
                         / mSmallerScreenWidth);
                 float movedDistanceRateSqr = mFocusDiffRate.x * mFocusDiffRate.x
                         + mFocusDiffRate.y * mFocusDiffRate.y;
+                Log.d(TAG, "dist sqr: " + movedDistanceRateSqr);
                 if (movedDistanceRateSqr > MIN_START_TRANSLATE_DISTANCE_SQR) {
                     Log.d(TAG, "Start translating");
                     mIsOnTranslate = true;
@@ -66,14 +68,14 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         }
         if (mIsOnTranslate) {
             // TODO: 3d
-            mLocationRate[0] = mPreviousLocationRate[0]
-                    + (detector.getFocusX() - mPreviousFocus.x) / mSmallerScreenWidth;
-            mLocationRate[1] = mPreviousLocationRate[1]
-                    + (detector.getFocusX() - mPreviousFocus.x) / mSmallerScreenWidth;
+            mLocationRate[0] = mBeginningLocationRate[0]
+                    + (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth;
+            mLocationRate[1] = mBeginningLocationRate[1]
+                    + (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth;
         }
         else if (mIsOnZoom) {
-            float factor = detector.getScaleFactor();
-            mZoomRate = mPreviousZoomRate * factor;
+            float factor = detector.getCurrentSpan() / mBeginningSpan;
+            mZoomRate = mBeginningZoomRate * factor;
             applyZoom();
         }
         return true;
@@ -81,13 +83,15 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
 
     @Override
     public boolean onScaleBegin(ScaleGestureDetector detector) {
-        mPreviousFocus.set(detector.getFocusX(), detector.getFocusY());
+        mBeginningFocus.set(detector.getFocusX(), detector.getFocusY());
         mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
                 .getScreenHeight());
 
-        mPreviousZoomRate = mZoomRate;
-        System.arraycopy(mLocationRate, 0, mPreviousLocationRate, 0, 3);
-        System.arraycopy(mRotationRate, 0, mPreviousRotationRate, 0, 3);
+        mBeginningZoomRate = mZoomRate;
+        mBeginningSpan = detector.getCurrentSpan();
+        System.arraycopy(mLocationRate, 0, mBeginningLocationRate, 0, 3);
+        System.arraycopy(mRotationRate, 0, mBeginningRotationRate, 0, 3);
+        Log.d(TAG, "Scale bigin");
         return true;
     }
 
