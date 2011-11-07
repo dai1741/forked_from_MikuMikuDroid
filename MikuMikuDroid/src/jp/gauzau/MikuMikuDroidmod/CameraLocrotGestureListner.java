@@ -1,0 +1,76 @@
+package jp.gauzau.MikuMikuDroidmod;
+
+import android.graphics.PointF;
+import android.util.Log;
+import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.ScaleGestureDetector;
+import android.view.ScaleGestureDetector.OnScaleGestureListener;
+
+public class CameraLocrotGestureListner extends SimpleOnGestureListener implements
+        OnScaleGestureListener {
+
+    private static final String TAG = "CameraLocrotGestureListner";
+    
+    private boolean mIsOnTranslate;
+    private boolean mIsOnZoom;
+    
+    private float mZoomRate = 1;
+    private float mPreviousZoomRate = 1;
+    private final float[] mLocationRate = new float[] { 0, 0, 0 };
+    private final float[] mPreviousLocationRate = new float[] { 0, 0, 0 };
+    private final float[] mRotationRate = new float[] { 0, 0, 0 };
+    private final float[] mPreviousRotationRate = new float[] { 0, 0, 0 };
+    
+    private final PointF mPreviousFocus = new PointF();
+    private final PointF mFocusDiffRate = new PointF();
+    
+    private float mSmallerScreenWidth = 1;
+
+    private final CoreLogic mCoreLogic;
+
+    public CameraLocrotGestureListner(CoreLogic coreLogic) {
+        mCoreLogic = coreLogic;
+    }
+
+    @Override
+    public boolean onScale(ScaleGestureDetector detector) {
+        if (!mIsOnTranslate && !mIsOnZoom) {
+            float factor = detector.getScaleFactor();
+            float changeRate = factor >= 1 ? factor : 1 / factor;
+            if (changeRate > 1.3f) {
+                Log.d(TAG, "Start zooming");
+                mIsOnZoom = true;
+            } else {
+                mFocusDiffRate.set((detector.getFocusX() - mPreviousFocus.x)
+                        / mSmallerScreenWidth, (detector.getFocusY() - mPreviousFocus.y)
+                        / mSmallerScreenWidth);
+                float movedDistanceRateSqr = mFocusDiffRate.x * mFocusDiffRate.x
+                        + mFocusDiffRate.y * mFocusDiffRate.y;
+                if (movedDistanceRateSqr > 0.1f) {
+                    Log.d(TAG, "Start translating");
+                    mIsOnTranslate = true;
+                }
+            }
+        }
+        if (mIsOnTranslate) {
+
+        } else if(mIsOnZoom) {
+            
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onScaleBegin(ScaleGestureDetector detector) {
+        mPreviousFocus.set(detector.getFocusX(), detector.getFocusY());
+        mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
+                .getScreenHeight());
+        return true;
+    }
+
+    @Override
+    public void onScaleEnd(ScaleGestureDetector detector) {
+        mIsOnTranslate = mIsOnZoom = false;
+    }
+
+}
