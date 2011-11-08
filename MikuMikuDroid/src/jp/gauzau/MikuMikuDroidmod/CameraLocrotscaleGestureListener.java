@@ -139,7 +139,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mConjugateQuat[1] *= -1;
         mConjugateQuat[2] *= -1;
 
-        mIsOnRotate = false;
+        mIsRotateAborted = true;
         Log.d(TAG, "Scale bigin");
         return true;
     }
@@ -161,25 +161,28 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     private static final float MIN_START_ROTATE_DISTANCE_SQR = 0.0075f;
     private final PointF mScrollDiffRate = new PointF();
     private boolean mIsOnRotate;
+    private boolean mIsRotateAborted;
 
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
             float distanceY) {
-        mScrollDiffRate.set((e2.getX() - e1.getX()) / mSmallerScreenWidth,
-                (e2.getY() - e1.getY()) / mSmallerScreenWidth);
-        if (!mIsOnRotate) {
-            float movedDistanceRateSqr = mScrollDiffRate.x * mScrollDiffRate.x
-                    + mScrollDiffRate.y * mScrollDiffRate.y;
-            Log.d(TAG, "dist sqr: " + movedDistanceRateSqr);
-            if (movedDistanceRateSqr > MIN_START_ROTATE_DISTANCE_SQR) {
-                Log.d(TAG, "Start rotating");
-                mIsOnRotate = true;
+        if (!mIsRotateAborted) {
+            mScrollDiffRate.set((e2.getX() - e1.getX()) / mSmallerScreenWidth,
+                    (e2.getY() - e1.getY()) / mSmallerScreenWidth);
+            if (!mIsOnRotate) {
+                float movedDistanceRateSqr = mScrollDiffRate.x * mScrollDiffRate.x
+                        + mScrollDiffRate.y * mScrollDiffRate.y;
+                Log.d(TAG, "dist sqr: " + movedDistanceRateSqr);
+                if (movedDistanceRateSqr > MIN_START_ROTATE_DISTANCE_SQR) {
+                    Log.d(TAG, "Start rotating");
+                    mIsOnRotate = true;
+                }
             }
-        }
-        if (mIsOnRotate) {
-            mRotationRate[0] = mBeginningRotationRate[0] + mScrollDiffRate.x;
-            mRotationRate[1] = mBeginningRotationRate[1] + mScrollDiffRate.y;
-            applyRotation();
+            if (mIsOnRotate) {
+                mRotationRate[0] = mBeginningRotationRate[0] + mScrollDiffRate.x;
+                mRotationRate[1] = mBeginningRotationRate[1] + mScrollDiffRate.y;
+                applyRotation();
+            }
         }
         return false;
     }
@@ -187,7 +190,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
 
     @Override
     public boolean onDown(MotionEvent e) {
-        mIsOnRotate = false;
+        mIsOnRotate = mIsRotateAborted = false;
         mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
                 .getScreenHeight());
         System.arraycopy(mRotationRate, 0, mBeginningRotationRate, 0, 3);
