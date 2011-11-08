@@ -200,9 +200,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			ad.show();
 		}
 		
-		CameraLocrotscaleGestureListener listener = getGestureListener();
-		mGestureDetector = new GestureDetector(this, listener, null, true);
-		mScaleGestureDetector = new ScaleGestureDetector(this, listener);
+		mGestureListener = getGestureListener();
+		mGestureDetector = new GestureDetector(this, mGestureListener, null, true);
+		mScaleGestureDetector = new ScaleGestureDetector(this, mGestureListener);
 	}
 
     private GestureDetector mGestureDetector;  
@@ -404,6 +404,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 		case (Menu.FIRST + 5):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
+		    mGestureListener.reset();
 			break;
 
 		default:
@@ -459,6 +460,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		return false;
 	}
     
+	private CameraLocrotscaleGestureListener mGestureListener;
     private CameraLocrotscaleGestureListener getGestureListener() {
         
         return new CameraLocrotscaleGestureListener(mCoreLogic) {

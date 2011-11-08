@@ -6,6 +6,8 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.ScaleGestureDetector.OnScaleGestureListener;
 
+import java.util.Arrays;
+
 public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener implements
         OnScaleGestureListener {
 
@@ -58,9 +60,17 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
 
     public CameraLocrotscaleGestureListener(CoreLogic coreLogic) {
         mCoreLogic = coreLogic;
+        reset();
+    }
+    
+    public void reset() {
+        mZoomRate = 1;
+        Arrays.fill(mLocationRate, 0);
+        Arrays.fill(mRotationRate, 0);
         applyZoom();
         applyLocation();
         applyRotation();
+        
     }
 
     @Override
