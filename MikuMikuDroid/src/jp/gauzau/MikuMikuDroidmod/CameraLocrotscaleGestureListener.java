@@ -1,13 +1,10 @@
 package jp.gauzau.MikuMikuDroidmod;
 
 import android.graphics.PointF;
-import android.util.Log;
 import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.ScaleGestureDetector.OnScaleGestureListener;
-
-import java.util.Arrays;
 
 public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener implements
         OnScaleGestureListener {
@@ -72,7 +69,6 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
             float factor = detector.getCurrentSpan() / mBeginningSpan;
             float changeRate = factor >= 1 ? factor : 1 / factor;
             if (changeRate > MIN_ZOOM_START_FACTOR) {
-                Log.d(TAG, "Start zooming");
                 mIsOnZoom = true;
             }
             else {
@@ -81,19 +77,12 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
                         / mSmallerScreenWidth);
                 float movedDistanceRateSqr = mFocusDiffRate.x * mFocusDiffRate.x
                         + mFocusDiffRate.y * mFocusDiffRate.y;
-                Log.d(TAG, "dist sqr: " + movedDistanceRateSqr);
                 if (movedDistanceRateSqr > MIN_START_TRANSLATE_DISTANCE_SQR) {
-                    Log.d(TAG, "Start translating");
                     mIsOnTranslate = true;
                 }
             }
         }
         if (mIsOnTranslate) {
-            // TODO: 3d
-            // mLocationRate[0] = mBeginningLocationRate[0]
-            // + (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth;
-            // mLocationRate[1] = mBeginningLocationRate[1]
-            // + (detector.getFocusY() - mBeginningFocus.y) / mSmallerScreenWidth;
             double[] coordAsQuat = new double[] {
                     (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth,
                     (detector.getFocusY() - mBeginningFocus.y) / mSmallerScreenWidth, 0,
@@ -131,16 +120,13 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
                 new float[] { 0, 0, 1 });
         Quaternion.mul(mQuatTemp2, mQuatTemp3, mQuatTemp);
         Quaternion.normalize(mQuat, mQuatTemp2);
-        // Quaternion.toMatrix(mRotaionMatirix, new float[] {
-        // (float) mQuatTemp[0], (float) mQuatTemp[1], (float) mQuatTemp[2],
-        // (float) mQuatTemp[3] });
+
         System.arraycopy(mQuat, 0, mConjugateQuat, 0, 4);
         mConjugateQuat[0] *= -1;
         mConjugateQuat[1] *= -1;
         mConjugateQuat[2] *= -1;
 
         mIsRotateAborted = true;
-        Log.d(TAG, "Scale bigin");
         return true;
     }
 
@@ -149,8 +135,6 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     private final double[] mQuatTemp3 = new double[4];
     private final double[] mQuat = new double[4];
     private final double[] mConjugateQuat = new double[4];
-
-    // private final float[] mRotaionMatirix = new float[16];
 
     @Override
     public void onScaleEnd(ScaleGestureDetector detector) {
@@ -172,9 +156,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
             if (!mIsOnRotate) {
                 float movedDistanceRateSqr = mScrollDiffRate.x * mScrollDiffRate.x
                         + mScrollDiffRate.y * mScrollDiffRate.y;
-                Log.d(TAG, "dist sqr: " + movedDistanceRateSqr);
                 if (movedDistanceRateSqr > MIN_START_ROTATE_DISTANCE_SQR) {
-                    Log.d(TAG, "Start rotating");
                     mIsOnRotate = true;
                 }
             }
