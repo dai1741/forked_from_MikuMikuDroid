@@ -33,24 +33,34 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     private float mSmallerScreenWidth = 1;
 
     private final CoreLogic mCoreLogic;
-    
+
     private void applyZoom() {
         mCoreLogic.mCameraZoom = -35 / mZoomRate;
     }
-    
+
     private static final float TRANSLATE_RATE = 10;
-    
+
     private void applyLocation() {
         mCoreLogic.mCameraLocation[0] = -mLocationRate[0] * TRANSLATE_RATE;
         mCoreLogic.mCameraLocation[1] = 10 + mLocationRate[1] * TRANSLATE_RATE;
         mCoreLogic.mCameraLocation[2] = -mLocationRate[2] * TRANSLATE_RATE;
     }
+
+    private static final float ROTATE_RATE = -90;
     
-    
+    private void applyRotation() {
+        // mmd camera rotation uses y-x-z euler angles
+        mCoreLogic.mCameraRotation[0] = mRotationRate[1] * ROTATE_RATE;
+        mCoreLogic.mCameraRotation[1] = mRotationRate[0] * ROTATE_RATE;
+        mCoreLogic.mCameraRotation[2] = mRotationRate[2] * ROTATE_RATE;
+    }
+
+
     public CameraLocrotscaleGestureListener(CoreLogic coreLogic) {
         mCoreLogic = coreLogic;
         applyZoom();
         applyLocation();
+        applyRotation();
     }
 
     @Override
@@ -94,14 +104,13 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     @Override
     public boolean onScaleBegin(ScaleGestureDetector detector) {
         mBeginningFocus.set(detector.getFocusX(), detector.getFocusY());
-        mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
-                .getScreenHeight());
 
         mBeginningZoomRate = mZoomRate;
         mBeginningSpan = detector.getCurrentSpan();
         System.arraycopy(mLocationRate, 0, mBeginningLocationRate, 0, 3);
-        System.arraycopy(mRotationRate, 0, mBeginningRotationRate, 0, 3);
         Log.d(TAG, "Scale bigin");
+        
+        mIsOnRotate = false;
         return true;
     }
 
@@ -110,13 +119,44 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mIsOnTranslate = mIsOnZoom = false;
     }
 
+
+    private static final float MIN_START_ROTATE_DISTANCE_SQR = 0.0075f;
+    private final PointF mScrollDiffRate = new PointF();
+    private boolean mIsOnRotate;
+
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
             float distanceY) {
-        // TODO Auto-generated method stub
-        return super.onScroll(e1, e2, distanceX, distanceY);
+        mScrollDiffRate.set((e2.getX() - e1.getX()) / mSmallerScreenWidth,
+                (e2.getY() - e1.getY()) / mSmallerScreenWidth);
+        if (!mIsOnRotate) {
+            float movedDistanceRateSqr = mScrollDiffRate.x * mScrollDiffRate.x
+                    + mScrollDiffRate.y * mScrollDiffRate.y;
+            Log.d(TAG, "dist sqr: " + movedDistanceRateSqr);
+            if (movedDistanceRateSqr > MIN_START_ROTATE_DISTANCE_SQR) {
+                Log.d(TAG, "Start rotating");
+                mIsOnRotate = true;
+            }
+        }
+        if (mIsOnRotate) {
+            mRotationRate[0] = mBeginningRotationRate[0]
+                    + mScrollDiffRate.x;
+            mRotationRate[1] = mBeginningRotationRate[1]
+                    + mScrollDiffRate.y;
+            applyRotation();
+        }
+        return false;
     }
-    
-    
+
+
+    @Override
+    public boolean onDown(MotionEvent e) {
+        mIsOnRotate = false;
+        mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
+                .getScreenHeight());
+        System.arraycopy(mRotationRate, 0, mBeginningRotationRate, 0, 3);
+        return false;
+    }
+
 
 }

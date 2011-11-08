@@ -870,7 +870,7 @@ public class CoreLogic {
 	// Those variables updated by CameraLocrotGestureListner
 	protected float mCameraZoom;
     protected final float[] mCameraLocation = new float[] { 0, 10, 0 };
-    //private final float[] mCameraRotation = new float[] { 0, 0, 0 };
+    protected final float[] mCameraRotation = new float[] { 0, 0, 0 };
 
 	protected void setCameraByVMDFrame(double frame) {
 		if (mCamera != null) {
@@ -884,9 +884,9 @@ public class CoreLogic {
 				mCameraIndex.location[0] = mCameraLocation[0];
 				mCameraIndex.location[1] = mCameraLocation[1]; // 13
 				mCameraIndex.location[2] = mCameraLocation[2];
-				mCameraIndex.rotation[0] = 0;
-				mCameraIndex.rotation[1] = 0;
-				mCameraIndex.rotation[2] = 0;
+				mCameraIndex.rotation[0] = mCameraRotation[0];
+				mCameraIndex.rotation[1] = mCameraRotation[1];
+				mCameraIndex.rotation[2] = mCameraRotation[2];
 				setCamera(mCameraZoom, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight); // -38f
 			} else {
 				mCameraIndex.location[0] = 0;
