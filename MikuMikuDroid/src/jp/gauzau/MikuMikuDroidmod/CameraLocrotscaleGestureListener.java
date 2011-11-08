@@ -11,7 +11,7 @@ import java.util.Arrays;
 public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener implements
         OnScaleGestureListener {
 
-    private static final float MIN_START_TRANSLATE_DISTANCE_SQR = 0.0075f;
+    private static final float MIN_START_TRANSLATE_DISTANCE_SQR = 0.005f;
 
     private static final float MIN_ZOOM_START_FACTOR = 1.2f;
 
@@ -39,7 +39,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mCoreLogic.mCameraZoom = -35 / mZoomRate;
     }
 
-    private static final float TRANSLATE_RATE = 10;
+    private static final float TRANSLATE_RATE = 14.75f;
 
     private void applyLocation() {
         mCoreLogic.mCameraLocation[0] = -mLocationRate[0] * TRANSLATE_RATE;
@@ -47,8 +47,8 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mCoreLogic.mCameraLocation[2] = -mLocationRate[2] * TRANSLATE_RATE;
     }
 
-    private static final float ROTATE_RATE = -90;
-    private static final double ROTATE_RATE_RAD = 90 / 180.0 * Math.PI;
+    private static final float ROTATE_RATE = -120;
+    private static final double ROTATE_RATE_RAD = -ROTATE_RATE / 180.0 * Math.PI;
 
     private void applyRotation() {
         // mmd camera rotation uses y-x-z euler angles
@@ -62,7 +62,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mCoreLogic = coreLogic;
         reset();
     }
-    
+
     public void reset() {
         mZoomRate = 1;
         Arrays.fill(mLocationRate, 0);
@@ -70,16 +70,18 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         applyZoom();
         applyLocation();
         applyRotation();
-        
+
     }
 
     @Override
     public boolean onScale(ScaleGestureDetector detector) {
         if (!mIsOnTranslate && !mIsOnZoom) {
-            float factor = detector.getCurrentSpan() / mBeginningSpan;
+            float span = detector.getCurrentSpan();
+            float factor = span / mBeginningSpan;
             float changeRate = factor >= 1 ? factor : 1 / factor;
             if (changeRate > MIN_ZOOM_START_FACTOR) {
                 mIsOnZoom = true;
+                mBeginningSpan = span;
             }
             else {
                 mFocusDiffRate.set((detector.getFocusX() - mBeginningFocus.x)
@@ -89,14 +91,16 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
                         + mFocusDiffRate.y * mFocusDiffRate.y;
                 if (movedDistanceRateSqr > MIN_START_TRANSLATE_DISTANCE_SQR) {
                     mIsOnTranslate = true;
+                    mBeginningFocus.set(detector.getFocusX(), detector.getFocusY());
                 }
             }
         }
         if (mIsOnTranslate) {
             double[] coordAsQuat = new double[] {
-                    (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth,
-                    (detector.getFocusY() - mBeginningFocus.y) / mSmallerScreenWidth, 0,
-                    0 };
+                    (detector.getFocusX() - mBeginningFocus.x) / mSmallerScreenWidth
+                            / mZoomRate,
+                    (detector.getFocusY() - mBeginningFocus.y) / mSmallerScreenWidth
+                            / mZoomRate, 0, 0 };
             Quaternion.mul(mQuatTemp, mConjugateQuat, coordAsQuat);
             Quaternion.mul(coordAsQuat, mQuatTemp, mQuat);
             mLocationRate[0] = mBeginningLocationRate[0] + (float) coordAsQuat[0];
@@ -151,9 +155,8 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mIsOnTranslate = mIsOnZoom = false;
     }
 
-
-    private static final float MIN_START_ROTATE_DISTANCE_SQR = 0.0075f;
     private final PointF mScrollDiffRate = new PointF();
+    private final PointF mBeginningTapPoint = new PointF();
     private boolean mIsOnRotate;
     private boolean mIsRotateAborted;
 
@@ -161,16 +164,14 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
             float distanceY) {
         if (!mIsRotateAborted) {
-            mScrollDiffRate.set((e2.getX() - e1.getX()) / mSmallerScreenWidth,
-                    (e2.getY() - e1.getY()) / mSmallerScreenWidth);
             if (!mIsOnRotate) {
-                float movedDistanceRateSqr = mScrollDiffRate.x * mScrollDiffRate.x
-                        + mScrollDiffRate.y * mScrollDiffRate.y;
-                if (movedDistanceRateSqr > MIN_START_ROTATE_DISTANCE_SQR) {
-                    mIsOnRotate = true;
-                }
+                mIsOnRotate = true;
+                mBeginningTapPoint.set(e2.getX(), e2.getY());
             }
             if (mIsOnRotate) {
+                mScrollDiffRate.set((e2.getX() - mBeginningTapPoint.x)
+                        / mSmallerScreenWidth, (e2.getY() - mBeginningTapPoint.y)
+                        / mSmallerScreenWidth);
                 mRotationRate[0] = mBeginningRotationRate[0] + mScrollDiffRate.x;
                 mRotationRate[1] = mBeginningRotationRate[1] + mScrollDiffRate.y;
                 applyRotation();
@@ -186,6 +187,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         mSmallerScreenWidth = Math.min(mCoreLogic.getScreenWidth(), mCoreLogic
                 .getScreenHeight());
         System.arraycopy(mRotationRate, 0, mBeginningRotationRate, 0, 3);
+        mBeginningTapPoint.set(e.getX(), e.getY());
         return false;
     }
 
