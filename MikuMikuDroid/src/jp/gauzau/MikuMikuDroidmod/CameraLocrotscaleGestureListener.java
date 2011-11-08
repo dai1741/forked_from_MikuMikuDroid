@@ -49,7 +49,7 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     }
 
     private static final float ROTATE_RATE = -90;
-    private static final double ROTATE_RATE_RAD = -90 / 180.0 * Math.PI;
+    private static final double ROTATE_RATE_RAD = 90 / 180.0 * Math.PI;
 
     private void applyRotation() {
         // mmd camera rotation uses y-x-z euler angles
@@ -123,9 +123,9 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
 
         // create rotation matrix for location change
         Quaternion.createFromAngleAxis(mQuatTemp, mRotationRate[1] * ROTATE_RATE_RAD,
-                new float[] { 0, 1, 0 });
-        Quaternion.createFromAngleAxis(mQuatTemp2, mRotationRate[0] * ROTATE_RATE_RAD,
                 new float[] { 1, 0, 0 });
+        Quaternion.createFromAngleAxis(mQuatTemp2, -mRotationRate[0] * ROTATE_RATE_RAD,
+                new float[] { 0, 1, 0 }); // mmd camera rotation x is reverted
         Quaternion.mul(mQuatTemp3, mQuatTemp, mQuatTemp2);
         Quaternion.createFromAngleAxis(mQuatTemp, mRotationRate[2] * ROTATE_RATE_RAD,
                 new float[] { 0, 0, 1 });
