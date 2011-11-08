@@ -48,6 +48,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	float[]			mAxV = new float[3];
 	float[]			mMgV = new float[3];
 
+	/* (non-Javadoc)
+	 * @see android.app.Activity#onCreate(android.os.Bundle)
+	 */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -197,12 +200,12 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			ad.show();
 		}
 		
-		CameraLocrotscaleGestureListener listener = new CameraLocrotscaleGestureListener(mCoreLogic);
+		CameraLocrotscaleGestureListener listener = getGestureListener();
 		mGestureDetector = new GestureDetector(this, listener, null, true);
 		mScaleGestureDetector = new ScaleGestureDetector(this, listener);
 	}
-	
-	private GestureDetector mGestureDetector;  
+
+    private GestureDetector mGestureDetector;  
     private ScaleGestureDetector mScaleGestureDetector;
 	
 	@Override
@@ -453,22 +456,36 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	public boolean onTouchEvent(MotionEvent event) {
 	    mGestureDetector.onTouchEvent(event);
 	    mScaleGestureDetector.onTouchEvent(event);
-	    
-	    
-		if(event.getAction() == MotionEvent.ACTION_UP) {
-			if(mCoreLogic.isPlaying()) {
-				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
-			} else {
-				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);					
-			}
-			
-			mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE ? SeekBar.INVISIBLE : SeekBar.VISIBLE);
-			mPlayPauseButton.setVisibility(mPlayPauseButton.getVisibility() == Button.VISIBLE ? Button.INVISIBLE : Button.VISIBLE);
-			mRewindButton.setVisibility(mRewindButton.getVisibility() == Button.VISIBLE ? Button.INVISIBLE : Button.VISIBLE);
-			mRelativeLayout.requestLayout();
-		}
 		return false;
 	}
+    
+    private CameraLocrotscaleGestureListener getGestureListener() {
+        
+        return new CameraLocrotscaleGestureListener(mCoreLogic) {
+
+            public boolean onSingleTapUp(MotionEvent e) {
+                if (mCoreLogic.isPlaying()) {
+                    mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
+                } else {
+                    mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
+                }
+
+                mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE
+                        ? SeekBar.INVISIBLE
+                        : SeekBar.VISIBLE);
+                mPlayPauseButton
+                        .setVisibility(mPlayPauseButton.getVisibility() == Button.VISIBLE
+                                ? Button.INVISIBLE
+                                : Button.VISIBLE);
+                mRewindButton
+                        .setVisibility(mRewindButton.getVisibility() == Button.VISIBLE
+                                ? Button.INVISIBLE
+                                : Button.VISIBLE);
+                mRelativeLayout.requestLayout();
+                return super.onSingleTapUp(e);
+            }
+        };
+    }
 	
 	@Override
 	public void onSaveInstanceState(Bundle bundle) {
