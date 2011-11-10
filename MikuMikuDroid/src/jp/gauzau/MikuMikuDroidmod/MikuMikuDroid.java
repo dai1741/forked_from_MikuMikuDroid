@@ -465,7 +465,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         
         return new CameraLocrotscaleGestureListener(mCoreLogic) {
 
+            @Override
             public boolean onSingleTapUp(MotionEvent e) {
+                if (super.onSingleTapUp(e)) return true;
+                
                 if (mCoreLogic.isPlaying()) {
                     mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
                 } else {
@@ -484,7 +487,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                                 ? Button.INVISIBLE
                                 : Button.VISIBLE);
                 mRelativeLayout.requestLayout();
-                return super.onSingleTapUp(e);
+                return false;
             }
         };
     }

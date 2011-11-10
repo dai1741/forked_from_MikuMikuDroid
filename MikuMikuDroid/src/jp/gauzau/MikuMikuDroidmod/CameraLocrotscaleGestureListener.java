@@ -258,4 +258,15 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     }
 
 
+    /**
+     * タップが終了したときの処理。
+     * @return 【HACK】2つ以上の指を使ったMotionEventでこのメソッドが誤って呼ばれるので、
+     *          その場合はイベント消費済みを意味するtrueを返す。
+     */
+    @Override
+    public boolean onSingleTapUp(MotionEvent e) {
+        return mIsRotateAborted;
+    }
+
+
 }
