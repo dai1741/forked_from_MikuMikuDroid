@@ -877,7 +877,16 @@ public class CoreLogic {
 			CameraPair cp = mCamera.findCamera((float) frame, mCameraPair);
 			CameraIndex c = mCamera.interpolateLinear(cp, (float) frame, mCameraIndex);
 			if (c != null) {
-				setCamera(c.length, c.location, c.rotation, c.view_angle, mWidth, mHeight);
+			    // buggy
+			    // hensu c no fields ha yogosite iinoka...?
+                c.location[0] += mCameraLocation[0];
+                c.location[1] += mCameraLocation[1];
+                c.location[2] += mCameraLocation[2];
+                c.rotation[0] += mCameraRotation[0];
+                c.rotation[1] += mCameraRotation[1];
+                c.rotation[2] += mCameraRotation[2];
+				setCamera(c.length + mCameraZoom + CameraLocrotscaleGestureListener.INITIAL_CAMERA_DISTANCE,
+				        c.location, c.rotation, c.view_angle, mWidth, mHeight);
 			}
 		} else {
 			if (mAngle == 0) {

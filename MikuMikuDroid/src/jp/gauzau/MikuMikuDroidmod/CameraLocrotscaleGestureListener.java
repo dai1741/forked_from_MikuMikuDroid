@@ -62,12 +62,15 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
     private float mSmallerScreenWidth = 1;
 
     private final CoreLogic mCoreLogic;
+    
+    /** デフォルトのカメラと中心点との距離 */
+    public static final float INITIAL_CAMERA_DISTANCE = 35;
 
     /** 
      * 現在のズーム量を中央処理側に適用する。
      */
     private void applyZoom() {
-        mCoreLogic.mCameraZoom = -35 / mZoomRate;
+        mCoreLogic.mCameraZoom = -INITIAL_CAMERA_DISTANCE / mZoomRate;
     }
 
     /**
