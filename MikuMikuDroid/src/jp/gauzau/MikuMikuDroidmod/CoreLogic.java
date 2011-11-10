@@ -868,7 +868,7 @@ public class CoreLogic {
 	}
 	
 	// Those variables updated by CameraLocrotGestureListner
-	protected float mCameraZoom;
+	protected volatile float mCameraZoom;
     protected final float[] mCameraLocation = new float[] { 0, 10, 0 };
     protected final float[] mCameraRotation = new float[] { 0, 0, 0 };
 
