@@ -866,23 +866,37 @@ public class CoreLogic {
 	private long getDeltaTimeMills() {
 		return mCurTime - mPrevTime;
 	}
+	
+	// Those variables updated by CameraLocrotGestureListner
+	protected volatile float mCameraZoom;
+    protected final float[] mCameraLocation = new float[] { 0, 10, 0 };
+    protected final float[] mCameraRotation = new float[] { 0, 0, 0 };
 
 	protected void setCameraByVMDFrame(double frame) {
 		if (mCamera != null) {
 			CameraPair cp = mCamera.findCamera((float) frame, mCameraPair);
 			CameraIndex c = mCamera.interpolateLinear(cp, (float) frame, mCameraIndex);
 			if (c != null) {
-				setCamera(c.length, c.location, c.rotation, c.view_angle, mWidth, mHeight);
+			    // buggy
+			    // hensu c no fields ha yogosite iinoka...?
+                c.location[0] += mCameraLocation[0];
+                c.location[1] += mCameraLocation[1];
+                c.location[2] += mCameraLocation[2];
+                c.rotation[0] += mCameraRotation[0];
+                c.rotation[1] += mCameraRotation[1];
+                c.rotation[2] += mCameraRotation[2];
+				setCamera(c.length + mCameraZoom + CameraLocrotscaleGestureListener.INITIAL_CAMERA_DISTANCE,
+				        c.location, c.rotation, c.view_angle, mWidth, mHeight);
 			}
 		} else {
 			if (mAngle == 0) {
-				mCameraIndex.location[0] = 0;
-				mCameraIndex.location[1] = 10; // 13
-				mCameraIndex.location[2] = 0;
-				mCameraIndex.rotation[0] = 0;
-				mCameraIndex.rotation[1] = 0;
-				mCameraIndex.rotation[2] = 0;
-				setCamera(-35f, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight); // -38f
+				mCameraIndex.location[0] = mCameraLocation[0];
+				mCameraIndex.location[1] = mCameraLocation[1]; // 13
+				mCameraIndex.location[2] = mCameraLocation[2];
+				mCameraIndex.rotation[0] = mCameraRotation[0];
+				mCameraIndex.rotation[1] = mCameraRotation[1];
+				mCameraIndex.rotation[2] = mCameraRotation[2];
+				setCamera(mCameraZoom, mCameraIndex.location, mCameraIndex.rotation, 45, mWidth, mHeight); // -38f
 			} else {
 				mCameraIndex.location[0] = 0;
 				mCameraIndex.location[1] = 10;

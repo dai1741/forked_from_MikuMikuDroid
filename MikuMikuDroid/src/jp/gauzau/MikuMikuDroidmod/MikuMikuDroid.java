@@ -15,10 +15,12 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -34,7 +36,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	private RelativeLayout mRelativeLayout;
 	private SeekBar mSeekBar;
 	private Button mPlayPauseButton;
-	private Button mRewindButton;
+    private Button mRewindButton;
+    private Button mCameraResetButton;
 	
 	// Model
 	private CoreLogic mCoreLogic;
@@ -46,6 +49,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	float[]			mAxV = new float[3];
 	float[]			mMgV = new float[3];
 
+	/* (non-Javadoc)
+	 * @see android.app.Activity#onCreate(android.os.Bundle)
+	 */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -179,11 +185,27 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			}
 		});
 
+        p = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        p.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        p.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+        p.setMargins(5, 5, 5, 5);
+        mCameraResetButton = new Button(this);
+        mCameraResetButton.setLayoutParams(p);
+        mCameraResetButton.setVisibility(Button.INVISIBLE);
+        mCameraResetButton.setBackgroundResource(R.drawable.ic_media_camera_reset);
+        mCameraResetButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MikuMikuDroid.this.mGestureListener.reset();
+            }
+        });
+
 		
 		mRelativeLayout.addView(mMMGLSurfaceView);
 		mRelativeLayout.addView(mSeekBar);
 		mRelativeLayout.addView(mPlayPauseButton);
-		mRelativeLayout.addView(mRewindButton);
+        mRelativeLayout.addView(mRewindButton);
+        mRelativeLayout.addView(mCameraResetButton);
 		setContentView(mRelativeLayout);
 
 		if (mCoreLogic.checkFileIsPrepared() == false) {
@@ -194,7 +216,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			ad.setPositiveButton(R.string.select_ok, null);
 			ad.show();
 		}
+		
+		mGestureListener = getGestureListener();
+		mGestureDetector = new GestureDetector(this, mGestureListener, null, true);
+		mScaleGestureDetector = new ScaleGestureDetector(this, mGestureListener);
 	}
+
+    private GestureDetector mGestureDetector;  
+    private ScaleGestureDetector mScaleGestureDetector;
 	
 	@Override
 	protected void onResume() {
@@ -392,6 +421,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 		case (Menu.FIRST + 5):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
+		    mGestureListener.reset();
 			break;
 
 		default:
@@ -442,20 +472,46 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		if(event.getAction() == MotionEvent.ACTION_UP) {
-			if(mCoreLogic.isPlaying()) {
-				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
-			} else {
-				mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);					
-			}
-			
-			mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE ? SeekBar.INVISIBLE : SeekBar.VISIBLE);
-			mPlayPauseButton.setVisibility(mPlayPauseButton.getVisibility() == Button.VISIBLE ? Button.INVISIBLE : Button.VISIBLE);
-			mRewindButton.setVisibility(mRewindButton.getVisibility() == Button.VISIBLE ? Button.INVISIBLE : Button.VISIBLE);
-			mRelativeLayout.requestLayout();
-		}
+	    mGestureDetector.onTouchEvent(event);
+	    mScaleGestureDetector.onTouchEvent(event);
 		return false;
 	}
+    
+	private CameraLocrotscaleGestureListener mGestureListener;
+    private CameraLocrotscaleGestureListener getGestureListener() {
+        
+        return new CameraLocrotscaleGestureListener(mCoreLogic) {
+
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                if (super.onSingleTapUp(e)) return true;
+                
+                if (mCoreLogic.isPlaying()) {
+                    mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_pause);
+                } else {
+                    mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
+                }
+
+                mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE
+                        ? SeekBar.INVISIBLE
+                        : SeekBar.VISIBLE);
+                mPlayPauseButton
+                        .setVisibility(mPlayPauseButton.getVisibility() == Button.VISIBLE
+                                ? Button.INVISIBLE
+                                : Button.VISIBLE);
+                mRewindButton
+                        .setVisibility(mRewindButton.getVisibility() == Button.VISIBLE
+                                ? Button.INVISIBLE
+                                : Button.VISIBLE);
+                mCameraResetButton
+                        .setVisibility(mCameraResetButton.getVisibility() == Button.VISIBLE
+                        ? Button.INVISIBLE
+                        : Button.VISIBLE);
+                mRelativeLayout.requestLayout();
+                return false;
+            }
+        };
+    }
 	
 	@Override
 	public void onSaveInstanceState(Bundle bundle) {
