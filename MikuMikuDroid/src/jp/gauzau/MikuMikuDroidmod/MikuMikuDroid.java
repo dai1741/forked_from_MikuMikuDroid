@@ -36,7 +36,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	private RelativeLayout mRelativeLayout;
 	private SeekBar mSeekBar;
 	private Button mPlayPauseButton;
-	private Button mRewindButton;
+    private Button mRewindButton;
+    private Button mCameraResetButton;
 	
 	// Model
 	private CoreLogic mCoreLogic;
@@ -184,11 +185,27 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			}
 		});
 
+        p = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        p.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        p.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+        p.setMargins(5, 5, 5, 5);
+        mCameraResetButton = new Button(this);
+        mCameraResetButton.setLayoutParams(p);
+        mCameraResetButton.setVisibility(Button.INVISIBLE);
+        mCameraResetButton.setBackgroundResource(R.drawable.ic_media_camera_reset);
+        mCameraResetButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MikuMikuDroid.this.mGestureListener.reset();
+            }
+        });
+
 		
 		mRelativeLayout.addView(mMMGLSurfaceView);
 		mRelativeLayout.addView(mSeekBar);
 		mRelativeLayout.addView(mPlayPauseButton);
-		mRelativeLayout.addView(mRewindButton);
+        mRelativeLayout.addView(mRewindButton);
+        mRelativeLayout.addView(mCameraResetButton);
 		setContentView(mRelativeLayout);
 
 		if (mCoreLogic.checkFileIsPrepared() == false) {
@@ -486,6 +503,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                         .setVisibility(mRewindButton.getVisibility() == Button.VISIBLE
                                 ? Button.INVISIBLE
                                 : Button.VISIBLE);
+                mCameraResetButton
+                        .setVisibility(mCameraResetButton.getVisibility() == Button.VISIBLE
+                        ? Button.INVISIBLE
+                        : Button.VISIBLE);
                 mRelativeLayout.requestLayout();
                 return false;
             }
