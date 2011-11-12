@@ -110,6 +110,16 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 					}
 				});
 			}
+
+            @Override
+            protected void onCompletion() {
+                super.onCompletion();
+                mPlayPauseButton.post(new Runnable() {
+                    public void run() {
+                        mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
+                    }
+                });
+            }
 		};
 		mCoreLogic.setScreenAngle(0);
 

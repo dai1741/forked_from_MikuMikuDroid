@@ -27,6 +27,7 @@ public class CoreLogic {
 	private MikuMotion			mCamera;
 	private MediaPlayer			mMedia;
 	private FakeMedia			mFakeMedia;
+    private volatile boolean mIsFinished;
 	private String				mMediaName;
 	private long				mCurTime;
 	private long				mPrevTime;
@@ -58,7 +59,6 @@ public class CoreLogic {
 		private boolean mIsPlaying;
 		private long mCallTime;
 		private int mPos;
-		private boolean mIsFinished;
 		private int mMax;
 
 
@@ -104,7 +104,7 @@ public class CoreLogic {
 
 				if(mPos > mMax) {
 					mPos = mMax;
-					mIsFinished = true;
+					onCompletion();
 					stop();
 				}
 			}
@@ -366,7 +366,18 @@ public class CoreLogic {
 		mMedia = MediaPlayer.create(mCtx, uri);
 		if(mMedia != null) {
 			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
-			mMedia.setLooping(true);
+			if (false) {
+                mMedia.setLooping(true);
+            }
+			else {
+                mMedia.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                    
+                    @Override
+                    public void onCompletion(MediaPlayer mp) {
+                        CoreLogic.this.onCompletion();
+                    }
+                });
+			}
 		}
 	}
 
@@ -510,6 +521,7 @@ public class CoreLogic {
 				return false;
 			} else {
 				mMedia.start();
+				mIsFinished = false;
 				return true;
 			}
 		} else {
@@ -535,6 +547,7 @@ public class CoreLogic {
 		} else {
 			mFakeMedia.seekTo(pos);
 		}
+		mIsFinished = false;
 	}
 	
 	public int getDulation() {
@@ -544,6 +557,14 @@ public class CoreLogic {
 			return mFakeMedia.getDuration();
 		}
 	}
+    
+    /**
+     * Called when the playback is completed and auto repeating is disabled.
+     * Derived classes must call the super class's implementation of this method.
+     */
+    protected void onCompletion() {
+        mIsFinished = true;
+    }
 	
 	public float[] getRotationMatrix() {
 		return mRMatrix;
@@ -836,15 +857,28 @@ public class CoreLogic {
 		
 		// calculate current time
 		if (mMedia != null) {
-			mCurTime = mMedia.getCurrentPosition();
+			mCurTime = mIsFinished ? mMedia.getDuration() : mMedia.getCurrentPosition();
 			if(mMedia.isPlaying()) {
-				long timeLocal = System.currentTimeMillis();
-				if (Math.abs(timeLocal - mStartTime - mCurTime) > 500 || mMedia.isPlaying() == false) {
-					mStartTime = timeLocal - mCurTime;
-				} else {
-					mCurTime = timeLocal - mStartTime;
-				}				
-			}
+                if (mCurTime != 0 || mMedia.isLooping()) {
+                    long timeLocal = System.currentTimeMillis();
+                    if (Math.abs(timeLocal - mStartTime - mCurTime) > 500
+                            || mMedia.isPlaying() == false) {
+                        mStartTime = timeLocal - mCurTime;
+                    } else {
+                        mCurTime = timeLocal - mStartTime;
+                    }
+                } else {
+                    // HACK
+                    // mIsFinished is supposed to be set to true on media completion,
+                    // but MediaPlayer.OnCompletionListener.OnCompletion() is called
+                    // *after* mMedia.getCurrentPosition() is set to 0, which causes
+                    // it is possible mMedia state is complete but mIsFinished is false.
+                    // So you need to detect the completion by mPrevTime and revert
+                    // mCurTime to mPrevTime if needed.
+                    if (Math.abs(mMedia.getDuration() - mPrevTime) < 500) mCurTime = mPrevTime;
+                }
+            }
+			
 		} else {
 			mCurTime = mFakeMedia.getCurrentPosition();
 		}
