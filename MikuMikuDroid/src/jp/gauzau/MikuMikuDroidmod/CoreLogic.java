@@ -432,14 +432,9 @@ public class CoreLogic {
 
 		setDefaultCamera();
 	}
-	
 
-	public boolean isRepeating() {
-	    return mRepeating;
-    }
-
-    public void setRepeating(boolean repeating) {
-        mRepeating = repeating;
+    public void toggleRepeating() {
+        mRepeating = !mRepeating;
         if(mMedia != null) mMedia.setLooping(mRepeating);
     }
 

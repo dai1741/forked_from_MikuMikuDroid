@@ -242,8 +242,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			mSM.registerListener(this, mAx, SensorManager.SENSOR_DELAY_GAME);
 			mSM.registerListener(this, mMg, SensorManager.SENSOR_DELAY_GAME);			
 		}
-        mCoreLogic.setRepeating(PreferenceManager.getDefaultSharedPreferences(this)
-                .getBoolean(getResources().getString(R.string.pref_key_repeat), false));
 	}
 
 	@Override
@@ -266,7 +264,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_play_pause);
 		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_initialize);
 		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_toggle_physics);
-        menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_settings);
+        menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_toggle_repeat);
+        menu.add(0, Menu.FIRST + 7, Menu.NONE, R.string.menu_settings);
 
 		return ret;
 	}
@@ -435,8 +434,12 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		case (Menu.FIRST + 5):
 			mCoreLogic.togglePhysics();
 			break;
-
+            
         case (Menu.FIRST + 6):
+            mCoreLogic.toggleRepeating();
+            break;
+
+        case (Menu.FIRST + 7):
             startActivity(new Intent(this, SettingsActivity.class));
             break;
 
