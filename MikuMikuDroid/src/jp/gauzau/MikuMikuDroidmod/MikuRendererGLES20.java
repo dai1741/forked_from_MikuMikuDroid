@@ -20,7 +20,7 @@ import android.util.Log;
 
 public class MikuRendererGLES20 extends MikuRendererBase {
 
-	private String TAG = "MikuRendarGLES20";
+	private static final String TAG = "MikuRendarGLES20";
 	
 	class GLSL {
 		public int mProgram;
@@ -302,20 +302,23 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		
 		// shader programs
 		mGLSL = new HashMap<String, GLSL>();
-		mGLSL.put("builtin:default", 
-				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs)));
+		String vs = String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum);
+        mGLSL.put("builtin:default", 
+				new GLSL(vs, mCoreLogic.getRawResourceString(R.raw.fs)));
 		mGLSL.put("builtin:default_alpha", 
-				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_alpha)));
+				new GLSL(vs, mCoreLogic.getRawResourceString(R.raw.fs_alpha)));
 		mGLSL.put("builtin:default_shadow", 
 				new GLSL(String.format(mCoreLogic.getRawResourceString(R.raw.vs_shadow), bonenum), mCoreLogic.getRawResourceString(R.raw.fs_shadow)));
-		mGLSL.put("builtin:nomotion",
-				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm)));
+		String vsNm = mCoreLogic.getRawResourceString(R.raw.vs_nm);
+        mGLSL.put("builtin:nomotion",
+				new GLSL(vsNm, mCoreLogic.getRawResourceString(R.raw.fs_nm)));
 		mGLSL.put("builtin:nomotion_alpha",
-				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_nm), mCoreLogic.getRawResourceString(R.raw.fs_nm_alpha)));
-		mGLSL.put("builtin:bg",
-				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_bg)));
+				new GLSL(vsNm, mCoreLogic.getRawResourceString(R.raw.fs_nm_alpha)));
+		String vsBg = mCoreLogic.getRawResourceString(R.raw.vs_bg);
+        mGLSL.put("builtin:bg",
+				new GLSL(vsBg, mCoreLogic.getRawResourceString(R.raw.fs_bg)));
 		mGLSL.put("builtin:post_diffusion", 
-				new GLSL(mCoreLogic.getRawResourceString(R.raw.vs_bg), mCoreLogic.getRawResourceString(R.raw.fs_post_diffusion)));
+				new GLSL(vsBg, mCoreLogic.getRawResourceString(R.raw.fs_post_diffusion)));
 		
 		mRT = new HashMap<String, RenderTarget>();
 		mRT.put("screen", new RenderTarget());
@@ -845,7 +848,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
 		GLES20.glGenTextures(11, tex, 0);
 	
-		model.mToon = new ArrayList<Integer>();
+		model.mToon = new ArrayList<Integer>(11);
 		for (int i = 0; i < 11; i++) {
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[i]);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);

@@ -776,13 +776,13 @@ public class CoreLogic {
 	
 	public String getRawResourceString(int id) {
 		char[] buf = new char[1024];
-		StringWriter sw = new StringWriter();
+		StringBuilder sb = new StringBuilder();
 		
-		BufferedReader is = new BufferedReader(new InputStreamReader(mCtx.getResources().openRawResource(id)));
+		InputStreamReader is = new InputStreamReader(mCtx.getResources().openRawResource(id));
 		int n;
 		try {
 			while((n = is.read(buf)) != -1) {
-				sw.write(buf, 0, n);
+				sb.append(buf, 0, n);
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -790,7 +790,7 @@ public class CoreLogic {
 			return null;
 		}
 		
-		return sw.toString();
+		return sb.toString();
 	}
 	
 	public void logMemoryUsage() {
