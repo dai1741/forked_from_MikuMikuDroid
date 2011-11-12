@@ -32,9 +32,10 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
 
         // Try to find a normal multisample configuration first.
         int[] configSpec = {
-                EGL10.EGL_RED_SIZE, 5,
-                EGL10.EGL_GREEN_SIZE, 6,
-                EGL10.EGL_BLUE_SIZE, 5,
+                EGL10.EGL_RED_SIZE, 8,
+                EGL10.EGL_GREEN_SIZE, 8,
+                EGL10.EGL_BLUE_SIZE, 8,
+                EGL10.EGL_ALPHA_SIZE, 8,
                 EGL10.EGL_DEPTH_SIZE, 16,
                 // Requires that setEGLContextClientVersion(2) is called on the view.
                 EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
@@ -112,7 +113,7 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
         // You need to explicitly filter the data returned by eglChooseConfig!
         int index = -1;
         for (int i = 0; i < configs.length; ++i) {
-            if (findConfigAttrib(egl, display, configs[i], EGL10.EGL_RED_SIZE, 0) == 5) {
+            if (findConfigAttrib(egl, display, configs[i], EGL10.EGL_RED_SIZE, 0) == 8) {
                 index = i;
                 break;
             }

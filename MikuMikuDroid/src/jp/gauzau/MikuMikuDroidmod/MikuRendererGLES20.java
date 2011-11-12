@@ -294,7 +294,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 //		mFBO  = hasExt("GL_OES_framebuffer_object");
 		
 		// initialize
-		GLES20.glClearColor(1, 1, 1, 1);
+		GLES20.glClearColor(0, 0, 0, 0);
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 		GLES20.glEnable(GLES20.GL_BLEND);
 		GLES20.glEnable(GLES20.GL_CULL_FACE);

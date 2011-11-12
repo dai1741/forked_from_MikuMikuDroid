@@ -124,7 +124,7 @@ public class MikuRenderer extends MikuRendererBase {
 		mNpot = gl.glGetString(GL10.GL_EXTENSIONS).contains("GL_ARB_texture_non_power_of_two");
 		gl.glHint(GL10.GL_PERSPECTIVE_CORRECTION_HINT, GL10.GL_FASTEST);
 
-		gl.glClearColor(1, 1, 1, 1);
+		gl.glClearColor(0, 0, 0, 0);
 
 		gl.glEnable(GL10.GL_NORMALIZE);
 		gl.glEnable(GL10.GL_CULL_FACE);

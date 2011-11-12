@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
+import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
 import android.preference.PreferenceManager;
 
@@ -22,6 +23,7 @@ public class MMGLSurfaceView extends GLSurfaceView {
 	}
 
 	public void setRendar(Context ctx, CoreLogic cl) {
+	    getHolder().setFormat(PixelFormat.TRANSLUCENT);
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
 			boolean usesCoverageAa = false;
