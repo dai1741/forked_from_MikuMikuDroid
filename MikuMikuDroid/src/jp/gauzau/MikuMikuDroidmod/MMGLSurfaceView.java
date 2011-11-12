@@ -7,9 +7,16 @@ import android.content.Context;
 import android.content.pm.ConfigurationInfo;
 import android.opengl.GLSurfaceView;
 
+import com.example.gdc11.MultisampleConfigChooser;
+
 public class MMGLSurfaceView extends GLSurfaceView {
 
 	private MikuRendererBase mMikuRendarer;
+	
+	private static final boolean kUseMultisampling = true;
+
+    // If |kUseMultisampling| is set, this is what chose the multisampling config.
+    private MultisampleConfigChooser mConfigChooser;
 
 	public MMGLSurfaceView(Context context, CoreLogic cl) {
 		super(context);
@@ -19,7 +26,12 @@ public class MMGLSurfaceView extends GLSurfaceView {
 	public void setRendar(Context ctx, CoreLogic cl) {
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
-			mMikuRendarer = new MikuRendererGLES20(cl);
+			boolean usesCoverageAa = false;
+			if (kUseMultisampling) {
+			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser());
+			    usesCoverageAa = mConfigChooser.usesCoverageAa();
+			}
+			mMikuRendarer = new MikuRendererGLES20(cl, usesCoverageAa);
 			//mMikuRendarer = new MikuRenderer(cl);
 		} else {
 			mMikuRendarer = new MikuRenderer(cl);

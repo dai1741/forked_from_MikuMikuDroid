@@ -226,9 +226,16 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private float[] mDifAmb = new float[4];
 	private int[]	mTexSize = new int[1];
 	
+	private final boolean mUsesCoverageAa;
 
-	public MikuRendererGLES20(CoreLogic cl) {
+    public MikuRendererGLES20(CoreLogic cl) {
+        this(cl, false);
+    }
+
+	public MikuRendererGLES20(CoreLogic cl, boolean usesCoverageAa) {
 		super(cl);
+		
+		mUsesCoverageAa = usesCoverageAa;
 		
 		// for background
 		mBG.mTexture = new HashMap<String, TexInfo>();
@@ -342,7 +349,14 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		Vector.normalize(mLightDir);
 		
 		mRT.get("screen").switchTargetFrameBuffer();
-		GLES20.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
+		
+		int clearMask = GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT;
+        if (mUsesCoverageAa) {
+            final int GL_COVERAGE_BUFFER_BIT_NV = 0x8000;
+            clearMask |= GL_COVERAGE_BUFFER_BIT_NV;
+          }
+		GLES20.glClear(clearMask);
+		
 		initializeAllTexture(false);
 //		initializeAllSkinningTexture();
 
