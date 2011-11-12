@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+    <ListPreference android:entryValues="@array/pref_entryvalues_antialias" android:entries="@array/pref_entries_antialias" android:key="@string/pref_key_antialias" android:defaultValue="2" android:title="@string/pref_title_antialias" android:summary="@string/pref_summary_antialias"/>
+
+    
+
+</PreferenceScreen>

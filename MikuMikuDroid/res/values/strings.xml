@@ -17,4 +17,24 @@
 
 
 <string name="menu_toggle_physics">Physics ON/OFF</string>
+
+
+
+
+<string name="pref_key_antialias">setting_antialias</string>
+
+
+
+
+<string name="pref_title_antialias">Anti Aliasing</string>
+
+
+
+
+<string name="pref_summary_antialias">Removes blocky edges. Doesn\'t work with some devices. Needs to restart the app to apply.</string>
+
+
+
+
+<string name="menu_settings">Settings</string>
 </resources>

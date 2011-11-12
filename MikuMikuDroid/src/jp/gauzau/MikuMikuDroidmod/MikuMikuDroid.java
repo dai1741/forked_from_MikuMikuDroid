@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -251,7 +252,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST + 2, Menu.NONE, R.string.menu_load_music);
 		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_play_pause);
 		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_toggle_physics);
-		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_initialize);
+        menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_settings);
+		menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_initialize);
 
 		return ret;
 	}
@@ -416,7 +418,11 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			mCoreLogic.togglePhysics();
 			break;
 
-		case (Menu.FIRST + 5):
+        case (Menu.FIRST + 5):
+            startActivity(new Intent(this, SettingsActivity.class));
+            break;
+
+		case (Menu.FIRST + 6):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
 		    mGestureListener.reset();
 			break;
