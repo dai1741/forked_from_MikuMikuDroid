@@ -121,7 +121,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mSeekBar = new SeekBar(this);
 		mSeekBar.setLayoutParams(p);
 		mSeekBar.setId(1024);
-		mSeekBar.setVisibility(SeekBar.INVISIBLE);
 		mSeekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 			private boolean mIsPlaying = false;
 
@@ -156,7 +155,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		p.setMargins(5, 5, 5, 60);
 		mPlayPauseButton = new Button(this);
 		mPlayPauseButton.setLayoutParams(p);
-		mPlayPauseButton.setVisibility(Button.INVISIBLE);
 		mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
 		mPlayPauseButton.setId(mSeekBar.getId() + 1);
 		mPlayPauseButton.setOnClickListener(new OnClickListener() {
@@ -176,7 +174,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		p.setMargins(5, 5, 60, 60);
 		mRewindButton = new Button(this);
 		mRewindButton.setLayoutParams(p);
-		mRewindButton.setVisibility(Button.INVISIBLE);
 		mRewindButton.setBackgroundResource(R.drawable.ic_media_previous);
 		mRewindButton.setOnClickListener(new OnClickListener() {
 			@Override
@@ -191,7 +188,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         p.setMargins(5, 5, 5, 5);
         mCameraResetButton = new Button(this);
         mCameraResetButton.setLayoutParams(p);
-        mCameraResetButton.setVisibility(Button.INVISIBLE);
         mCameraResetButton.setBackgroundResource(R.drawable.ic_media_camera_reset);
         mCameraResetButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -199,7 +195,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                 MikuMikuDroid.this.mGestureListener.reset();
             }
         });
-
+        
+        toggleUiViewVisibilities();
 		
 		mRelativeLayout.addView(mMMGLSurfaceView);
 		mRelativeLayout.addView(mSeekBar);
@@ -491,26 +488,25 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                 } else {
                     mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
                 }
-
-                mSeekBar.setVisibility(mSeekBar.getVisibility() == SeekBar.VISIBLE
-                        ? SeekBar.INVISIBLE
-                        : SeekBar.VISIBLE);
-                mPlayPauseButton
-                        .setVisibility(mPlayPauseButton.getVisibility() == Button.VISIBLE
-                                ? Button.INVISIBLE
-                                : Button.VISIBLE);
-                mRewindButton
-                        .setVisibility(mRewindButton.getVisibility() == Button.VISIBLE
-                                ? Button.INVISIBLE
-                                : Button.VISIBLE);
-                mCameraResetButton
-                        .setVisibility(mCameraResetButton.getVisibility() == Button.VISIBLE
-                        ? Button.INVISIBLE
-                        : Button.VISIBLE);
+                
+                toggleUiViewVisibilities();
                 mRelativeLayout.requestLayout();
                 return false;
             }
         };
+    }
+    
+    private void toggleUiViewVisibilities() {
+        toggleViewVisibility(mSeekBar);
+        toggleViewVisibility(mPlayPauseButton);
+        toggleViewVisibility(mRewindButton);
+        toggleViewVisibility(mCameraResetButton);
+    }
+    
+    private static void toggleViewVisibility(View view) {
+        view.setVisibility(view.getVisibility() == View.VISIBLE
+                ? View.INVISIBLE
+                : View.VISIBLE);
     }
 	
 	@Override

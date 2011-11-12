@@ -154,8 +154,8 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
                             / mZoomRate,
                     (detector.getFocusY() - mBeginningFocus.y) / mSmallerScreenWidth
                             / mZoomRate, 0, 0 };
-            Quaternion.mul(mQuatTemp, mConjugateQuat, coordAsQuat);
-            Quaternion.mul(coordAsQuat, mQuatTemp, mQuat);
+            Quaternion.mul(coordAsQuat, mConjugateQuat, coordAsQuat);
+            Quaternion.mul(coordAsQuat, coordAsQuat, mQuat);
             mLocationRate[0] = mBeginningLocationRate[0] + (float) coordAsQuat[0];
             mLocationRate[1] = mBeginningLocationRate[1] + (float) coordAsQuat[1];
             mLocationRate[2] = mBeginningLocationRate[2] + (float) coordAsQuat[2];
@@ -182,15 +182,15 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
         System.arraycopy(mLocationRate, 0, mBeginningLocationRate, 0, 3);
 
         // create rotation matrix for location change
-        Quaternion.createFromAngleAxis(mQuatTemp, mRotationRate[1] * ROTATE_RATE_RAD,
+        Quaternion.createFromAngleAxis(mQuat, mRotationRate[1] * ROTATE_RATE_RAD,
                 new float[] { 1, 0, 0 });
-        Quaternion.createFromAngleAxis(mQuatTemp2, -mRotationRate[0] * ROTATE_RATE_RAD,
+        Quaternion.createFromAngleAxis(mQuatTemp, -mRotationRate[0] * ROTATE_RATE_RAD,
                 new float[] { 0, 1, 0 }); // mmd camera rotation x is reverted
-        Quaternion.mul(mQuatTemp3, mQuatTemp, mQuatTemp2);
+        Quaternion.mul(mQuat, mQuat, mQuatTemp);
         Quaternion.createFromAngleAxis(mQuatTemp, mRotationRate[2] * ROTATE_RATE_RAD,
                 new float[] { 0, 0, 1 });
-        Quaternion.mul(mQuatTemp2, mQuatTemp3, mQuatTemp);
-        Quaternion.normalize(mQuat, mQuatTemp2);
+        Quaternion.mul(mQuat, mQuat, mQuatTemp);
+        Quaternion.normalize(mQuat, mQuat);
 
         System.arraycopy(mQuat, 0, mConjugateQuat, 0, 4);
         mConjugateQuat[0] *= -1;
@@ -203,8 +203,6 @@ public class CameraLocrotscaleGestureListener extends SimpleOnGestureListener im
 
     /** 作業用クォータニオン(x,y,z, w) */
     private final double[] mQuatTemp = new double[4];
-    private final double[] mQuatTemp2 = new double[4];
-    private final double[] mQuatTemp3 = new double[4];
     
     /** 平行移動をカメラの向きと合わせるためのクォータニオン */
     private final double[] mQuat = new double[4];
