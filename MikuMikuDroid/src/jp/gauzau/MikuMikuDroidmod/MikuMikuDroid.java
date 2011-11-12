@@ -96,8 +96,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 							}
 						};
 						ae.setMax(1);
-						ae.setMessage("Restoring Previous state...");
-						ae.execute(mCoreLogic);
+						if(mCoreLogic.restoresState()) {
+    						ae.setMessage("Restoring Previous state...");
+    						ae.execute(mCoreLogic);
+						}
 					}
 				});
 			}
@@ -121,6 +123,15 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     }
                 });
             }
+
+            @Override
+            protected boolean restoresState() {
+                return PreferenceManager.getDefaultSharedPreferences(MikuMikuDroid.this)
+                        .getBoolean(getResources().getString(
+                                        R.string.pref_key_save_last_state), true);
+            }
+            
+            
 		};
 		mCoreLogic.setScreenAngle(0);
 

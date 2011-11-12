@@ -18,6 +18,7 @@ import android.opengl.Matrix;
 import android.os.Build;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 public class CoreLogic {
@@ -577,6 +578,13 @@ public class CoreLogic {
 	}
 	
 	public void onDraw(final int pos) {}
+    
+    /**
+     * @return true if restoring state. else false
+     */
+    protected /*abstract*/ boolean restoresState() {
+        return true;
+    }
 
 
 	public void storeState() {
@@ -642,32 +650,34 @@ public class CoreLogic {
 			Editor ed = sp.edit();
 			ed.clear();
 			ed.commit();
-			
-			// load data
-			for(int i = 0; i < num; i++) {
-				if(motion[i] == null) {
-					if(model[i].endsWith(".x")) {
-						loadAccessory(model[i]);
-					} else {
-						loadStage(model[i]);						
-					}
-				} else {
-					loadModelMotion(model[i], motion[i]);
-				}
-			}
-			
-			if(camera != null) {
-				loadCamera(camera);
-			}			
 
-			if(music != null) {
-				loadMedia(music);
-				if(mMedia != null) {
-					mMedia.seekTo(pos);					
-				}
-			} else {
-				mFakeMedia.seekTo(pos);
-			}
+            if (restoresState()) {
+    			// load data
+    			for(int i = 0; i < num; i++) {
+    				if(motion[i] == null) {
+    					if(model[i].endsWith(".x")) {
+    						loadAccessory(model[i]);
+    					} else {
+    						loadStage(model[i]);						
+    					}
+    				} else {
+    					loadModelMotion(model[i], motion[i]);
+    				}
+    			}
+    			
+    			if(camera != null) {
+    				loadCamera(camera);
+    			}			
+    
+    			if(music != null) {
+    				loadMedia(music);
+    				if(mMedia != null) {
+    					mMedia.seekTo(pos);					
+    				}
+    			} else {
+    				mFakeMedia.seekTo(pos);
+    			}
+	        }
 
 			// restore
 			storeState();

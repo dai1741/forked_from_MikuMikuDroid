@@ -41,5 +41,20 @@
 
 
 
+<string name="pref_key_save_last_state">setting_save_last_state</string>
+
+
+
+
+<string name="pref_title_save_last_state">Remember Last State</string>
+
+
+
+
+<string name="pref_summary_save_last_state">Save the last viewed state and restore it automatically on startup.</string>
+
+
+
+
 <string name="menu_toggle_repeat">Repeat ON/OFF</string>
 </resources>
