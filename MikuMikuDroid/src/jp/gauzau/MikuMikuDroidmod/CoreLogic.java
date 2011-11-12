@@ -519,7 +519,7 @@ public class CoreLogic {
 
 	public void pause() {
 		if (mMedia != null) {
-			mMedia.pause();
+			if(mMedia.isPlaying()) mMedia.pause();
 		} else {
 			mFakeMedia.pause();
 		}

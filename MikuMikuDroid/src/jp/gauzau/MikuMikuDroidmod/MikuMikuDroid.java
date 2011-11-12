@@ -264,9 +264,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST + 1, Menu.NONE, R.string.menu_load_camera);
 		menu.add(0, Menu.FIRST + 2, Menu.NONE, R.string.menu_load_music);
 		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_play_pause);
-		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_toggle_physics);
-        menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_settings);
-		menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_initialize);
+		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_initialize);
+		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_toggle_physics);
+        menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_settings);
 
 		return ret;
 	}
@@ -426,19 +426,19 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		case (Menu.FIRST + 3):
 			mCoreLogic.toggleStartStop();
 			break;
-			
+
 		case (Menu.FIRST + 4):
-			mCoreLogic.togglePhysics();
-			break;
-
-        case (Menu.FIRST + 5):
-            startActivity(new Intent(this, SettingsActivity.class));
-            break;
-
-		case (Menu.FIRST + 6):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
 		    mGestureListener.reset();
 			break;
+			
+		case (Menu.FIRST + 5):
+			mCoreLogic.togglePhysics();
+			break;
+
+        case (Menu.FIRST + 6):
+            startActivity(new Intent(this, SettingsActivity.class));
+            break;
 
 		default:
 			;
