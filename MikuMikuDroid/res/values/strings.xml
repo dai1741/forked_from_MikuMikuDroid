@@ -17,4 +17,44 @@
 
 
 <string name="menu_toggle_physics">Physics ON/OFF</string>
+
+
+
+
+<string name="pref_key_antialias">setting_antialias</string>
+
+
+
+
+<string name="pref_title_antialias">Anti Aliasing</string>
+
+
+
+
+<string name="pref_summary_antialias">Removes blocky edges. Doesn\'t work with some devices. Needs to restart the app to apply.</string>
+
+
+
+
+<string name="menu_settings">Settings</string>
+
+
+
+
+<string name="pref_key_save_last_state">setting_save_last_state</string>
+
+
+
+
+<string name="pref_title_save_last_state">Remember Last State</string>
+
+
+
+
+<string name="pref_summary_save_last_state">Save the last viewed state and restore it automatically on startup.</string>
+
+
+
+
+<string name="menu_toggle_repeat">Repeat ON/OFF</string>
 </resources>

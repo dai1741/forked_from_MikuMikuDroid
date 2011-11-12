@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -15,6 +16,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.Menu;
@@ -94,8 +96,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 							}
 						};
 						ae.setMax(1);
-						ae.setMessage("Restoring Previous state...");
-						ae.execute(mCoreLogic);
+						if(mCoreLogic.restoresState()) {
+    						ae.setMessage("Restoring Previous state...");
+    						ae.execute(mCoreLogic);
+						}
 					}
 				});
 			}
@@ -109,6 +113,25 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 					}
 				});
 			}
+
+            @Override
+            protected void onCompletion() {
+                super.onCompletion();
+                mPlayPauseButton.post(new Runnable() {
+                    public void run() {
+                        mPlayPauseButton.setBackgroundResource(R.drawable.ic_media_play);
+                    }
+                });
+            }
+
+            @Override
+            protected boolean restoresState() {
+                return PreferenceManager.getDefaultSharedPreferences(MikuMikuDroid.this)
+                        .getBoolean(getResources().getString(
+                                        R.string.pref_key_save_last_state), true);
+            }
+            
+            
 		};
 		mCoreLogic.setScreenAngle(0);
 
@@ -250,8 +273,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST + 1, Menu.NONE, R.string.menu_load_camera);
 		menu.add(0, Menu.FIRST + 2, Menu.NONE, R.string.menu_load_music);
 		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_play_pause);
-		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_toggle_physics);
-		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_initialize);
+		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_initialize);
+		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_toggle_physics);
+        menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_toggle_repeat);
+        menu.add(0, Menu.FIRST + 7, Menu.NONE, R.string.menu_settings);
 
 		return ret;
 	}
@@ -411,15 +436,23 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		case (Menu.FIRST + 3):
 			mCoreLogic.toggleStartStop();
 			break;
-			
-		case (Menu.FIRST + 4):
-			mCoreLogic.togglePhysics();
-			break;
 
-		case (Menu.FIRST + 5):
+		case (Menu.FIRST + 4):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
 		    mGestureListener.reset();
 			break;
+			
+		case (Menu.FIRST + 5):
+			mCoreLogic.togglePhysics();
+			break;
+            
+        case (Menu.FIRST + 6):
+            mCoreLogic.toggleRepeating();
+            break;
+
+        case (Menu.FIRST + 7):
+            startActivity(new Intent(this, SettingsActivity.class));
+            break;
 
 		default:
 			;

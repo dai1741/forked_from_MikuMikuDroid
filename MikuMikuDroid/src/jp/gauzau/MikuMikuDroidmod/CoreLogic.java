@@ -18,6 +18,7 @@ import android.opengl.Matrix;
 import android.os.Build;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 public class CoreLogic {
@@ -27,6 +28,7 @@ public class CoreLogic {
 	private MikuMotion			mCamera;
 	private MediaPlayer			mMedia;
 	private FakeMedia			mFakeMedia;
+    private volatile boolean mIsFinished;
 	private String				mMediaName;
 	private long				mCurTime;
 	private long				mPrevTime;
@@ -50,7 +52,8 @@ public class CoreLogic {
 	// temporary data
 	private CameraIndex			mCameraIndex = new CameraIndex();
 	private CameraPair			mCameraPair  = new CameraPair();
-	
+
+    private volatile boolean mRepeating;
 	
 
 	private class FakeMedia {
@@ -58,7 +61,6 @@ public class CoreLogic {
 		private boolean mIsPlaying;
 		private long mCallTime;
 		private int mPos;
-		private boolean mIsFinished;
 		private int mMax;
 
 
@@ -103,9 +105,13 @@ public class CoreLogic {
 				mCallTime = cur;
 
 				if(mPos > mMax) {
-					mPos = mMax;
-					mIsFinished = true;
-					stop();
+					if (mRepeating) {
+					    mPos = 0;
+					} else {
+                        mPos = mMax;
+                        onCompletion();
+                        stop();
+                    }
 				}
 			}
 		}
@@ -366,7 +372,14 @@ public class CoreLogic {
 		mMedia = MediaPlayer.create(mCtx, uri);
 		if(mMedia != null) {
 			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
-			mMedia.setLooping(true);
+            mMedia.setLooping(mRepeating);
+			mMedia.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+			    
+			    @Override
+			    public void onCompletion(MediaPlayer mp) {
+			        if(!mRepeating) CoreLogic.this.onCompletion();
+			    }
+			});
 		}
 	}
 
@@ -421,7 +434,12 @@ public class CoreLogic {
 		setDefaultCamera();
 	}
 
-	public synchronized void setScreenAngle(int angle) {
+    public void toggleRepeating() {
+        mRepeating = !mRepeating;
+        if(mMedia != null) mMedia.setLooping(mRepeating);
+    }
+
+    public synchronized void setScreenAngle(int angle) {
 		mAngle = angle;
 		if (mCamera == null) {
 			setDefaultCamera();
@@ -497,7 +515,7 @@ public class CoreLogic {
 
 	public void pause() {
 		if (mMedia != null) {
-			mMedia.pause();
+			if(mMedia.isPlaying()) mMedia.pause();
 		} else {
 			mFakeMedia.pause();
 		}
@@ -510,6 +528,7 @@ public class CoreLogic {
 				return false;
 			} else {
 				mMedia.start();
+				mIsFinished = false;
 				return true;
 			}
 		} else {
@@ -535,6 +554,7 @@ public class CoreLogic {
 		} else {
 			mFakeMedia.seekTo(pos);
 		}
+		mIsFinished = false;
 	}
 	
 	public int getDulation() {
@@ -544,12 +564,27 @@ public class CoreLogic {
 			return mFakeMedia.getDuration();
 		}
 	}
+    
+    /**
+     * Called when the playback is completed and auto repeating is disabled.
+     * Derived classes must call the super class's implementation of this method.
+     */
+    protected void onCompletion() {
+        mIsFinished = true;
+    }
 	
 	public float[] getRotationMatrix() {
 		return mRMatrix;
 	}
 	
 	public void onDraw(final int pos) {}
+    
+    /**
+     * @return true if restoring state. else false
+     */
+    protected /*abstract*/ boolean restoresState() {
+        return true;
+    }
 
 
 	public void storeState() {
@@ -615,32 +650,34 @@ public class CoreLogic {
 			Editor ed = sp.edit();
 			ed.clear();
 			ed.commit();
-			
-			// load data
-			for(int i = 0; i < num; i++) {
-				if(motion[i] == null) {
-					if(model[i].endsWith(".x")) {
-						loadAccessory(model[i]);
-					} else {
-						loadStage(model[i]);						
-					}
-				} else {
-					loadModelMotion(model[i], motion[i]);
-				}
-			}
-			
-			if(camera != null) {
-				loadCamera(camera);
-			}			
 
-			if(music != null) {
-				loadMedia(music);
-				if(mMedia != null) {
-					mMedia.seekTo(pos);					
-				}
-			} else {
-				mFakeMedia.seekTo(pos);
-			}
+            if (restoresState()) {
+    			// load data
+    			for(int i = 0; i < num; i++) {
+    				if(motion[i] == null) {
+    					if(model[i].endsWith(".x")) {
+    						loadAccessory(model[i]);
+    					} else {
+    						loadStage(model[i]);						
+    					}
+    				} else {
+    					loadModelMotion(model[i], motion[i]);
+    				}
+    			}
+    			
+    			if(camera != null) {
+    				loadCamera(camera);
+    			}			
+    
+    			if(music != null) {
+    				loadMedia(music);
+    				if(mMedia != null) {
+    					mMedia.seekTo(pos);					
+    				}
+    			} else {
+    				mFakeMedia.seekTo(pos);
+    			}
+	        }
 
 			// restore
 			storeState();
@@ -836,15 +873,28 @@ public class CoreLogic {
 		
 		// calculate current time
 		if (mMedia != null) {
-			mCurTime = mMedia.getCurrentPosition();
+			mCurTime = mIsFinished ? mMedia.getDuration() : mMedia.getCurrentPosition();
 			if(mMedia.isPlaying()) {
-				long timeLocal = System.currentTimeMillis();
-				if (Math.abs(timeLocal - mStartTime - mCurTime) > 500 || mMedia.isPlaying() == false) {
-					mStartTime = timeLocal - mCurTime;
-				} else {
-					mCurTime = timeLocal - mStartTime;
-				}				
-			}
+                if (mCurTime != 0 || mMedia.isLooping()) {
+                    long timeLocal = System.currentTimeMillis();
+                    if (Math.abs(timeLocal - mStartTime - mCurTime) > 500
+                            || mMedia.isPlaying() == false) {
+                        mStartTime = timeLocal - mCurTime;
+                    } else {
+                        mCurTime = timeLocal - mStartTime;
+                    }
+                } else {
+                    // HACK
+                    // mIsFinished is supposed to be set to true on media completion,
+                    // but MediaPlayer.OnCompletionListener.OnCompletion() is called
+                    // *after* mMedia.getCurrentPosition() is set to 0, which causes
+                    // it is possible mMedia state is complete but mIsFinished is false.
+                    // So you need to detect the completion by mPrevTime and revert
+                    // mCurTime to mPrevTime if needed.
+                    if (Math.abs(mMedia.getDuration() - mPrevTime) < 500) mCurTime = mPrevTime;
+                }
+            }
+			
 		} else {
 			mCurTime = mFakeMedia.getCurrentPosition();
 		}

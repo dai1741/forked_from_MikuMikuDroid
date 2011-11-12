@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string-array name="pref_entryvalues_antialias">
+		<item>0</item>
+		<item>2</item>
+		<item>4</item>
+		<item>8</item>
+	</string-array>
+	<string-array name="pref_entries_antialias">
+		<item>Disabled</item>
+		<item>2x Multi Sampling</item>
+		<item>4x Multi Sampling</item>
+		<item>8x Multi Sampling</item>
+	</string-array>
+	
+</resources>

@@ -6,17 +6,14 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
 import android.opengl.GLSurfaceView;
+import android.preference.PreferenceManager;
 
 import com.example.gdc11.MultisampleConfigChooser;
 
 public class MMGLSurfaceView extends GLSurfaceView {
 
 	private MikuRendererBase mMikuRendarer;
-	
-	private static final boolean kUseMultisampling = true;
-    private int mSamples = 2;
 
-    // If |kUseMultisampling| is set, this is what chose the multisampling config.
     private MultisampleConfigChooser mConfigChooser;
 
 	public MMGLSurfaceView(Context context, CoreLogic cl) {
@@ -28,8 +25,11 @@ public class MMGLSurfaceView extends GLSurfaceView {
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
 			boolean usesCoverageAa = false;
-			if (kUseMultisampling && 1 < mSamples) {
-			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(mSamples));
+            int samples = Integer.parseInt(PreferenceManager.getDefaultSharedPreferences(
+                    ctx).getString(
+                    ctx.getResources().getString(R.string.pref_key_antialias), "0"));
+			if (1 < samples) {
+			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(samples));
 			    usesCoverageAa = mConfigChooser.usesCoverageAa();
 			}
 			mMikuRendarer = new MikuRendererGLES20(cl, usesCoverageAa);
