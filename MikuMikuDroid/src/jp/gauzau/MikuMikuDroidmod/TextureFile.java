@@ -376,6 +376,12 @@ public class TextureFile {
 	}
 	
 	static private int toPotAlign(int x) {
-		return (int)Math.pow(2, (int)(Math.log(x) / Math.log(2)));
+		x = (x >> 1) - 1;
+		x |= x >> 1;
+		x |= x >> 2;
+		x |= x >> 4;
+		x |= x >> 8;
+		x |= x >> 16;
+		return x + 1;
 	}
 }

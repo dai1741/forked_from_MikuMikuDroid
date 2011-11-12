@@ -18,7 +18,6 @@ import android.opengl.Matrix;
 import android.os.Build;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
-import android.preference.PreferenceManager;
 import android.util.Log;
 
 public class CoreLogic {
@@ -56,7 +55,7 @@ public class CoreLogic {
     private volatile boolean mRepeating;
 	
 
-	private class FakeMedia {
+	class FakeMedia {
 		private WakeLock mWakeLock;
 		private boolean mIsPlaying;
 		private long mCallTime;
@@ -596,9 +595,9 @@ public class CoreLogic {
 			ed.putInt("ModelNum", mMiku.size());
 			for(int i = 0; i < mMiku.size(); i++) {
 				Miku m = mMiku.get(i);
-				ed.putString(String.format("Model%d", i), m.mModel.mFileName);
+				ed.putString("Model" + i, m.mModel.mFileName);
 				if(m.mMotion != null) {
-					ed.putString(String.format("Motion%d", i), m.mMotion.mFileName);
+					ed.putString("Motion" + i, m.mMotion.mFileName);
 				}
 			}
 		} else {
@@ -638,8 +637,8 @@ public class CoreLogic {
 			String model[] = new String[num];
 			String motion[] = new String[num];
 			for(int i = 0; i < num; i++) {
-				model[i]  = sp.getString(String.format("Model%d", i), null);
-				motion[i] = sp.getString(String.format("Motion%d", i), null);
+				model[i]  = sp.getString("Model" + i, null);
+				motion[i] = sp.getString("Motion" + i, null);
 			}
 
 			String camera = sp.getString("Camera", null);
