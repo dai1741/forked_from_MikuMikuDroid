@@ -16,6 +16,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.Menu;
@@ -241,6 +242,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			mSM.registerListener(this, mAx, SensorManager.SENSOR_DELAY_GAME);
 			mSM.registerListener(this, mMg, SensorManager.SENSOR_DELAY_GAME);			
 		}
+        mCoreLogic.setRepeating(PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean(getResources().getString(R.string.pref_key_repeat), false));
 	}
 
 	@Override

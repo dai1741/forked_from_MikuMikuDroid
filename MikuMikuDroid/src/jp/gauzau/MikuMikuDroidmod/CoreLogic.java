@@ -51,7 +51,8 @@ public class CoreLogic {
 	// temporary data
 	private CameraIndex			mCameraIndex = new CameraIndex();
 	private CameraPair			mCameraPair  = new CameraPair();
-	
+
+    private volatile boolean mRepeating;
 	
 
 	private class FakeMedia {
@@ -103,9 +104,13 @@ public class CoreLogic {
 				mCallTime = cur;
 
 				if(mPos > mMax) {
-					mPos = mMax;
-					onCompletion();
-					stop();
+					if (mRepeating) {
+					    mPos = 0;
+					} else {
+                        mPos = mMax;
+                        onCompletion();
+                        stop();
+                    }
 				}
 			}
 		}
@@ -366,18 +371,14 @@ public class CoreLogic {
 		mMedia = MediaPlayer.create(mCtx, uri);
 		if(mMedia != null) {
 			mMedia.setWakeMode(mCtx, PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE);
-			if (false) {
-                mMedia.setLooping(true);
-            }
-			else {
-                mMedia.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                    
-                    @Override
-                    public void onCompletion(MediaPlayer mp) {
-                        CoreLogic.this.onCompletion();
-                    }
-                });
-			}
+            mMedia.setLooping(mRepeating);
+			mMedia.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+			    
+			    @Override
+			    public void onCompletion(MediaPlayer mp) {
+			        if(!mRepeating) CoreLogic.this.onCompletion();
+			    }
+			});
 		}
 	}
 
@@ -431,8 +432,18 @@ public class CoreLogic {
 
 		setDefaultCamera();
 	}
+	
 
-	public synchronized void setScreenAngle(int angle) {
+	public boolean isRepeating() {
+	    return mRepeating;
+    }
+
+    public void setRepeating(boolean repeating) {
+        mRepeating = repeating;
+        if(mMedia != null) mMedia.setLooping(mRepeating);
+    }
+
+    public synchronized void setScreenAngle(int angle) {
 		mAngle = angle;
 		if (mCamera == null) {
 			setDefaultCamera();

@@ -37,4 +37,14 @@
 
 
 <string name="menu_settings">Settings</string>
+
+
+
+
+<string name="pref_key_repeat">setting_repeat</string>
+
+
+
+
+<string name="pref_title_repeat">Repeat</string>
 </resources>
