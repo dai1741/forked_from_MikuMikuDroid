@@ -1,3 +1,9 @@
+/*
+ * This class is originally created by the gdc2011-android-opengl project,
+ * licensed under Apache License 2.0.
+ * See http://code.google.com/p/gdc2011-android-opengl/ for more information.
+ */
+
 package com.example.gdc11;
 
 import javax.microedition.khronos.egl.EGL10;
@@ -14,6 +20,12 @@ import android.util.Log;
 // improved visual quality is worth the cost.
 public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser {
     static private final String kTag = "GDC11";
+    
+    public MultisampleConfigChooser(int samples) {
+        if (samples < 2) throw new IllegalArgumentException("samples < 2");
+        mSamples = samples;
+    }
+
     @Override
     public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display) {
         mValue = new int[1];
@@ -27,7 +39,7 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
                 // Requires that setEGLContextClientVersion(2) is called on the view.
                 EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
                 EGL10.EGL_SAMPLE_BUFFERS, 1 /* true */,
-                EGL10.EGL_SAMPLES, 2,
+                EGL10.EGL_SAMPLES, mSamples,
                 EGL10.EGL_NONE
         };
 
@@ -52,7 +64,7 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
                     EGL10.EGL_DEPTH_SIZE, 16,
                     EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
                     EGL_COVERAGE_BUFFERS_NV, 1 /* true */,
-                    EGL_COVERAGE_SAMPLES_NV, 2,  // always 5 in practice on tegra 2
+                    EGL_COVERAGE_SAMPLES_NV, mSamples,  // always 5 in practice on tegra 2
                     EGL10.EGL_NONE
             };
 
@@ -129,4 +141,5 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
 
     private int[] mValue;
     private boolean mUsesCoverageAa;
+    private final int mSamples;
 }

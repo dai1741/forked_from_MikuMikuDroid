@@ -14,6 +14,7 @@ public class MMGLSurfaceView extends GLSurfaceView {
 	private MikuRendererBase mMikuRendarer;
 	
 	private static final boolean kUseMultisampling = true;
+    private int mSamples = 2;
 
     // If |kUseMultisampling| is set, this is what chose the multisampling config.
     private MultisampleConfigChooser mConfigChooser;
@@ -27,8 +28,8 @@ public class MMGLSurfaceView extends GLSurfaceView {
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
 			boolean usesCoverageAa = false;
-			if (kUseMultisampling) {
-			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser());
+			if (kUseMultisampling && 1 < mSamples) {
+			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(mSamples));
 			    usesCoverageAa = mConfigChooser.usesCoverageAa();
 			}
 			mMikuRendarer = new MikuRendererGLES20(cl, usesCoverageAa);
