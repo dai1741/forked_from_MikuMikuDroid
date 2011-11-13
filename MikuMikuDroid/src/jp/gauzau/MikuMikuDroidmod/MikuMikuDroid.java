@@ -56,7 +56,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	 */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
+        super.onCreate(savedInstanceState);
 		
 //		mSM = (SensorManager)getSystemService(SENSOR_SERVICE);
 //		mAx = mSM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -134,10 +134,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
             
 		};
 		mCoreLogic.setScreenAngle(0);
+        
+        int bgType = SettingsHelper.getBgType(this);
+//        if(SettingsHelper.bgUsesWindowAlpha(bgType)) setTheme(android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+//        else setTheme(android.R.style.Theme_NoTitleBar_Fullscreen);
 
 		mRelativeLayout = new RelativeLayout(this);
 		mRelativeLayout.setVerticalGravity(Gravity.BOTTOM);
-		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic);
+		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic, bgType);
 	
 		LayoutParams p = new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT);
 		p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
@@ -220,8 +224,11 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         });
         
         toggleUiViewVisibilities();
-		
+
 		mRelativeLayout.addView(mMMGLSurfaceView);
+		if(bgType == SettingsHelper.BG_CAMERA) {
+		    mRelativeLayout.addView(new CameraPreviewView(this));
+		}
 		mRelativeLayout.addView(mSeekBar);
 		mRelativeLayout.addView(mPlayPauseButton);
         mRelativeLayout.addView(mRewindButton);

@@ -6,10 +6,16 @@ import javax.microedition.khronos.opengles.GL10;
 import android.opengl.GLSurfaceView.Renderer;
 
 public class MikuRendererBase implements Renderer {
-	protected CoreLogic	mCoreLogic;
+	protected final CoreLogic	mCoreLogic;
+	protected final int mBgType;
 
-	public MikuRendererBase(CoreLogic cl) {
+    public MikuRendererBase(CoreLogic cl) {
+        this(cl, SettingsHelper.BG_WHITE);
+    }
+
+	public MikuRendererBase(CoreLogic cl, int bgType) {
 		mCoreLogic = cl;
+		mBgType = bgType;
 		clear();
 	}
 

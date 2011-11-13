@@ -229,11 +229,11 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 	private final boolean mUsesCoverageAa;
 
     public MikuRendererGLES20(CoreLogic cl) {
-        this(cl, false);
+        this(cl, SettingsHelper.BG_WHITE, false);
     }
 
-	public MikuRendererGLES20(CoreLogic cl, boolean usesCoverageAa) {
-		super(cl);
+	public MikuRendererGLES20(CoreLogic cl, int bgType, boolean usesCoverageAa) {
+		super(cl, bgType);
 		
 		mUsesCoverageAa = usesCoverageAa;
 		
@@ -294,7 +294,17 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 //		mFBO  = hasExt("GL_OES_framebuffer_object");
 		
 		// initialize
-		GLES20.glClearColor(1, 1, 1, 1);
+        switch (mBgType) {
+        case SettingsHelper.BG_WHITE:
+            GLES20.glClearColor(1, 1, 1, 1);
+            break;
+        case SettingsHelper.BG_BLACK:
+            GLES20.glClearColor(0, 0, 0, 1);
+            break;
+        default:
+            GLES20.glClearColor(0, 0, 0, 0);
+            break;
+        }
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 		GLES20.glEnable(GLES20.GL_BLEND);
 		GLES20.glEnable(GLES20.GL_CULL_FACE);

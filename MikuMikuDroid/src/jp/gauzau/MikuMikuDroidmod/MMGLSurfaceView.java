@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
+import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
-import android.preference.PreferenceManager;
 
 import com.example.gdc11.MultisampleConfigChooser;
 
@@ -17,27 +17,28 @@ public class MMGLSurfaceView extends GLSurfaceView {
     private MultisampleConfigChooser mConfigChooser;
 
 	public MMGLSurfaceView(Context context, CoreLogic cl) {
-		super(context);
-		setRendar(context, cl);
+		this(context, cl, SettingsHelper.BG_WHITE);
 	}
 
-	public void setRendar(Context ctx, CoreLogic cl) {
+    public MMGLSurfaceView(Context context, CoreLogic cl, int bgType) {
+        super(context);
+        setRendar(context, cl, bgType);
+    }
+
+	public void setRendar(Context ctx, CoreLogic cl, int bgType) {
+        int samples = SettingsHelper.getSamples(ctx);
+        boolean hasAlpha = SettingsHelper.bgUsesGlAlpha(bgType);
+	    if(hasAlpha) getHolder().setFormat(PixelFormat.TRANSLUCENT);
+	    
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
-			boolean usesCoverageAa = false;
-            int samples = Integer.parseInt(PreferenceManager.getDefaultSharedPreferences(
-                    ctx).getString(
-                    ctx.getResources().getString(R.string.pref_key_antialias), "0"));
-			if (1 < samples) {
-			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(samples));
-			    usesCoverageAa = mConfigChooser.usesCoverageAa();
-			}
-			mMikuRendarer = new MikuRendererGLES20(cl, usesCoverageAa);
-			//mMikuRendarer = new MikuRenderer(cl);
+		    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(samples, hasAlpha));
+			mMikuRendarer = new MikuRendererGLES20(cl, bgType, mConfigChooser.usesCoverageAa());
 		} else {
+		    if(hasAlpha) setEGLConfigChooser(8, 8, 8, 8, 24, 0);
+		    else setEGLConfigChooser(5, 6, 5, 0, 24, 0);
 			mMikuRendarer = new MikuRenderer(cl);
 		}
-//		setEGLConfigChooser(5, 6, 5, 0, 24, 0);
 		setRenderer(mMikuRendarer);			
 	}
 
