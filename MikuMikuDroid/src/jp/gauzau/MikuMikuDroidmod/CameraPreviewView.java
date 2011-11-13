@@ -70,18 +70,18 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
 
 
     private Size getOptimalPreviewSize(List<Size> sizes, int w, int h) {
-        final double ASPECT_TOLERANCE = 0.05;
-        double targetRatio = (double) w / h;
+        final float ASPECT_TOLERANCE = 0.05f;
+        float targetRatio = (float) w / h;
         if (sizes == null) return null;
 
         Size optimalSize = null;
-        double minDiff = Double.MAX_VALUE;
+        float minDiff = Float.MAX_VALUE;
 
         int targetHeight = h;
 
         // Try to find an size match aspect ratio and size
         for (Size size : sizes) {
-            double ratio = (double) size.width / size.height;
+            float ratio = (float) size.width / size.height;
             if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE) continue;
             if (Math.abs(size.height - targetHeight) < minDiff) {
                 optimalSize = size;
@@ -91,7 +91,7 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
 
         // Cannot find the one match the aspect ratio, ignore the requirement
         if (optimalSize == null) {
-            minDiff = Double.MAX_VALUE;
+            minDiff = Float.MAX_VALUE;
             for (Size size : sizes) {
                 if (Math.abs(size.height - targetHeight) < minDiff) {
                     optimalSize = size;
@@ -105,6 +105,11 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
         // Now that the size is known, set up the camera parameters and begin
         // the preview.
+        
+        // You need to stop preview if previously started.
+        // Otherwise Camera.setDisplayOrientation() throws a exception.
+        mCamera.stopPreview(); 
+        
         Camera.Parameters parameters = mCamera.getParameters();
 
         List<Size> sizes = parameters.getSupportedPreviewSizes();
