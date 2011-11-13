@@ -3,6 +3,9 @@ package jp.gauzau.MikuMikuDroidmod;
 import android.content.Context;
 import android.preference.PreferenceManager;
 
+/**
+ * Helper class for obtaining user setting data.
+ */
 public class SettingsHelper {
     
     public static final int BG_WHITE = 0;
@@ -12,6 +15,10 @@ public class SettingsHelper {
     public static final int BG_USE_GL_ALPHA = BG_TRANSPARENT | BG_CAMERA;
     public static final int BG_USE_WINDOW_ALPHA = BG_TRANSPARENT;
     
+    /**
+     * Returns the preffered number of samples used for multi sampling.
+     * @return number of samples
+     */
     public static int getSamples(Context context) {
 
         return Integer.parseInt(PreferenceManager.getDefaultSharedPreferences(
@@ -19,6 +26,10 @@ public class SettingsHelper {
                 context.getResources().getString(R.string.pref_key_antialias), "0"));
     }
     
+    /**
+     * Returns the preffered background type.
+     * @return type of background color/image
+     */
     public static int getBgType(Context context) {
 
         return Integer.parseInt(PreferenceManager.getDefaultSharedPreferences(
@@ -26,10 +37,16 @@ public class SettingsHelper {
                         context.getResources().getString(R.string.pref_key_background_type), "0"));
     }
     
+    /**
+     * @return true if the background type requires to use alpha in GL, else false
+     */
     public static boolean bgUsesGlAlpha(int bgType) {
         return (bgType & BG_USE_GL_ALPHA) != 0;
     }
-    
+
+    /**
+     * @return true if the background type requires a translucent window, else false
+     */
     public static boolean bgUsesWindowAlpha(int bgType) {
         return (bgType & BG_USE_WINDOW_ALPHA) != 0;
     }
