@@ -17,14 +17,17 @@ public class MMGLSurfaceView extends GLSurfaceView {
     private MultisampleConfigChooser mConfigChooser;
 
 	public MMGLSurfaceView(Context context, CoreLogic cl) {
-		super(context);
-		setRendar(context, cl);
+		this(context, cl, SettingsHelper.BG_WHITE);
 	}
 
-	public void setRendar(Context ctx, CoreLogic cl) {
+    public MMGLSurfaceView(Context context, CoreLogic cl, int bgType) {
+        super(context);
+        setRendar(context, cl, bgType);
+    }
+
+	public void setRendar(Context ctx, CoreLogic cl, int bgType) {
         int samples = SettingsHelper.getSamples(ctx);
-        int bgType = SettingsHelper.getBgType(ctx);
-        boolean hasAlpha = SettingsHelper.isBgUsesAlpha(bgType);
+        boolean hasAlpha = SettingsHelper.bgUsesGlAlpha(bgType);
 	    if(hasAlpha) getHolder().setFormat(PixelFormat.TRANSLUCENT);
 	    
 		if (detectOpenGLES20(ctx)) {

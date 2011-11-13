@@ -9,7 +9,8 @@ public class SettingsHelper {
     public static final int BG_BLACK = 1;
     public static final int BG_TRANSPARENT = 2;
     public static final int BG_CAMERA = 4;
-    public static final int BG_USE_ALPHA = BG_TRANSPARENT | BG_CAMERA;
+    public static final int BG_USE_GL_ALPHA = BG_TRANSPARENT | BG_CAMERA;
+    public static final int BG_USE_WINDOW_ALPHA = BG_TRANSPARENT;
     
     public static int getSamples(Context context) {
 
@@ -25,7 +26,11 @@ public class SettingsHelper {
                         context.getResources().getString(R.string.pref_key_background_type), "0"));
     }
     
-    public static boolean isBgUsesAlpha(int bgType) {
-        return (bgType & BG_USE_ALPHA) != 0;
+    public static boolean bgUsesGlAlpha(int bgType) {
+        return (bgType & BG_USE_GL_ALPHA) != 0;
+    }
+    
+    public static boolean bgUsesWindowAlpha(int bgType) {
+        return (bgType & BG_USE_WINDOW_ALPHA) != 0;
     }
 }
