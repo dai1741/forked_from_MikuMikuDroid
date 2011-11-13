@@ -7,7 +7,6 @@ import android.content.Context;
 import android.content.pm.ConfigurationInfo;
 import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
-import android.preference.PreferenceManager;
 
 import com.example.gdc11.MultisampleConfigChooser;
 

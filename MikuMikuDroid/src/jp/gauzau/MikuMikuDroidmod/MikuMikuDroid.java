@@ -220,8 +220,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         });
         
         toggleUiViewVisibilities();
-		
+
 		mRelativeLayout.addView(mMMGLSurfaceView);
+		mRelativeLayout.addView(new CameraPreviewView(this));
 		mRelativeLayout.addView(mSeekBar);
 		mRelativeLayout.addView(mPlayPauseButton);
         mRelativeLayout.addView(mRewindButton);
