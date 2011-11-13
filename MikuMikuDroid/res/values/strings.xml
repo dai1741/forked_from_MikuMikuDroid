@@ -72,4 +72,7 @@
 
 
 <string name="menu_toggle_repeat">Repeat ON/OFF</string>
+<string name="menu_take_picture">Take Picture</string>
+<string name="toast_picture_taken">Took a picture and saved at: %s</string>
+<string name="toast_picture_failed">Failed to take picture</string>
 </resources>

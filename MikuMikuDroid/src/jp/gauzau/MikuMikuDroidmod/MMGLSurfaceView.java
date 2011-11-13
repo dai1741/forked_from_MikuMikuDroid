@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
+import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 import android.opengl.GLSurfaceView;
 
@@ -67,5 +68,9 @@ public class MMGLSurfaceView extends GLSurfaceView {
 			}
 		});
 	}
+
+    public Bitmap getCurrentFrameBitmap() {
+        return mMikuRendarer.getCurrentFrameBitmap();
+    }
 
 }

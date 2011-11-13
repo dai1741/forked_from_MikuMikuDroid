@@ -1,8 +1,11 @@
 package jp.gauzau.MikuMikuDroidmod;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Date;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -10,6 +13,7 @@ import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -279,11 +283,12 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST,     Menu.NONE, R.string.menu_load_model);
 		menu.add(0, Menu.FIRST + 1, Menu.NONE, R.string.menu_load_camera);
 		menu.add(0, Menu.FIRST + 2, Menu.NONE, R.string.menu_load_music);
-		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_play_pause);
+		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_take_picture);
 		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_initialize);
-		menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_toggle_physics);
-        menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_toggle_repeat);
-        menu.add(0, Menu.FIRST + 7, Menu.NONE, R.string.menu_settings);
+        menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_play_pause);
+		menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_toggle_physics);
+        menu.add(0, Menu.FIRST + 7, Menu.NONE, R.string.menu_toggle_repeat);
+        menu.add(0, Menu.FIRST + 8, Menu.NONE, R.string.menu_settings);
 
 		return ret;
 	}
@@ -441,23 +446,52 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			break;
 			
 		case (Menu.FIRST + 3):
-			mCoreLogic.toggleStartStop();
+		    //TODO:implement
+			Bitmap b = mMMGLSurfaceView.getCurrentFrameBitmap();
+            String prefix = "pict";
+            if(!mCoreLogic.getMiku().isEmpty()) {
+                prefix = mCoreLogic.getMiku().get(0).mModel.mFileName;
+                prefix = prefix.replaceAll("^[^/]+/", "").replaceAll("\\..+$", "");
+            }
+            String path = mCoreLogic.getBase() + "MMDroidPicture/";;
+            //TODO: correct file path
+		    new File(path).mkdir();
+		    File fileToSave = new File(path + prefix + 
+                    String.format("%1$tY%1$tm%1$td%1$tH%1$tM%1$tS", new Date()) + ".png");
+            OutputStream os;
+            try {
+                if(fileToSave.exists()) throw new IOException();
+                os = new FileOutputStream(fileToSave);
+                b.compress(Bitmap.CompressFormat.PNG, 100, os);
+                os.close();
+                Toast.makeText(this, String.format(getResources().getString(
+                        R.string.toast_picture_taken), path), Toast.LENGTH_LONG).show();
+            }
+            catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                Toast.makeText(this, R.string.toast_picture_failed, Toast.LENGTH_LONG).show();
+            } 
 			break;
 
 		case (Menu.FIRST + 4):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
 		    mGestureListener.reset();
 			break;
+            
+        case (Menu.FIRST + 5):
+            mCoreLogic.toggleStartStop();
+            break;
 			
-		case (Menu.FIRST + 5):
+		case (Menu.FIRST + 6):
 			mCoreLogic.togglePhysics();
 			break;
             
-        case (Menu.FIRST + 6):
+        case (Menu.FIRST + 7):
             mCoreLogic.toggleRepeating();
             break;
 
-        case (Menu.FIRST + 7):
+        case (Menu.FIRST + 8):
             startActivity(new Intent(this, SettingsActivity.class));
             break;
 

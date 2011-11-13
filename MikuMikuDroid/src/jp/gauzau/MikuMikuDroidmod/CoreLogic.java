@@ -693,6 +693,10 @@ public class CoreLogic {
 		mHeight	= height;
 	}
 	
+	public String getBase() {
+        return mBase;
+    }
+	
 	public int getScreenWidth() {
 		return mWidth;
 	}
