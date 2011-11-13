@@ -23,23 +23,20 @@ public class MMGLSurfaceView extends GLSurfaceView {
 	}
 
 	public void setRendar(Context ctx, CoreLogic cl) {
-	    getHolder().setFormat(PixelFormat.TRANSLUCENT);
+        int samples = SettingsHelper.getSamples(ctx);
+        int bgType = SettingsHelper.getBgType(ctx);
+        boolean hasAlpha = SettingsHelper.isBgUsesAlpha(bgType);
+	    if(hasAlpha) getHolder().setFormat(PixelFormat.TRANSLUCENT);
+	    
 		if (detectOpenGLES20(ctx)) {
 			setEGLContextClientVersion(2);
-			boolean usesCoverageAa = false;
-            int samples = Integer.parseInt(PreferenceManager.getDefaultSharedPreferences(
-                    ctx).getString(
-                    ctx.getResources().getString(R.string.pref_key_antialias), "0"));
-			if (1 < samples) {
-			    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(samples));
-			    usesCoverageAa = mConfigChooser.usesCoverageAa();
-			}
-			mMikuRendarer = new MikuRendererGLES20(cl, usesCoverageAa);
-			//mMikuRendarer = new MikuRenderer(cl);
+		    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(samples, hasAlpha));
+			mMikuRendarer = new MikuRendererGLES20(cl, bgType, mConfigChooser.usesCoverageAa());
 		} else {
+		    if(hasAlpha) setEGLConfigChooser(8, 8, 8, 8, 24, 0);
+		    else setEGLConfigChooser(5, 6, 5, 0, 24, 0);
 			mMikuRendarer = new MikuRenderer(cl);
 		}
-//		setEGLConfigChooser(5, 6, 5, 0, 24, 0);
 		setRenderer(mMikuRendarer);			
 	}
 

@@ -56,5 +56,20 @@
 
 
 
+<string name="pref_key_background_type">setting_background_type</string>
+
+
+
+
+<string name="pref_title_background_type">BackgroundType</string>
+
+
+
+
+<string name="pref_summary_background_type">Choose a background color/image.</string>
+
+
+
+
 <string name="menu_toggle_repeat">Repeat ON/OFF</string>
 </resources>

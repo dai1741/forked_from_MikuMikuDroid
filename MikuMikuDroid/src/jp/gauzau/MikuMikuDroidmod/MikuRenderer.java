@@ -16,10 +16,13 @@ public class MikuRenderer extends MikuRendererBase {
 	private int[] mTexSize = new int[1];
 	private boolean mNpot;
 
-	public MikuRenderer(CoreLogic cl) {
-		super(cl);
-		mCoreLogic = cl;
-		clear();
+    public MikuRenderer(CoreLogic cl) {
+        this(cl, SettingsHelper.BG_WHITE);
+    }
+
+	public MikuRenderer(CoreLogic cl, int bgType) {
+		super(cl, bgType);
+		//clear();
 	}
 
 	public void initializeBuffers(GL10 gl) {
@@ -124,7 +127,17 @@ public class MikuRenderer extends MikuRendererBase {
 		mNpot = gl.glGetString(GL10.GL_EXTENSIONS).contains("GL_ARB_texture_non_power_of_two");
 		gl.glHint(GL10.GL_PERSPECTIVE_CORRECTION_HINT, GL10.GL_FASTEST);
 
-		gl.glClearColor(0, 0, 0, 0);
+		switch (mBgType) {
+        case SettingsHelper.BG_WHITE:
+            gl.glClearColor(1, 1, 1, 1);
+            break;
+        case SettingsHelper.BG_BLACK:
+            gl.glClearColor(0, 0, 0, 1);
+            break;
+        default:
+            gl.glClearColor(0, 0, 0, 0);
+            break;
+        }
 
 		gl.glEnable(GL10.GL_NORMALIZE);
 		gl.glEnable(GL10.GL_CULL_FACE);

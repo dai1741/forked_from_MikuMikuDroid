@@ -21,21 +21,35 @@ import android.util.Log;
 public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser {
     static private final String kTag = "GDC11";
     
-    public MultisampleConfigChooser(int samples) {
-        if (samples < 2) throw new IllegalArgumentException("samples < 2");
+    private final boolean mHasAlpha;
+    
+    public MultisampleConfigChooser(int samples, boolean hasAlpha) {
         mSamples = samples;
+        mHasAlpha = hasAlpha;
     }
 
     @Override
     public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display) {
+        return chooseConfig0(egl, display, mHasAlpha);
+    }
+    
+    private EGLConfig chooseConfig0(EGL10 egl, EGLDisplay display, boolean hasAlpha) {
         mValue = new int[1];
 
+        int red, green, blue, alpha;
+        if (hasAlpha) red = green = blue = alpha = 8;
+        else {
+            red = blue = 5;
+            green = 6;
+            alpha = 0;
+        }
+        
         // Try to find a normal multisample configuration first.
         int[] configSpec = {
-                EGL10.EGL_RED_SIZE, 8,
-                EGL10.EGL_GREEN_SIZE, 8,
-                EGL10.EGL_BLUE_SIZE, 8,
-                EGL10.EGL_ALPHA_SIZE, 8,
+                EGL10.EGL_RED_SIZE, red,
+                EGL10.EGL_GREEN_SIZE, green,
+                EGL10.EGL_BLUE_SIZE, blue,
+                EGL10.EGL_ALPHA_SIZE, alpha,
                 EGL10.EGL_DEPTH_SIZE, 16,
                 // Requires that setEGLContextClientVersion(2) is called on the view.
                 EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
@@ -44,7 +58,7 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
                 EGL10.EGL_NONE
         };
 
-        if (!egl.eglChooseConfig(display, configSpec, null, 0,
+        if (mSamples > 1 && !egl.eglChooseConfig(display, configSpec, null, 0,
                 mValue)) {
             throw new IllegalArgumentException("eglChooseConfig failed");
         }
@@ -55,32 +69,36 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
             // converage multisampling configuration, for the nVidia Tegra2.
             // See the EGL_NV_coverage_sample documentation.
 
-            final int EGL_COVERAGE_BUFFERS_NV = 0x30E0;
-            final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
-
-            configSpec = new int[]{
-                    EGL10.EGL_RED_SIZE, 5,
-                    EGL10.EGL_GREEN_SIZE, 6,
-                    EGL10.EGL_BLUE_SIZE, 5,
-                    EGL10.EGL_DEPTH_SIZE, 16,
-                    EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
-                    EGL_COVERAGE_BUFFERS_NV, 1 /* true */,
-                    EGL_COVERAGE_SAMPLES_NV, mSamples,  // always 5 in practice on tegra 2
-                    EGL10.EGL_NONE
-            };
-
-            if (!egl.eglChooseConfig(display, configSpec, null, 0,
-                    mValue)) {
-                throw new IllegalArgumentException("2nd eglChooseConfig failed");
+            if(mSamples > 1) {
+                final int EGL_COVERAGE_BUFFERS_NV = 0x30E0;
+                final int EGL_COVERAGE_SAMPLES_NV = 0x30E1;
+    
+                configSpec = new int[]{
+                        EGL10.EGL_RED_SIZE, red,
+                        EGL10.EGL_GREEN_SIZE, green,
+                        EGL10.EGL_BLUE_SIZE, blue,
+                        EGL10.EGL_ALPHA_SIZE, alpha,
+                        EGL10.EGL_DEPTH_SIZE, 16,
+                        EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
+                        EGL_COVERAGE_BUFFERS_NV, 1 /* true */,
+                        EGL_COVERAGE_SAMPLES_NV, mSamples,  // always 5 in practice on tegra 2
+                        EGL10.EGL_NONE
+                };
+    
+                if (!egl.eglChooseConfig(display, configSpec, null, 0,
+                        mValue)) {
+                    throw new IllegalArgumentException("2nd eglChooseConfig failed");
+                }
+                numConfigs = mValue[0];
             }
-            numConfigs = mValue[0];
 
             if (numConfigs <= 0) {
                 // Give up, try without multisampling.
                 configSpec = new int[]{
-                        EGL10.EGL_RED_SIZE, 5,
-                        EGL10.EGL_GREEN_SIZE, 6,
-                        EGL10.EGL_BLUE_SIZE, 5,
+                        EGL10.EGL_RED_SIZE, red,
+                        EGL10.EGL_GREEN_SIZE, green,
+                        EGL10.EGL_BLUE_SIZE, blue,
+                        EGL10.EGL_ALPHA_SIZE, alpha,
                         EGL10.EGL_DEPTH_SIZE, 16,
                         EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
                         EGL10.EGL_NONE
@@ -91,13 +109,14 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
                     throw new IllegalArgumentException("3rd eglChooseConfig failed");
                 }
                 numConfigs = mValue[0];
-
-                if (numConfigs <= 0) {
-                  throw new IllegalArgumentException("No configs match configSpec");
-                }
             } else {
                 mUsesCoverageAa = true;
             }
+        }
+        
+        if (numConfigs <= 0) {
+            if(hasAlpha) return chooseConfig0(egl, display, false);// Try without alpha
+            else throw new IllegalArgumentException("No configs match configSpec");
         }
 
         // Get all matching configurations.
@@ -113,18 +132,16 @@ public class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser 
         // You need to explicitly filter the data returned by eglChooseConfig!
         int index = -1;
         for (int i = 0; i < configs.length; ++i) {
-            if (findConfigAttrib(egl, display, configs[i], EGL10.EGL_RED_SIZE, 0) == 8) {
+            if (findConfigAttrib(egl, display, configs[i], EGL10.EGL_RED_SIZE, 0) == red) {
                 index = i;
                 break;
             }
         }
         if (index == -1) {
             Log.w(kTag, "Did not find sane config, using first");
+            index = 0;
         }
         EGLConfig config = configs.length > 0 ? configs[index] : null;
-        if (config == null) {
-            throw new IllegalArgumentException("No config chosen");
-        }
         return config;
     }
 
