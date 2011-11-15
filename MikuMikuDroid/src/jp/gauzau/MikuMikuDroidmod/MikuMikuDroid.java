@@ -446,34 +446,51 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			break;
 			
 		case (Menu.FIRST + 3):
-		    //TODO:async
-			Bitmap b = mMMGLSurfaceView.getCurrentFrameBitmap();
-            String prefix = "pict";
-            if(!mCoreLogic.getMiku().isEmpty()) {
-                prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName).getName();
-                prefix = prefix.replaceAll("^\\.|\\..+$", "").replaceAll(
-                        "[:;/\\\\\\|,*?\"<>]", "");
-            }
-            String path = mCoreLogic.getBase() + "MMDroidPicture/";;
-            //TODO: correct file path
-		    new File(path).mkdir();
-		    File fileToSave = new File(path + prefix + 
-                    String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png", new Date()));
-            OutputStream os;
-            try {
-                if(fileToSave.exists()) throw new IOException();
-                os = new FileOutputStream(fileToSave);
-                b.compress(Bitmap.CompressFormat.PNG, 100, os);
-                os.close();
-                Toast.makeText(this, String.format(getResources().getString(
-                        R.string.toast_picture_taken), path), Toast.LENGTH_LONG).show();
-            }
-            catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-                Toast.makeText(this, R.string.toast_picture_failed, Toast.LENGTH_LONG).show();
-            } 
-			break;
+		    new AsyncTask<Void, Void, Void>() {
+		        @Override
+                public Void doInBackground(Void... params) {
+                    Bitmap b = mMMGLSurfaceView.getCurrentFrameBitmap();
+                    String prefix = "pict";
+                    if (!mCoreLogic.getMiku().isEmpty()) {
+                        prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName)
+                                .getName();
+                        prefix = prefix.replaceAll("^\\.|\\..+$", "").replaceAll(
+                                "[:;/\\\\\\|,*?\"<>]", "");
+                    }
+                    final String path = mCoreLogic.getBase() + "MMDroidPicture/";
+                    //TODO: correct file path
+                    new File(path).mkdir();
+                    File fileToSave = new File(path
+                            + prefix
+                            + String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png",
+                                    new Date()));
+                    OutputStream os;
+                    final boolean[] succeeded = new boolean[1];
+                    try {
+                        if (fileToSave.exists()) throw new IOException();
+                        os = new FileOutputStream(fileToSave);
+                        b.compress(Bitmap.CompressFormat.PNG, 100, os);
+                        os.close();
+                        succeeded[0] = true;
+                    }
+                    catch (IOException e) {
+                        e.printStackTrace();
+                        succeeded[0] = false;
+                    }
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            Toast toast = Toast.makeText(MikuMikuDroid.this,
+                            String.format(getResources().getString(
+                                    R.string.toast_picture_taken), path),
+                            Toast.LENGTH_LONG);
+                            if (!succeeded[0]) toast.setText(R.string.toast_picture_failed);
+                            toast.show();
+                        }
+                    });
+                    return null;
+                }
+            }.execute();
+            break;
 
 		case (Menu.FIRST + 4):
 			mMMGLSurfaceView.deleteTextures(mCoreLogic.clear());
