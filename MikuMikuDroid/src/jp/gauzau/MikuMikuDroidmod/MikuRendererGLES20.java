@@ -3,6 +3,7 @@ package jp.gauzau.MikuMikuDroidmod;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -901,4 +902,13 @@ public class MikuRendererGLES20 extends MikuRendererBase {
         String extensions = " " + GLES20.glGetString(GLES20.GL_EXTENSIONS) + " ";
         return extensions.indexOf(" " + extension + " ") >= 0;
     }
+
+    @Override
+    public int[] getCurrentFramePixels(int[] dst, int w, int h) {
+        IntBuffer ib = IntBuffer.wrap(dst);
+        GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
+        return dst;
+    }
+    
+    
 }

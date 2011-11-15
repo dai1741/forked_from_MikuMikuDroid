@@ -446,18 +446,19 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			break;
 			
 		case (Menu.FIRST + 3):
-		    //TODO:implement
+		    //TODO:async
 			Bitmap b = mMMGLSurfaceView.getCurrentFrameBitmap();
             String prefix = "pict";
             if(!mCoreLogic.getMiku().isEmpty()) {
-                prefix = mCoreLogic.getMiku().get(0).mModel.mFileName;
-                prefix = prefix.replaceAll("^[^/]+/", "").replaceAll("\\..+$", "");
+                prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName).getName();
+                prefix = prefix.replaceAll("^\\.|\\..+$", "").replaceAll(
+                        "[:;/\\\\\\|,*?\"<>]", "");
             }
             String path = mCoreLogic.getBase() + "MMDroidPicture/";;
             //TODO: correct file path
 		    new File(path).mkdir();
 		    File fileToSave = new File(path + prefix + 
-                    String.format("%1$tY%1$tm%1$td%1$tH%1$tM%1$tS", new Date()) + ".png");
+                    String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png", new Date()));
             OutputStream os;
             try {
                 if(fileToSave.exists()) throw new IOException();

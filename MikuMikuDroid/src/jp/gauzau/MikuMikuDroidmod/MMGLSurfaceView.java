@@ -1,6 +1,7 @@
 package jp.gauzau.MikuMikuDroidmod;
 
 import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
 
 import android.app.ActivityManager;
 import android.content.Context;
@@ -69,8 +70,54 @@ public class MMGLSurfaceView extends GLSurfaceView {
 		});
 	}
 
+    /**
+     * Creates a bitmap from the current frame of the view.
+     * You must not call this from the ui thread because this may block it for a few seconds.
+     *  
+     * @return rgba bitmap of the view
+     */
     public Bitmap getCurrentFrameBitmap() {
-        return mMikuRendarer.getCurrentFrameBitmap();
+        CoreLogic cl = mMikuRendarer.mCoreLogic;
+        final int w = cl.getScreenWidth();
+        final int h = cl.getScreenHeight();
+        final int[] data = new int[w * h];
+        
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        queueEvent(new Runnable() {
+            public void run() {
+                mMikuRendarer.getCurrentFramePixels(data, w, h);
+                latch.countDown();
+            }
+        });
+        try {
+            latch.await();
+        }
+        catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return convertIntArrayToBitmap(data, w, h);
+    }
+    
+    // from: http://www.anddev.org/how_to_get_opengl_screenshot__useful_programing_hint-t829.html
+    public static Bitmap convertIntArrayToBitmap(int[] b, int w, int h) {
+        
+        int bt[]=new int[b.length];
+        
+        for(int i=0; i<h; i++)
+        {//remember, that OpenGL bitmap is incompatible with Android bitmap
+         //and so, some correction need.        
+             for(int j=0; j<w; j++)
+             {
+                  int pix=b[i*w+j];
+                  int pb=(pix>>16)&0xff;
+                  int pr=(pix<<16)&0x00ff0000;
+                  int pix1=(pix&0xff00ff00) | pr | pb;
+                  bt[(h-i-1)*w+j]=pix1;
+             }
+        }                  
+        Bitmap sb=Bitmap.createBitmap(bt, w, h, Bitmap.Config.ARGB_8888);
+        return sb;
     }
 
 }

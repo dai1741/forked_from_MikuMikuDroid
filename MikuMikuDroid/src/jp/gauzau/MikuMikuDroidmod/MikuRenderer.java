@@ -1,5 +1,6 @@
 package jp.gauzau.MikuMikuDroidmod;
 
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -15,6 +16,7 @@ public class MikuRenderer extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
 	private int[] mTexSize = new int[1];
 	private boolean mNpot;
+	private GL10 mGl;
 
     public MikuRenderer(CoreLogic cl) {
         this(cl, SettingsHelper.BG_WHITE);
@@ -117,6 +119,7 @@ public class MikuRenderer extends MikuRendererBase {
 	public void onSurfaceChanged(GL10 gl, int width, int height) {
 		super.onSurfaceChanged(gl, width, height);
 
+		mGl = gl;
 		gl.glViewport(0, 0, width, height);
 	}
 
@@ -307,5 +310,12 @@ public class MikuRenderer extends MikuRendererBase {
 			model.mToon.add(tex[i]);
 		}
 	}
+
+    @Override
+    public int[] getCurrentFramePixels(int[] dst, int w, int h) {
+        IntBuffer ib = IntBuffer.wrap(dst);
+        mGl.glReadPixels(0, 0, w, h, GL10.GL_RGBA, GL10.GL_UNSIGNED_BYTE, ib);
+        return dst;
+    }
 
 }
