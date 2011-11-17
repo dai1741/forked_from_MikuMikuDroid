@@ -71,6 +71,11 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
 
     private Size getOptimalPreviewSize(List<Size> sizes, int w, int h) {
         final float ASPECT_TOLERANCE = 0.05f;
+        if(w < h) { // sizes are always landscape, as far as I know
+            int temp = w;
+            w = h;
+            h = temp;
+        }
         float targetRatio = (float) w / h;
         if (sizes == null) return null;
 
@@ -115,6 +120,9 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
         List<Size> sizes = parameters.getSupportedPreviewSizes();
         Size optimalSize = getOptimalPreviewSize(sizes, w, h);
         parameters.setPreviewSize(optimalSize.width, optimalSize.height);
+        sizes = parameters.getSupportedPictureSizes();
+        optimalSize = getOptimalPreviewSize(sizes, w, h);
+        parameters.setPictureSize(optimalSize.width, optimalSize.height);
 
         setCameraDisplayOrientation(mActivity, 0, mCamera);
 
@@ -126,6 +134,10 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
     // from: http://developer.android.com/intl/ja/reference/android/hardware/Camera.html#setDisplayOrientation(int)
     public static void setCameraDisplayOrientation(Activity activity, int cameraId,
             android.hardware.Camera camera) {
+
+        camera.setDisplayOrientation(getCameraDisplayOrientation(activity));
+    }
+    public static int getCameraDisplayOrientation(Activity activity) {
         // android.hardware.Camera.CameraInfo info =
         // new android.hardware.Camera.CameraInfo();
         // android.hardware.Camera.getCameraInfo(cameraId, info);
@@ -146,7 +158,6 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
             break;
         }
 
-        int result;
         // if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
         // result = (info.orientation + degrees) % 360;
         // result = (360 - result) % 360; // compensate the mirror
@@ -155,9 +166,7 @@ public class CameraPreviewView extends SurfaceView implements SurfaceHolder.Call
         // }
 
         // Since CameraInfo is not available in froyo, assume the camera is back-facing
-        result = (90 + 360 - degrees) % 360;
-
-        camera.setDisplayOrientation(result);
+        return (90 + 360 - degrees) % 360;
     }
 
 }

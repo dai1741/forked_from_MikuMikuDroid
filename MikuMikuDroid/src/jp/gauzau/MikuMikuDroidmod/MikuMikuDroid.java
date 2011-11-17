@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -14,6 +15,9 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -21,6 +25,7 @@ import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.Menu;
@@ -30,6 +35,7 @@ import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.SeekBar;
@@ -37,13 +43,16 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Toast;
 
 public class MikuMikuDroid extends Activity implements SensorEventListener {
-	// View
+	private static final String TAG = "MikuMikuDroid";
+	
+    // View
 	private MMGLSurfaceView mMMGLSurfaceView;
 	private RelativeLayout mRelativeLayout;
 	private SeekBar mSeekBar;
 	private Button mPlayPauseButton;
     private Button mRewindButton;
     private Button mCameraResetButton;
+    private CameraPreviewView mCameraPreviewView;
 	
 	// Model
 	private CoreLogic mCoreLogic;
@@ -231,7 +240,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 		mRelativeLayout.addView(mMMGLSurfaceView);
 		if(bgType == SettingsHelper.BG_CAMERA) {
-		    mRelativeLayout.addView(new CameraPreviewView(this));
+		    mCameraPreviewView = new CameraPreviewView(this);
+		    mRelativeLayout.addView(mCameraPreviewView);
 		}
 		mRelativeLayout.addView(mSeekBar);
 		mRelativeLayout.addView(mPlayPauseButton);
@@ -449,7 +459,61 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		    new AsyncTask<Void, Void, Void>() {
 		        @Override
                 public Void doInBackground(Void... params) {
+                    Log.d(TAG, "Taking picture: start");
+		            final Bitmap[] cameraBitmap = new Bitmap[1];
+		            final CountDownLatch latch = new CountDownLatch(1);
+		            if(mCameraPreviewView != null) {
+    		            mCameraPreviewView.mCamera.takePicture(null, null, null, new Camera.PictureCallback() {
+                            
+                            @Override
+                            public void onPictureTaken(byte[] data, Camera camera) {
+                                cameraBitmap[0] = BitmapFactory.decodeByteArray(
+                                        data, 0, data.length);
+                                latch.countDown();
+                                Log.d(TAG, "Taking picture: photo loaded");
+                            }
+                        });
+		            }
                     Bitmap b = mMMGLSurfaceView.getCurrentFrameBitmap();
+                    Log.d(TAG, "Taking picture: frame loaded");
+                    if(mCameraPreviewView != null) {
+                        try {
+                            latch.await();
+                        }
+                        catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        Bitmap temp = b;
+                        int w = mCoreLogic.getScreenWidth();
+                        int h = mCoreLogic.getScreenHeight();
+                        b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+                        Canvas canvas = new Canvas(b);
+                        canvas.save();
+                        
+                        int degrees = CameraPreviewView
+                                .getCameraDisplayOrientation(MikuMikuDroid.this);
+                        float scale = (float) w
+                                / (degrees % 180 != 0
+                                        ? cameraBitmap[0].getHeight()
+                                        : cameraBitmap[0].getWidth());
+                        Log.d(TAG, "Camera rotation degrees: " + degrees + ", scale:"
+                                + scale);
+                        canvas.rotate(degrees, w / 2, h / 2);
+                        int offset = (h - w) / 2 * ((degrees - 180) % 180) / 90;
+                        canvas.translate(offset, -offset);
+                        // this traslate works fine so far, but I don't understand why.
+                        canvas.scale(scale, scale);
+                        
+                        canvas.drawBitmap(cameraBitmap[0], 0, 0, null);
+                        cameraBitmap[0].recycle();
+                        
+                        canvas.restore();
+                        canvas.drawBitmap(temp, 0, 0, null);
+                        temp.recycle();
+                        Log.d(TAG, "Taking picture: merged photo and MMD frame");
+                    }
+                    final Bitmap out = b; 
+                    
                     String prefix = "pict";
                     if (!mCoreLogic.getMiku().isEmpty()) {
                         prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName)
@@ -484,6 +548,21 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                                     R.string.toast_picture_taken), path),
                             Toast.LENGTH_LONG);
                             if (!succeeded[0]) toast.setText(R.string.toast_picture_failed);
+                            else if (!MikuMikuDroid.this.isFinishing()) {
+                                ImageView iv = new ImageView(MikuMikuDroid.this);
+                                iv.setImageBitmap(out);
+                                iv.setOnClickListener(new View.OnClickListener() {
+                                    
+                                    @Override
+                                    public void onClick(View v) {
+                                        mRelativeLayout.removeView(v);
+                                        if (mCameraPreviewView != null) {
+                                            mCameraPreviewView.mCamera.startPreview();
+                                        }
+                                    }
+                                });
+                                mRelativeLayout.addView(iv); 
+                            }
                             toast.show();
                         }
                     });
