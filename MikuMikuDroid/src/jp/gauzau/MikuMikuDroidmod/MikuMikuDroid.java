@@ -514,7 +514,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     }
                     final Bitmap out = b; 
                     
-                    String prefix = "pict";
+                    String prefix = "MMDpict";
+                    // prefix will be replaced with the first model file name if any
                     if (!mCoreLogic.getMiku().isEmpty()) {
                         prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName)
                                 .getName();
@@ -522,10 +523,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                                 "[:;/\\\\\\|,*?\"<>]", "");
                     }
                     final String path = mCoreLogic.getBase() + "MMDroidPicture/";
-                    //TODO: correct file path
+                    //TODO: make folder selectable in settings
                     new File(path).mkdir();
-                    File fileToSave = new File(path
-                            + prefix
+                    File fileToSave = new File(path + prefix
                             + String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png",
                                     new Date()));
                     OutputStream os;
