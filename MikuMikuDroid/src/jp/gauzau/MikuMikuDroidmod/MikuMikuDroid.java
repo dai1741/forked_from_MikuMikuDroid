@@ -53,6 +53,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
     private Button mRewindButton;
     private Button mCameraResetButton;
     private CameraPreviewView mCameraPreviewView;
+    private RelativeLayout mPictureLayout;
 	
 	// Model
 	private CoreLogic mCoreLogic;
@@ -236,6 +237,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
             }
         });
         
+        mPictureLayout = new RelativeLayout(this);
+        mPictureLayout.setVisibility(View.INVISIBLE);
+        
         toggleUiViewVisibilities();
 
 		mRelativeLayout.addView(mMMGLSurfaceView);
@@ -247,6 +251,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mRelativeLayout.addView(mPlayPauseButton);
         mRelativeLayout.addView(mRewindButton);
         mRelativeLayout.addView(mCameraResetButton);
+        mRelativeLayout.addView(mPictureLayout);
 		setContentView(mRelativeLayout);
 
 		if (mCoreLogic.checkFileIsPrepared() == false) {
@@ -303,6 +308,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		return ret;
 	}
 
+	private boolean mTakingPicture; // only ui thread reads/writes this var
+	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
@@ -456,12 +463,16 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			break;
 			
 		case (Menu.FIRST + 3):
+            final Toast toast = Toast.makeText(MikuMikuDroid.this, "dummy",
+                    Toast.LENGTH_LONG);
+		    if (mTakingPicture) break;
+		    mTakingPicture = true;
 		    new AsyncTask<Void, Void, Void>() {
 		        @Override
                 public Void doInBackground(Void... params) {
                     Log.d(TAG, "Taking picture: start");
 		            final Bitmap[] cameraBitmap = new Bitmap[1];
-		            final CountDownLatch latch = new CountDownLatch(1);
+		            final CountDownLatch cameraLatch = new CountDownLatch(1);
 		            if(mCameraPreviewView != null) {
     		            mCameraPreviewView.mCamera.takePicture(null, null, null, new Camera.PictureCallback() {
                             
@@ -469,7 +480,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                             public void onPictureTaken(byte[] data, Camera camera) {
                                 cameraBitmap[0] = BitmapFactory.decodeByteArray(
                                         data, 0, data.length);
-                                latch.countDown();
+                                cameraLatch.countDown();
                                 Log.d(TAG, "Taking picture: photo loaded");
                             }
                         });
@@ -478,7 +489,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     Log.d(TAG, "Taking picture: frame loaded");
                     if(mCameraPreviewView != null) {
                         try {
-                            latch.await();
+                            cameraLatch.await();
                         }
                         catch (InterruptedException e) {
                             e.printStackTrace();
@@ -525,9 +536,64 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     final String path = mCoreLogic.getBase() + "MMDroidPicture/";
                     //TODO: make folder selectable in settings
                     new File(path).mkdir();
-                    File fileToSave = new File(path + prefix
+                    final File fileToSave = new File(path + prefix
                             + String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png",
                                     new Date()));
+                    
+                    final CountDownLatch imageSavedLatch = new CountDownLatch(1);
+                    final boolean[] discarded = new boolean[1];
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (MikuMikuDroid.this.isFinishing()) return;
+                            ImageView iv = new ImageView(MikuMikuDroid.this);
+                            iv.setImageBitmap(out);
+                            LayoutParams p = new LayoutParams(LayoutParams.WRAP_CONTENT,
+                                    LayoutParams.WRAP_CONTENT);
+                            p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                            p.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+                            final Button delButton = new Button(MikuMikuDroid.this);
+                            delButton.setText(R.string.button_discard_picture);
+                            delButton.setLayoutParams(p);
+
+                            View.OnClickListener l = new View.OnClickListener() {
+
+                                @Override
+                                public void onClick(View v) {
+                                    if (v.equals(delButton)) {
+                                        new AsyncTask<Void, Void, Void>() {
+
+                                            @Override
+                                            protected Void doInBackground(Void... params) {
+                                                try {
+                                                    imageSavedLatch.await();
+                                                }
+                                                catch (InterruptedException e) {
+                                                    e.printStackTrace();
+                                                }
+                                                fileToSave.delete();
+                                                return null;
+                                            }
+                                            
+                                        }.execute();
+                                        discarded[0] = true;
+                                        toast.setText(R.string.toast_picture_discarded);
+                                        toast.show();
+                                    }
+                                    mPictureLayout.removeAllViews();
+                                    mPictureLayout.setVisibility(View.INVISIBLE);
+                                    if (mCameraPreviewView != null) {
+                                        mCameraPreviewView.mCamera.startPreview();
+                                    }
+                                    mTakingPicture = false;
+                                }
+                            };
+                            iv.setOnClickListener(l);
+                            delButton.setOnClickListener(l);
+                            mPictureLayout.addView(iv);
+                            mPictureLayout.addView(delButton);
+                            mPictureLayout.setVisibility(View.VISIBLE);
+                        }
+                    });
                     OutputStream os;
                     final boolean[] succeeded = new boolean[1];
                     try {
@@ -541,28 +607,16 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                         e.printStackTrace();
                         succeeded[0] = false;
                     }
+                    finally {
+                        imageSavedLatch.countDown();
+                    }
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Toast toast = Toast.makeText(MikuMikuDroid.this,
-                            String.format(getResources().getString(
-                                    R.string.toast_picture_taken), path),
-                            Toast.LENGTH_LONG);
-                            if (!succeeded[0]) toast.setText(R.string.toast_picture_failed);
-                            else if (!MikuMikuDroid.this.isFinishing()) {
-                                ImageView iv = new ImageView(MikuMikuDroid.this);
-                                iv.setImageBitmap(out);
-                                iv.setOnClickListener(new View.OnClickListener() {
-                                    
-                                    @Override
-                                    public void onClick(View v) {
-                                        mRelativeLayout.removeView(v);
-                                        if (mCameraPreviewView != null) {
-                                            mCameraPreviewView.mCamera.startPreview();
-                                        }
-                                    }
-                                });
-                                mRelativeLayout.addView(iv); 
-                            }
+                            if (discarded[0]) return;
+                            
+                            if (succeeded[0]) toast.setText(String.format(getResources().getString(
+                                    R.string.toast_picture_taken), path));
+                            else toast.setText(R.string.toast_picture_failed);
                             toast.show();
                         }
                     });

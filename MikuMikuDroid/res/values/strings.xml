@@ -75,4 +75,6 @@
 <string name="menu_take_picture">Take Picture</string>
 <string name="toast_picture_taken">Took a picture and saved at: %s</string>
 <string name="toast_picture_failed">Failed to take picture</string>
+<string name="toast_picture_discarded">Picture discarded</string>
+<string name="button_discard_picture">Discard</string>
 </resources>
