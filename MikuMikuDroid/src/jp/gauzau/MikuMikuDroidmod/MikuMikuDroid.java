@@ -589,6 +589,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                             };
                             iv.setOnClickListener(l);
                             delButton.setOnClickListener(l);
+                            mPictureLayout.setBackgroundDrawable(getResources().getDrawable(
+                                    R.drawable.picture_bg_repeat));
                             mPictureLayout.addView(iv);
                             mPictureLayout.addView(delButton);
                             mPictureLayout.setVisibility(View.VISIBLE);
