@@ -137,6 +137,9 @@ public class MikuRenderer extends MikuRendererBase {
         case SettingsHelper.BG_BLACK:
             gl.glClearColor(0, 0, 0, 1);
             break;
+        case SettingsHelper.BG_CAMERA:
+            gl.glClearColor(0.5f, 0.5f, 0.5f, 0);
+            break;
         default:
             gl.glClearColor(0, 0, 0, 0);
             break;

@@ -302,6 +302,9 @@ public class MikuRendererGLES20 extends MikuRendererBase {
         case SettingsHelper.BG_BLACK:
             GLES20.glClearColor(0, 0, 0, 1);
             break;
+        case SettingsHelper.BG_CAMERA:
+            GLES20.glClearColor(0.5f, 0.5f, 0.5f, 0);
+            break;
         default:
             GLES20.glClearColor(0, 0, 0, 0);
             break;
