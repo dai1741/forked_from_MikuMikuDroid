@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string-array name="pref_entries_antialias">
+		<item>無効 (はやい)</item>
+		<item>2x マルチサンプリング</item>
+		<item>4x マルチサンプリング</item>
+		<item>8x マルチサンプリング (おそい)</item>
+	</string-array>
+	
+	<string-array name="pref_entries_background_type">
+		<item>白</item>
+		<item>黒</item>
+		<item>オーバーレイ (不安定)</item>
+		<item>カメラ画像 (おそい)</item>
+	</string-array>
+	
+</resources>

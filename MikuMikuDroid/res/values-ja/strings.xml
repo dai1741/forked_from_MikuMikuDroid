@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources><string name="setup_alert_title">エラー</string>
+<string name="setup_alert_text">toon0.bmp～toon10.bmpがありません。指定の場所（/sdcard/MikuMikuDroid/Data/）に設置してください。\n詳しくはMikuMikuDroidのマーケットのページにある解説を見てください。</string>
+
+
+<string name="setup_alert_pmd">PMDファイルがありません。/sdcard/MikuMikuDroid/UserFile/Model/ に設置してください。</string><string name="setup_alert_vmd">VMDファイルがありません。/sdcard/MikuMikuDroid/UserFile/Motion/ に設置してください。</string><string name="setup_alert_music">音声ファイルがありません。/sdcard/MikuMikuDroid/UserFile/Wave/ に設置してください。</string><string name="menu_load_model">モデル読込</string>
+<string name="menu_load_camera">カメラ読込</string>
+<string name="menu_load_music">音声読込</string>
+<string name="menu_play_pause">再生/停止</string><string name="menu_load_motion">モーション読込</string>
+<string name="menu_rewind">巻き戻し</string>
+<string name="menu_initialize">リセット</string>
+
+
+
+
+<string name="menu_toggle_physics">物理演算 ON/OFF</string>
+
+
+
+
+<string name="pref_title_antialias">アンチエイリアス</string>
+
+
+
+
+<string name="pref_summary_antialias">アンチエイリアスの強さの設定。一部の端末では反映されません。適用には再起動が必要</string>
+
+
+
+
+<string name="menu_settings">設定</string>
+
+
+
+
+<string name="pref_title_save_last_state">以前の状態を復元</string>
+
+
+
+
+<string name="pref_summary_save_last_state">起動時に前回終了時の状態を復元する</string>
+
+
+
+
+<string name="pref_key_background_type">setting_background_type</string>
+
+
+
+
+<string name="pref_title_background_type">背景</string>
+
+
+
+
+<string name="pref_summary_background_type">背景色/背景画像を設定。適用には再起動が必要</string>
+
+
+
+
+<string name="menu_toggle_repeat">リピート ON/OFF</string>
+<string name="menu_take_picture">写真撮影</string>
+<string name="toast_picture_taken">画像を %s に保存しました</string>
+<string name="toast_picture_failed">撮影に失敗しました</string>
+<string name="toast_picture_discarded">画像を削除しました</string>
+<string name="button_discard_picture">削除</string>
+<string name="button_open_gallery">ギャラリーで開く</string>
+<string name="dialog_restore_state">以前の状態を読み込み中…</string>
+<string name="dialog_load_model_motion">モデル/モーションデータを読み込み中…</string>
+<string name="dialog_load_as_bg">背景として読み込む</string>
+</resources>
