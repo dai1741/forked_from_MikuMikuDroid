@@ -22,6 +22,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -705,6 +706,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                         final Button delButton = new Button(MikuMikuDroid.this);
                         delButton.setText(R.string.button_discard_picture);
                         delButton.setLayoutParams(p);
+                        
+                        p = new LayoutParams(LayoutParams.WRAP_CONTENT,
+                                LayoutParams.WRAP_CONTENT);
+                        p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                        p.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+                        final Button galleryButton = new Button(MikuMikuDroid.this);
+                        galleryButton.setText(R.string.button_open_gallery);
+                        galleryButton.setLayoutParams(p);
 
                         View.OnClickListener l = new View.OnClickListener() {
 
@@ -741,10 +750,27 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                         };
                         iv.setOnClickListener(l);
                         delButton.setOnClickListener(l);
+                        galleryButton.setOnClickListener(new View.OnClickListener() {
+                            
+                            @Override
+                            public void onClick(View v) {
+                                try {
+                                    // !!! WAITING IN UI THREAD !!!
+                                    imageSavedLatch.await();
+                                }
+                                catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                Intent i = new Intent(Intent.ACTION_VIEW);
+                                i.setDataAndType(Uri.fromFile(fileToSave), "image/png");
+                                startActivity(i);
+                            }
+                        });
                         mPictureLayout.setBackgroundDrawable(getResources().getDrawable(
                                 R.drawable.picture_bg_repeat));
                         mPictureLayout.addView(iv);
                         mPictureLayout.addView(delButton);
+                        mPictureLayout.addView(galleryButton);
                         mPictureLayout.setVisibility(View.VISIBLE);
                     }
                 });
