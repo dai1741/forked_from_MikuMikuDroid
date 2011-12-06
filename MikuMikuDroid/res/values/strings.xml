@@ -78,4 +78,7 @@
 <string name="toast_picture_discarded">Picture discarded</string>
 <string name="button_discard_picture">Discard</string>
 <string name="button_open_gallery">Open With Gallery</string>
+<string name="dialog_restore_state">Restoring Previous state...</string>
+<string name="dialog_load_model_motion">Loading Model/Motion...</string>
+<string name="dialog_load_as_bg">Load as Background</string>
 </resources>

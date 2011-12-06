@@ -112,7 +112,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 						};
 						ae.setMax(1);
 						if(mCoreLogic.restoresState()) {
-    						ae.setMessage("Restoring Previous state...");
+    						ae.setMessage(getResources()
+    						        .getString(R.string.dialog_restore_state));
     						ae.execute(mCoreLogic);
 						}
 					}
@@ -348,7 +349,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 								}
 							};
 							ae.setMax(1);
-							ae.setMessage("Loading Model/Motion...");
+							ae.setMessage(getResources().getString(R.string.dialog_load_model_motion));
 							ae.execute(mCoreLogic);
 						} else {
 							mMMGLSurfaceView.deleteTexture(mCoreLogic.loadBG(model));							
@@ -400,7 +401,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 								}
 							};
 							ae.setMax(1);
-							ae.setMessage("Loading Model/Motion...");
+							ae.setMessage(getResources().getString(R.string.dialog_load_model_motion));
 							ae.execute(mCoreLogic);
 						}
 					});
@@ -523,7 +524,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		} else {
 			ad.setTitle(title);
 			String[] is = new String[item.length+1];
-			is[0] = "Load as Background";
+			is[0] = getResources().getString(R.string.dialog_load_as_bg);
 			for(int i = 1; i < is.length; i++) {
 				is[i] = item[i-1].getName();
 				int idx = is[i].lastIndexOf(".");
