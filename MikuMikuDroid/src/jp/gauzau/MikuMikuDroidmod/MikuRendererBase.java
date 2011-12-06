@@ -56,4 +56,8 @@ public class MikuRendererBase implements Renderer {
 	// ///////////////////////////////////////////////////////////
 	// Some common methods
 
+	public /* abstract */ int[] getCurrentFramePixels(int[] dst, int w, int h) {
+	    //TODO
+        return dst;
+    }
 }
