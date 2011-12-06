@@ -693,6 +693,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                                 new Date()));
                 
                 final CountDownLatch imageSavedLatch = new CountDownLatch(1);
+                final CountDownLatch imageRecycleLatch = new CountDownLatch(1);
                 final boolean[] discarded = new boolean[1];
                 runOnUiThread(new Runnable() {
                     public void run() {
@@ -741,11 +742,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                                 }
                                 mPictureLayout.removeAllViews();
                                 mPictureLayout.setVisibility(View.INVISIBLE);
-                                out.recycle();
                                 if (mCameraPreviewView != null) {
                                     mCameraPreviewView.mCamera.startPreview();
                                 }
-                                mTakingPicture = false;
+                                imageRecycleLatch.countDown();
                             }
                         };
                         iv.setOnClickListener(l);
@@ -800,6 +800,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                         toast.show();
                     }
                 });
+                try {
+                    imageRecycleLatch.await();
+                    out.recycle();
+                }
+                catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mTakingPicture = false;
                 return null;
             }
         }.execute();
