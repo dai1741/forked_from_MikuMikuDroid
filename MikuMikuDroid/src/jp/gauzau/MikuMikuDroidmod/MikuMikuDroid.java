@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -308,8 +309,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 		return ret;
 	}
-
-	private boolean mTakingPicture; // only ui thread reads/writes this var
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
@@ -613,11 +612,13 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		SensorManager.getRotationMatrix(mCoreLogic.getRotationMatrix(), null, mAxV, mMgV);
 	}
 	
+	
+	final Semaphore mPictureSemaphore = new Semaphore(2);
+	
 	private void takePicture() {
-	    if (mTakingPicture) return;
+	    if (!mPictureSemaphore.tryAcquire()) return;
         final Toast toast = Toast.makeText(MikuMikuDroid.this, "dummy",
                 Toast.LENGTH_LONG);
-        mTakingPicture = true;
         
         new AsyncTask<Void, Void, Void>() {
             @Override
@@ -675,7 +676,10 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     temp.recycle();
                     Log.d(TAG, "Taking picture: merged photo and MMD frame");
                 }
-                showAndSavePicture(b, toast);
+                synchronized (mPictureSemaphore) {
+                    showAndSavePicture(b, toast);   
+                }
+                mPictureSemaphore.release();
                 return null;
             }
         }.execute();
@@ -812,6 +816,5 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         catch (InterruptedException e) {
             e.printStackTrace();
         }
-        mTakingPicture = false;
 	}
 }
