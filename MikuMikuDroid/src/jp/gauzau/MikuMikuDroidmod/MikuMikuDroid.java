@@ -7,7 +7,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -612,18 +611,18 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		
 		SensorManager.getRotationMatrix(mCoreLogic.getRotationMatrix(), null, mAxV, mMgV);
 	}
-	
-	
-	final Semaphore mPictureSemaphore = new Semaphore(2);
+
+    private boolean mTakingPicture; // only ui thread reads/writes this var
 	
 	private void takePicture() {
         final Toast toast = Toast.makeText(MikuMikuDroid.this,
                 R.string.toast_picture_busy, Toast.LENGTH_LONG);
-	    if (!mPictureSemaphore.tryAcquire()) {
+	    if (mTakingPicture) {
 	        toast.setDuration(Toast.LENGTH_SHORT);
 	        toast.show();
 	        return;
 	    }
+        mTakingPicture = true;
         
         new AsyncTask<Void, Void, Void>() {
             @Override
@@ -681,10 +680,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     temp.recycle();
                     Log.d(TAG, "Taking picture: merged photo and MMD frame");
                 }
-                synchronized (mPictureSemaphore) {
-                    showAndSavePicture(b, toast);   
-                }
-                mPictureSemaphore.release();
+                showAndSavePicture(b, toast);
                 return null;
             }
         }.execute();
@@ -821,5 +817,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         catch (InterruptedException e) {
             e.printStackTrace();
         }
+        mTakingPicture = false;
 	}
 }
