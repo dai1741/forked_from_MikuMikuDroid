@@ -81,4 +81,5 @@
 <string name="dialog_restore_state">Restoring Previous state...</string>
 <string name="dialog_load_model_motion">Loading Model/Motion...</string>
 <string name="dialog_load_as_bg">Load as Background</string>
+<string name="toast_picture_busy">Processing now...</string>
 </resources>

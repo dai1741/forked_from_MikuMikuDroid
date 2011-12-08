@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -309,8 +310,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
 		return ret;
 	}
-
-	private boolean mTakingPicture; // only ui thread reads/writes this var
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
@@ -614,11 +613,17 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		SensorManager.getRotationMatrix(mCoreLogic.getRotationMatrix(), null, mAxV, mMgV);
 	}
 	
+	
+	final Semaphore mPictureSemaphore = new Semaphore(2);
+	
 	private void takePicture() {
-	    if (mTakingPicture) return;
-        final Toast toast = Toast.makeText(MikuMikuDroid.this, "dummy",
-                Toast.LENGTH_LONG);
-        mTakingPicture = true;
+        final Toast toast = Toast.makeText(MikuMikuDroid.this,
+                R.string.toast_picture_busy, Toast.LENGTH_LONG);
+	    if (!mPictureSemaphore.tryAcquire()) {
+	        toast.setDuration(Toast.LENGTH_SHORT);
+	        toast.show();
+	        return;
+	    }
         
         new AsyncTask<Void, Void, Void>() {
             @Override
@@ -676,133 +681,145 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     temp.recycle();
                     Log.d(TAG, "Taking picture: merged photo and MMD frame");
                 }
-                final Bitmap out = b; 
-                
-                String prefix = "MMDpict";
-                // prefix will be replaced with the first model file name if any
-                if (!mCoreLogic.getMiku().isEmpty()) {
-                    prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName)
-                            .getName();
-                    prefix = prefix.replaceAll("^\\.|\\..+$", "").replaceAll(
-                            "[:;/\\\\\\|,*?\"<>]", "");
+                synchronized (mPictureSemaphore) {
+                    showAndSavePicture(b, toast);   
                 }
-                final String path = mCoreLogic.getBase() + "MMDroidPicture/";
-                //TODO: make folder selectable in settings
-                new File(path).mkdir();
-                final File fileToSave = new File(path + prefix
-                        + String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png",
-                                new Date()));
-                
-                final CountDownLatch imageSavedLatch = new CountDownLatch(1);
-                final boolean[] discarded = new boolean[1];
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        if (MikuMikuDroid.this.isFinishing()) return;
-                        ImageView iv = new ImageView(MikuMikuDroid.this);
-                        iv.setImageBitmap(out);
-                        LayoutParams p = new LayoutParams(LayoutParams.WRAP_CONTENT,
-                                LayoutParams.WRAP_CONTENT);
-                        p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-                        p.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
-                        final Button delButton = new Button(MikuMikuDroid.this);
-                        delButton.setText(R.string.button_discard_picture);
-                        delButton.setLayoutParams(p);
-                        
-                        p = new LayoutParams(LayoutParams.WRAP_CONTENT,
-                                LayoutParams.WRAP_CONTENT);
-                        p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-                        p.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
-                        final Button galleryButton = new Button(MikuMikuDroid.this);
-                        galleryButton.setText(R.string.button_open_gallery);
-                        galleryButton.setLayoutParams(p);
-
-                        View.OnClickListener l = new View.OnClickListener() {
-
-                            @Override
-                            public void onClick(View v) {
-                                if (v.equals(delButton)) {
-                                    new AsyncTask<Void, Void, Void>() {
-
-                                        @Override
-                                        protected Void doInBackground(Void... params) {
-                                            try {
-                                                imageSavedLatch.await();
-                                            }
-                                            catch (InterruptedException e) {
-                                                e.printStackTrace();
-                                            }
-                                            fileToSave.delete();
-                                            return null;
-                                        }
-                                        
-                                    }.execute();
-                                    discarded[0] = true;
-                                    toast.setText(R.string.toast_picture_discarded);
-                                    toast.show();
-                                }
-                                mPictureLayout.removeAllViews();
-                                mPictureLayout.setVisibility(View.INVISIBLE);
-                                out.recycle();
-                                if (mCameraPreviewView != null) {
-                                    mCameraPreviewView.mCamera.startPreview();
-                                }
-                                mTakingPicture = false;
-                            }
-                        };
-                        iv.setOnClickListener(l);
-                        delButton.setOnClickListener(l);
-                        galleryButton.setOnClickListener(new View.OnClickListener() {
-                            
-                            @Override
-                            public void onClick(View v) {
-                                try {
-                                    // !!! WAITING IN UI THREAD !!!
-                                    imageSavedLatch.await();
-                                }
-                                catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                Intent i = new Intent(Intent.ACTION_VIEW);
-                                i.setDataAndType(Uri.fromFile(fileToSave), "image/png");
-                                startActivity(i);
-                            }
-                        });
-                        mPictureLayout.setBackgroundDrawable(getResources().getDrawable(
-                                R.drawable.picture_bg_repeat));
-                        mPictureLayout.addView(iv);
-                        mPictureLayout.addView(delButton);
-                        mPictureLayout.addView(galleryButton);
-                        mPictureLayout.setVisibility(View.VISIBLE);
-                    }
-                });
-                OutputStream os = null;
-                final boolean[] succeeded = new boolean[1];
-                try {
-                    if (fileToSave.exists()) throw new IOException();
-                    os = new FileOutputStream(fileToSave);
-                    b.compress(Bitmap.CompressFormat.PNG, 100, os);
-                    succeeded[0] = true;
-                }
-                catch (IOException e) {
-                    e.printStackTrace();
-                    succeeded[0] = false;
-                }
-                finally {
-                    if (os != null) try { os.close(); } catch (IOException e1) {}
-                    imageSavedLatch.countDown();
-                }
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        if (discarded[0]) return;
-                        
-                        if (succeeded[0]) toast.setText(String.format(getResources().getString(
-                                R.string.toast_picture_taken), path));
-                        else toast.setText(R.string.toast_picture_failed);
-                        toast.show();
-                    }
-                });
+                mPictureSemaphore.release();
                 return null;
             }
         }.execute();
     }
+	
+	private void showAndSavePicture(final Bitmap b, final Toast toast) {
+        String prefix = "MMDpict";
+        // prefix will be replaced with the first model file name if any
+        if (!mCoreLogic.getMiku().isEmpty()) {
+            prefix = new File(mCoreLogic.getMiku().get(0).mModel.mFileName)
+                    .getName();
+            prefix = prefix.replaceAll("^\\.|\\..+$", "").replaceAll(
+                    "[:;/\\\\\\|,*?\"<>]", "");
+        }
+        final String path = mCoreLogic.getBase() + "MMDroidPicture/";
+        //TODO: make folder selectable in settings
+        new File(path).mkdir();
+        final File fileToSave = new File(path + prefix
+                + String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png",
+                        new Date()));
+        
+        final CountDownLatch imageSavedLatch = new CountDownLatch(1);
+        final CountDownLatch imageRecycleLatch = new CountDownLatch(1);
+        final boolean[] discarded = new boolean[1];
+        runOnUiThread(new Runnable() {
+            public void run() {
+                if (MikuMikuDroid.this.isFinishing()) return;
+                ImageView iv = new ImageView(MikuMikuDroid.this);
+                iv.setImageBitmap(b);
+                LayoutParams p = new LayoutParams(LayoutParams.WRAP_CONTENT,
+                        LayoutParams.WRAP_CONTENT);
+                p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                p.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+                final Button delButton = new Button(MikuMikuDroid.this);
+                delButton.setText(R.string.button_discard_picture);
+                delButton.setLayoutParams(p);
+                
+                p = new LayoutParams(LayoutParams.WRAP_CONTENT,
+                        LayoutParams.WRAP_CONTENT);
+                p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                p.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
+                final Button galleryButton = new Button(MikuMikuDroid.this);
+                galleryButton.setText(R.string.button_open_gallery);
+                galleryButton.setLayoutParams(p);
+
+                View.OnClickListener l = new View.OnClickListener() {
+
+                    @Override
+                    public void onClick(View v) {
+                        if (v.equals(delButton)) {
+                            new AsyncTask<Void, Void, Void>() {
+
+                                @Override
+                                protected Void doInBackground(Void... params) {
+                                    try {
+                                        imageSavedLatch.await();
+                                    }
+                                    catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                    fileToSave.delete();
+                                    return null;
+                                }
+                                
+                            }.execute();
+                            discarded[0] = true;
+                            toast.setText(R.string.toast_picture_discarded);
+                            toast.show();
+                        }
+                        mPictureLayout.removeAllViews();
+                        mPictureLayout.setVisibility(View.INVISIBLE);
+                        if (mCameraPreviewView != null) {
+                            mCameraPreviewView.mCamera.startPreview();
+                        }
+                        imageRecycleLatch.countDown();
+                    }
+                };
+                iv.setOnClickListener(l);
+                delButton.setOnClickListener(l);
+                galleryButton.setOnClickListener(new View.OnClickListener() {
+                    
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            // !!! WAITING IN UI THREAD !!!
+                            imageSavedLatch.await();
+                        }
+                        catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        Intent i = new Intent(Intent.ACTION_VIEW);
+                        i.setDataAndType(Uri.fromFile(fileToSave), "image/png");
+                        startActivity(i);
+                    }
+                });
+                mPictureLayout.setBackgroundDrawable(getResources().getDrawable(
+                        R.drawable.picture_bg_repeat));
+                mPictureLayout.addView(iv);
+                mPictureLayout.addView(delButton);
+                mPictureLayout.addView(galleryButton);
+                mPictureLayout.setVisibility(View.VISIBLE);
+            }
+        });
+        OutputStream os = null;
+        final boolean[] succeeded = new boolean[1];
+        try {
+            if (fileToSave.exists()) throw new IOException();
+            os = new FileOutputStream(fileToSave);
+            b.compress(Bitmap.CompressFormat.PNG, 100, os);
+            succeeded[0] = true;
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            succeeded[0] = false;
+        }
+        finally {
+            if (os != null) try { os.close(); } catch (IOException e1) {}
+            imageSavedLatch.countDown();
+        }
+        runOnUiThread(new Runnable() {
+            public void run() {
+                if (discarded[0]) return;
+                
+                if (succeeded[0]) toast.setText(String.format(getResources().getString(
+                        R.string.toast_picture_taken), path));
+                else toast.setText(R.string.toast_picture_failed);
+                toast.show();
+            }
+        });
+        try {
+            imageRecycleLatch.await();
+            b.recycle();
+        }
+        catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+	}
 }
