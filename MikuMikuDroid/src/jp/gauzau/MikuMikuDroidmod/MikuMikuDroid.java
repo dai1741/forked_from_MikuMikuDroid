@@ -616,9 +616,13 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	final Semaphore mPictureSemaphore = new Semaphore(2);
 	
 	private void takePicture() {
-	    if (!mPictureSemaphore.tryAcquire()) return;
-        final Toast toast = Toast.makeText(MikuMikuDroid.this, "dummy",
-                Toast.LENGTH_LONG);
+        final Toast toast = Toast.makeText(MikuMikuDroid.this,
+                R.string.toast_picture_busy, Toast.LENGTH_LONG);
+	    if (!mPictureSemaphore.tryAcquire()) {
+	        toast.setDuration(Toast.LENGTH_SHORT);
+	        toast.show();
+	        return;
+	    }
         
         new AsyncTask<Void, Void, Void>() {
             @Override
