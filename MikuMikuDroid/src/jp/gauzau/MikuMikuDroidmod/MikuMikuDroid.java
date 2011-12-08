@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -291,6 +292,17 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		if(mAx != null && mMg != null) {
 			mSM.unregisterListener(this);
 		}
+		
+		// ensure taken picture saved if any
+		if (mImageSavedLatch != null && mImageSavedLatch.getCount() > 0) {
+		    Toast.makeText(this, R.string.toast_picture_busy, Toast.LENGTH_LONG).show();
+		    try {
+                mImageSavedLatch.await(4, TimeUnit.SECONDS);
+            }
+            catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 	}
 
 	@Override
@@ -300,7 +312,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		menu.add(0, Menu.FIRST,     Menu.NONE, R.string.menu_load_model);
 		menu.add(0, Menu.FIRST + 1, Menu.NONE, R.string.menu_load_camera);
 		menu.add(0, Menu.FIRST + 2, Menu.NONE, R.string.menu_load_music);
-		menu.add(0, Menu.FIRST + 3, Menu.NONE, R.string.menu_take_picture);
+		menu.add(1, Menu.FIRST + 3, Menu.NONE, R.string.menu_take_picture);
 		menu.add(0, Menu.FIRST + 4, Menu.NONE, R.string.menu_initialize);
         menu.add(0, Menu.FIRST + 5, Menu.NONE, R.string.menu_play_pause);
 		menu.add(0, Menu.FIRST + 6, Menu.NONE, R.string.menu_toggle_physics);
@@ -311,6 +323,12 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	}
 	
 	@Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+	    menu.setGroupEnabled(1, !mTakingPicture);
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 
@@ -612,7 +630,8 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		SensorManager.getRotationMatrix(mCoreLogic.getRotationMatrix(), null, mAxV, mMgV);
 	}
 
-    private boolean mTakingPicture; // only ui thread reads/writes this var
+    private volatile boolean mTakingPicture; // true until the picture views are dismissed
+    private volatile CountDownLatch mImageSavedLatch;
 	
 	private void takePicture() {
         final Toast toast = Toast.makeText(MikuMikuDroid.this,
@@ -623,6 +642,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	        return;
 	    }
         mTakingPicture = true;
+        mImageSavedLatch = new CountDownLatch(1);
         
         new AsyncTask<Void, Void, Void>() {
             @Override
@@ -702,7 +722,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                 + String.format("-%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS.png",
                         new Date()));
         
-        final CountDownLatch imageSavedLatch = new CountDownLatch(1);
         final CountDownLatch imageRecycleLatch = new CountDownLatch(1);
         final boolean[] discarded = new boolean[1];
         runOnUiThread(new Runnable() {
@@ -736,7 +755,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                                 @Override
                                 protected Void doInBackground(Void... params) {
                                     try {
-                                        imageSavedLatch.await();
+                                        mImageSavedLatch.await();
                                     }
                                     catch (InterruptedException e) {
                                         e.printStackTrace();
@@ -756,6 +775,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                             mCameraPreviewView.mCamera.startPreview();
                         }
                         imageRecycleLatch.countDown();
+                        mTakingPicture = false;
                     }
                 };
                 iv.setOnClickListener(l);
@@ -766,7 +786,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     public void onClick(View v) {
                         try {
                             // !!! WAITING IN UI THREAD !!!
-                            imageSavedLatch.await();
+                            mImageSavedLatch.await();
                         }
                         catch (InterruptedException e) {
                             e.printStackTrace();
@@ -798,7 +818,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         }
         finally {
             if (os != null) try { os.close(); } catch (IOException e1) {}
-            imageSavedLatch.countDown();
+            mImageSavedLatch.countDown();
         }
         runOnUiThread(new Runnable() {
             public void run() {
@@ -817,6 +837,5 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         catch (InterruptedException e) {
             e.printStackTrace();
         }
-        mTakingPicture = false;
 	}
 }
