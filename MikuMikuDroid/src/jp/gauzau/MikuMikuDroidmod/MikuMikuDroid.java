@@ -294,6 +294,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		}
 		
 		// ensure taken picture saved if any
+		if (mPictureTask != null) mPictureTask.cancel(false);
 		if (mImageSavedLatch != null && mImageSavedLatch.getCount() > 0) {
 		    Toast.makeText(this, R.string.toast_picture_busy, Toast.LENGTH_LONG).show();
 		    try {
@@ -632,6 +633,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
     private volatile boolean mTakingPicture; // true until the picture views are dismissed
     private volatile CountDownLatch mImageSavedLatch;
+    private volatile AsyncTask<?, ?, ?> mPictureTask;
 	
 	private void takePicture() {
         final Toast toast = Toast.makeText(MikuMikuDroid.this,
@@ -644,7 +646,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         mTakingPicture = true;
         mImageSavedLatch = new CountDownLatch(1);
         
-        new AsyncTask<Void, Void, Void>() {
+        mPictureTask = new AsyncTask<Void, Void, Void>() {
             @Override
             public Void doInBackground(Void... params) {
                 Log.d(TAG, "Taking picture: start");
@@ -701,6 +703,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
                     Log.d(TAG, "Taking picture: merged photo and MMD frame");
                 }
                 showAndSavePicture(b, toast);
+                
                 return null;
             }
         }.execute();
@@ -726,7 +729,11 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         final boolean[] discarded = new boolean[1];
         runOnUiThread(new Runnable() {
             public void run() {
-                if (MikuMikuDroid.this.isFinishing()) return;
+                if (MikuMikuDroid.this.isFinishing() || mPictureTask.isCancelled()) {
+                    imageRecycleLatch.countDown();
+                    mTakingPicture = false;
+                    return;
+                }
                 ImageView iv = new ImageView(MikuMikuDroid.this);
                 iv.setImageBitmap(b);
                 LayoutParams p = new LayoutParams(LayoutParams.WRAP_CONTENT,
