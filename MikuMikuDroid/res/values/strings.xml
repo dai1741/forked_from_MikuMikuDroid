@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hello">MikuMikuDroid</string>
-    <string name="app_name">MikuMikuDroid</string>
+    <string name="app_name">MikuMikuDroid_mod</string>
 <string name="select_ok">OK</string><string name="setup_alert_title">Setup alert</string>
 <string name="setup_alert_text">Please put toon??.bmp files in MikuMikuDance Ver5.x on /sdcard/MikuMikuDroid/Data/ .</string>
 
@@ -17,4 +17,69 @@
 
 
 <string name="menu_toggle_physics">Physics ON/OFF</string>
+
+
+
+
+<string name="pref_key_antialias">setting_antialias</string>
+
+
+
+
+<string name="pref_title_antialias">Anti Aliasing</string>
+
+
+
+
+<string name="pref_summary_antialias">Remove blocky edges. Not work with some devices. Need to restart the app to apply.</string>
+
+
+
+
+<string name="menu_settings">Settings</string>
+
+
+
+
+<string name="pref_key_save_last_state">setting_save_last_state</string>
+
+
+
+
+<string name="pref_title_save_last_state">Remember Last State</string>
+
+
+
+
+<string name="pref_summary_save_last_state">Save the last viewed state and restore it automatically on startup.</string>
+
+
+
+
+<string name="pref_key_background_type">setting_background_type</string>
+
+
+
+
+<string name="pref_title_background_type">Background</string>
+
+
+
+
+<string name="pref_summary_background_type">Set a background color/image to display. Need to restart the app to apply.</string>
+
+
+
+
+<string name="menu_toggle_repeat">Repeat ON/OFF</string>
+<string name="menu_take_picture">Take Picture</string>
+<string name="toast_picture_taken">Took a picture and saved at: %s</string>
+<string name="toast_picture_failed">Failed to take picture</string>
+<string name="toast_picture_discarded">Picture discarded</string>
+<string name="button_discard_picture">Discard</string>
+<string name="button_open_gallery">Open With Gallery</string>
+<string name="dialog_restore_state">Restoring Previous state...</string>
+<string name="dialog_load_model_motion">Loading Model/Motion...</string>
+<string name="dialog_load_as_bg">Load as Background</string>
+<string name="toast_picture_busy">Processing now...</string>
 </resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+    <CheckBoxPreference android:key="@string/pref_key_save_last_state" android:defaultValue="true" android:title="@string/pref_title_save_last_state" android:summary="@string/pref_summary_save_last_state"/><ListPreference android:entryValues="@array/pref_entryvalues_antialias" android:entries="@array/pref_entries_antialias" android:key="@string/pref_key_antialias" android:defaultValue="2" android:title="@string/pref_title_antialias" android:summary="@string/pref_summary_antialias"/>
+    <ListPreference android:entryValues="@array/pref_entryvalues_background_type" android:entries="@array/pref_entries_background_type" android:key="@string/pref_key_background_type" android:defaultValue="0" android:title="@string/pref_title_background_type" android:summary="@string/pref_summary_background_type"/>
+    
+
+    
+
+</PreferenceScreen>

@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string-array name="pref_entryvalues_antialias">
+		<item>0</item>
+		<item>2</item>
+		<item>4</item>
+		<item>8</item>
+	</string-array>
+	<string-array name="pref_entries_antialias">
+		<item>Disabled (Fast)</item>
+		<item>2x Multi Sampling</item>
+		<item>4x Multi Sampling</item>
+		<item>8x Multi Sampling (Slow)</item>
+	</string-array>
+	
+	<string-array name="pref_entryvalues_background_type">
+		<item>0</item>
+		<item>1</item>
+		<item>2</item>
+		<item>4</item>
+	</string-array>
+	<string-array name="pref_entries_background_type">
+		<item>White</item>
+		<item>Black</item>
+		<item>Transparent (Slow / Unstable)</item>
+		<item>Camera (Slow)</item>
+	</string-array>
+	
+</resources>
