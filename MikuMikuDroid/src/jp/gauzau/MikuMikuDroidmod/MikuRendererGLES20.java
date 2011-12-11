@@ -146,14 +146,31 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 			mHeight = height;
 			create(width, height);
 		}
+        
+        public void switchTargetFrameBuffer() {
+            switchTargetFrameBuffer(false);
+        }
+        
+        public void switchTargetFrameBuffer(boolean isForLeft) {
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBO);
+            int width, height;
+            if(FBO == 0) {
+                width = mCoreLogic.getScreenWidth();
+                height = mCoreLogic.getScreenHeight();
+            } else {
+                width = mWidth;
+                height = mHeight;
+            }
+            if(mCoreLogic.mStereo3dEnabled) {
+                switchTargetFrameBuffer(isForLeft ? 0 : width / 2, 0, width / 2, height);
+            } else {
+                switchTargetFrameBuffer(0, 0, width, height);
+            }
+        }
 		
-		public void switchTargetFrameBuffer() {
+		private void switchTargetFrameBuffer(int x, int y, int width, int height) {
 			GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBO);
-			if(FBO == 0) {
-				GLES20.glViewport(0, 0, mCoreLogic.getScreenWidth(), mCoreLogic.getScreenHeight());
-			} else {
-				GLES20.glViewport(0, 0, mWidth, mHeight);
-			}
+			GLES20.glViewport(x, y, width, height);
 		}
 		
 		public void bindTexture() {
@@ -378,11 +395,37 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 
 		////////////////////////////////////////////////////////////////////
 		//// draw models
-		if (mCoreLogic.getMiku() != null) {
+		if(mCoreLogic.mStereo3dEnabled){
+		    drawModels(true);
+		    drawModels(false);
+		}
+		else {
+		    drawModels(false);
+		}
+
+		////////////////////////////////////////////////////////////////////
+		//// draw BG
+		String bg = mCoreLogic.getBG();
+		if(bg != null) {
+			GLSL glsl = mGLSL.get("builtin:bg");
+			GLES20.glUseProgram(glsl.mProgram);
+			GLES20.glUniform1i(glsl.msTextureSampler, 1);
+
+			bindBgBuffer(glsl);
+			drawBg(bg);
+		}
+
+//		GLES20.glFlush();
+//		checkGlError(TAG);
+		mCoreLogic.onDraw(pos);
+	}
+
+    private void drawModels(boolean isForLeft) {
+        if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
 				if(miku.mModel.mIsTextureLoaded) {
 					for(RenderSet rs: miku.mRenderSenario) {
-						mRT.get(rs.target).switchTargetFrameBuffer();
+						mRT.get(rs.target).switchTargetFrameBuffer(isForLeft);
 						GLSL glsl = mGLSL.get(rs.shader);
 						
 						GLES20.glUseProgram(glsl.mProgram);
@@ -408,23 +451,7 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 				}
 			}
 		}
-
-		////////////////////////////////////////////////////////////////////
-		//// draw BG
-		String bg = mCoreLogic.getBG();
-		if(bg != null) {
-			GLSL glsl = mGLSL.get("builtin:bg");
-			GLES20.glUseProgram(glsl.mProgram);
-			GLES20.glUniform1i(glsl.msTextureSampler, 1);
-
-			bindBgBuffer(glsl);
-			drawBg(bg);
-		}
-
-//		GLES20.glFlush();
-//		checkGlError(TAG);
-		mCoreLogic.onDraw(pos);
-	}
+    }
 	
 	@Override
 	public void deleteTexture(MikuModel model) {

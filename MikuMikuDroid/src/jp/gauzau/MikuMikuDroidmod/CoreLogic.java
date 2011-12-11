@@ -53,6 +53,7 @@ public class CoreLogic {
 	private CameraPair			mCameraPair  = new CameraPair();
 
     private volatile boolean mRepeating;
+    public boolean mStereo3dEnabled = true;
 	
 
 	class FakeMedia {
