@@ -53,7 +53,6 @@ public class CoreLogic {
 	private CameraPair			mCameraPair  = new CameraPair();
 
     private volatile boolean mRepeating;
-    public boolean mStereo3dEnabled = true;
 	
 
 	class FakeMedia {
@@ -961,9 +960,15 @@ public class CoreLogic {
 		}
 	}
 
+	// temporary vars for making matrices
 	private final float[] mPMatrixFor3d = new float[16];
 	private final float[] mPMatrixFor3d2 = new float[16];
 	private final float[] mCameraLocRotFor3d = new float[6];
+
+    public static final float PARALLAX = 0.06f;
+    // vars below are modified by foreign classes
+    protected float mParallax = PARALLAX;
+    protected boolean mStereo3dEnabled = true;
 	
 	protected void setCamera(float d, float[] pos, float[] rot, float angle, int width, int height) {
 		// Projection Matrix
@@ -994,9 +999,6 @@ public class CoreLogic {
 		// model-view matrix (is null)
 		Matrix.setIdentityM(mMVMatrix, 0);
 	}
-
-    public static final float PARALLAX = 0.06f;
-    protected float mParallax = PARALLAX;
     
 	protected float[] getCameraForStereo3d(boolean isForLeft) {
 	    System.arraycopy(mPMatrixFor3d, 0, mPMatrixFor3d2, 0, 16);

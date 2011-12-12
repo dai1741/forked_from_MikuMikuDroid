@@ -420,21 +420,11 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mCoreLogic.onDraw(pos);
 	}
 
-	private final float[] mWorkMatrix = new float[16];
-//	private final float[] mWorkMatrix2 = new float[16];
 	
     private void drawModels(boolean isForLeft) {
-        final float[] pm;
-        if (mCoreLogic.mStereo3dEnabled) {
-//            Matrix.setIdentityM(mWorkMatrix, 0);
-//            Matrix.translateM(mWorkMatrix, 0, isForLeft ? -PARALLAX : PARALLAX, 0, 0);
-//            Matrix.multiplyMM(mWorkMatrix2, 0, pm, 0, mWorkMatrix, 0);
-//            pm = mWorkMatrix2;
-            pm = mCoreLogic.getCameraForStereo3d(isForLeft);
-        }
-        else {
-            pm = mCoreLogic.getProjectionMatrix();
-        }
+        final float[] pm = mCoreLogic.mStereo3dEnabled
+                ? mCoreLogic.getCameraForStereo3d(isForLeft)
+                : mCoreLogic.getProjectionMatrix();
         
         if (mCoreLogic.getMiku() != null) {
 			for (Miku miku : mCoreLogic.getMiku()) {
