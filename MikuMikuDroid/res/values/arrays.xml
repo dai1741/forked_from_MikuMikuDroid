@@ -26,4 +26,21 @@
 		<item>Camera (Slow)</item>
 	</string-array>
 	
+	<string-array name="pref_entryvalues_parallax_factor">
+		<item>1.5</item>
+		<item>1.25</item>
+		<item>1</item>
+		<item>0.75</item>
+		<item>0.5</item>
+		<item>0.25</item>
+	</string-array>
+	<string-array name="pref_entries_parallax_factor">
+		<item>x1.5 (Strong)</item>
+		<item>x1.25</item>
+		<item>x1 (Normal)</item>
+		<item>x0.75</item>
+		<item>x0.5 (Weak)</item>
+		<item>x0.25 (Feeble)</item>
+	</string-array>
+	
 </resources>

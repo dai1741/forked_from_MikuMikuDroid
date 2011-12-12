@@ -55,5 +55,11 @@ public class SettingsHelper {
         return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
                 context.getResources().getString(R.string.pref_key_stereo3d), true);
     }
+
+    public static float getParallaxFactor(Context context) {
+        return Float.parseFloat(PreferenceManager.getDefaultSharedPreferences(context)
+                .getString(
+                context.getResources().getString(R.string.pref_key_parallax_factor), "1"));
+    }
     
 }

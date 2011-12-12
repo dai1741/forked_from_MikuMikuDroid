@@ -14,4 +14,13 @@
 		<item>カメラ画面 (低速)</item>
 	</string-array>
 	
+	<string-array name="pref_entries_parallax_factor">
+		<item>x1.5 (強)</item>
+		<item>x1.25</item>
+		<item>x1 (中)</item>
+		<item>x0.75</item>
+		<item>x0.5 (弱)</item>
+		<item>x0.25 (微弱)</item>
+	</string-array>
+	
 </resources>

@@ -291,6 +291,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		
 		mCoreLogic.mStereo3dEnabled = SettingsHelper.isStereo3dEnabled(this);
         mSurfaceController.setStereoView(mCoreLogic.mStereo3dEnabled);
+        mCoreLogic.mParallax = CoreLogic.PARALLAX * SettingsHelper.getParallaxFactor(this);
 	}
 
 	@Override

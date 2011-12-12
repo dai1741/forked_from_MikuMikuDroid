@@ -995,11 +995,12 @@ public class CoreLogic {
 		Matrix.setIdentityM(mMVMatrix, 0);
 	}
 
-    private final float PARALLAX = 0.05f;
+    public static final float PARALLAX = 0.06f;
+    protected float mParallax = PARALLAX;
     
 	protected float[] getCameraForStereo3d(boolean isForLeft) {
 	    System.arraycopy(mPMatrixFor3d, 0, mPMatrixFor3d2, 0, 16);
-	    Matrix.translateM(mPMatrixFor3d2, 0, isForLeft ? -PARALLAX : PARALLAX, 0, 0);
+	    Matrix.translateM(mPMatrixFor3d2, 0, isForLeft ? -mParallax : mParallax, 0, 0);
         Matrix.rotateM(mPMatrixFor3d2, 0, mCameraLocRotFor3d[3+2], 0, 0, 1f);
         Matrix.rotateM(mPMatrixFor3d2, 0, mCameraLocRotFor3d[3+0], 1f, 0, 0);
         Matrix.rotateM(mPMatrixFor3d2, 0, mCameraLocRotFor3d[3+1], 0, 1f, 0);

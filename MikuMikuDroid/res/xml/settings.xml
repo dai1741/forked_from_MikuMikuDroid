@@ -4,6 +4,7 @@
     <ListPreference android:entryValues="@array/pref_entryvalues_background_type" android:entries="@array/pref_entries_background_type" android:key="@string/pref_key_background_type" android:defaultValue="0" android:title="@string/pref_title_background_type" android:summary="@string/pref_summary_background_type"/>
     
     <CheckBoxPreference android:defaultValue="true" android:key="@string/pref_key_stereo3d" android:title="@string/pref_title_stereo3d" />
+   <ListPreference android:entryValues="@array/pref_entryvalues_parallax_factor" android:entries="@array/pref_entries_parallax_factor" android:key="@string/pref_key_parallax_factor" android:defaultValue="1" android:title="@string/pref_title_parallax_factor" android:summary="@string/pref_summary_parallax_factor" android:dependency="@string/pref_key_stereo3d" android:layout="?android:attr/preferenceLayoutChild"/>
     
 
     

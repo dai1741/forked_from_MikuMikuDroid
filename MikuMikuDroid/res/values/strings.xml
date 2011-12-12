@@ -83,13 +83,9 @@
 <string name="dialog_load_as_bg">Load as Background</string>
 <string name="toast_picture_busy">Processing now...</string>
 
-
-
-
 <string name="pref_key_stereo3d">setting_stereo3d</string>
-
-
-
-
 <string name="pref_title_stereo3d">Enable Stereo 3D</string>
+<string name="pref_key_parallax_factor">setting_parallax_factor</string>
+<string name="pref_title_parallax_factor">3D Parallax</string>
+<string name="pref_summary_parallax_factor">Strength of stereo 3D parallax</string>
 </resources>
