@@ -17,7 +17,6 @@ import jp.gauzau.MikuMikuDroidmod.Miku.RenderSet;
 import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLU;
-import android.opengl.Matrix;
 import android.util.Log;
 
 public class MikuRendererGLES20 extends MikuRendererBase {
@@ -421,12 +420,20 @@ public class MikuRendererGLES20 extends MikuRendererBase {
 		mCoreLogic.onDraw(pos);
 	}
 
-	private final float PARALLAX = 0.05f;
+	private final float[] mWorkMatrix = new float[16];
+//	private final float[] mWorkMatrix2 = new float[16];
 	
     private void drawModels(boolean isForLeft) {
-        float[] pm = mCoreLogic.getProjectionMatrix();
+        final float[] pm;
         if (mCoreLogic.mStereo3dEnabled) {
-            Matrix.translateM(pm, 0, isForLeft ? -PARALLAX : PARALLAX * 2, 0, 0);
+//            Matrix.setIdentityM(mWorkMatrix, 0);
+//            Matrix.translateM(mWorkMatrix, 0, isForLeft ? -PARALLAX : PARALLAX, 0, 0);
+//            Matrix.multiplyMM(mWorkMatrix2, 0, pm, 0, mWorkMatrix, 0);
+//            pm = mWorkMatrix2;
+            pm = mCoreLogic.getCameraForStereo3d(isForLeft);
+        }
+        else {
+            pm = mCoreLogic.getProjectionMatrix();
         }
         
         if (mCoreLogic.getMiku() != null) {

@@ -961,6 +961,10 @@ public class CoreLogic {
 		}
 	}
 
+	private final float[] mPMatrixFor3d = new float[16];
+	private final float[] mPMatrixFor3d2 = new float[16];
+	private final float[] mCameraLocRotFor3d = new float[6];
+	
 	protected void setCamera(float d, float[] pos, float[] rot, float angle, int width, int height) {
 		// Projection Matrix
 		float s = (float) Math.sin(angle * Math.PI / 360);
@@ -977,6 +981,11 @@ public class CoreLogic {
 
 		// camera
 		Matrix.translateM(mPMatrix, 0, 0, 0, -d);
+		if (mStereo3dEnabled) {
+            System.arraycopy(mPMatrix, 0, mPMatrixFor3d, 0, mPMatrix.length);
+            System.arraycopy(pos, 0, mCameraLocRotFor3d, 0, 3);
+            System.arraycopy(rot, 0, mCameraLocRotFor3d, 3, 3);
+        }
 		Matrix.rotateM(mPMatrix, 0, rot[2], 0, 0, 1f);
 		Matrix.rotateM(mPMatrix, 0, rot[0], 1f, 0, 0);
 		Matrix.rotateM(mPMatrix, 0, rot[1], 0, 1f, 0);
@@ -984,6 +993,19 @@ public class CoreLogic {
 
 		// model-view matrix (is null)
 		Matrix.setIdentityM(mMVMatrix, 0);
+	}
+
+    private final float PARALLAX = 0.05f;
+    
+	protected float[] getCameraForStereo3d(boolean isForLeft) {
+	    System.arraycopy(mPMatrixFor3d, 0, mPMatrixFor3d2, 0, 16);
+	    Matrix.translateM(mPMatrixFor3d2, 0, isForLeft ? -PARALLAX : PARALLAX, 0, 0);
+        Matrix.rotateM(mPMatrixFor3d2, 0, mCameraLocRotFor3d[3+2], 0, 0, 1f);
+        Matrix.rotateM(mPMatrixFor3d2, 0, mCameraLocRotFor3d[3+0], 1f, 0, 0);
+        Matrix.rotateM(mPMatrixFor3d2, 0, mCameraLocRotFor3d[3+1], 0, 1f, 0);
+        Matrix.translateM(mPMatrixFor3d2, 0, -mCameraLocRotFor3d[0],
+                -mCameraLocRotFor3d[1], -mCameraLocRotFor3d[2]);
+        return mPMatrixFor3d2;
 	}
 
 	protected void setDefaultCamera() {
