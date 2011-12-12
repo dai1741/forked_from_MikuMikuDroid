@@ -50,4 +50,10 @@ public class SettingsHelper {
     public static boolean bgUsesWindowAlpha(int bgType) {
         return (bgType & BG_USE_WINDOW_ALPHA) != 0;
     }
+
+    public static boolean isStereo3dEnabled(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+                context.getResources().getString(R.string.pref_key_stereo3d), true);
+    }
+    
 }

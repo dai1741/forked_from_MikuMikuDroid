@@ -1,5 +1,7 @@
 package jp.gauzau.MikuMikuDroidmod;
 
+import jp.co.sharp.android.stereo3dlcd.SurfaceController;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -159,6 +161,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		mRelativeLayout = new RelativeLayout(this);
 		mRelativeLayout.setVerticalGravity(Gravity.BOTTOM);
 		mMMGLSurfaceView = new MMGLSurfaceView(this, mCoreLogic, bgType);
+        
+        // derived from: http://blog.fujiu.jp/2011/06/android-opengl3d.html
+        mSurfaceController = new SurfaceController(mMMGLSurfaceView);
 	
 		LayoutParams p = new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT);
 		p.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
@@ -273,6 +278,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 
     private GestureDetector mGestureDetector;  
     private ScaleGestureDetector mScaleGestureDetector;
+    private SurfaceController mSurfaceController;
 	
 	@Override
 	protected void onResume() {
@@ -282,6 +288,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 			mSM.registerListener(this, mAx, SensorManager.SENSOR_DELAY_GAME);
 			mSM.registerListener(this, mMg, SensorManager.SENSOR_DELAY_GAME);			
 		}
+		
+		mCoreLogic.mStereo3dEnabled = SettingsHelper.isStereo3dEnabled(this);
+        mSurfaceController.setStereoView(mCoreLogic.mStereo3dEnabled);
 	}
 
 	@Override

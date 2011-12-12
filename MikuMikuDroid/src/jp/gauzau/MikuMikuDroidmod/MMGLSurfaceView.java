@@ -1,7 +1,5 @@
 package jp.gauzau.MikuMikuDroidmod;
 
-import jp.co.sharp.android.stereo3dlcd.SurfaceController;
-
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 
@@ -17,7 +15,6 @@ import com.example.gdc11.MultisampleConfigChooser;
 public class MMGLSurfaceView extends GLSurfaceView {
 
 	private MikuRendererBase mMikuRendarer;
-	private SurfaceController mSurfaceController;
 
     private MultisampleConfigChooser mConfigChooser;
 
@@ -27,10 +24,6 @@ public class MMGLSurfaceView extends GLSurfaceView {
 
     public MMGLSurfaceView(Context context, CoreLogic cl, int bgType) {
         super(context);
-        
-        // derived from: http://blog.fujiu.jp/2011/06/android-opengl3d.html
-        mSurfaceController = new SurfaceController(this);
-        mSurfaceController.setStereoView(true);
         
         setRendar(context, cl, bgType);
     }
