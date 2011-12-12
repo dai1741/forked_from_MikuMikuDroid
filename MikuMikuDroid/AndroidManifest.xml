@@ -6,11 +6,15 @@
     android:debuggable="true">
         <activity android:name="jp.gauzau.MikuMikuDroidmod.MikuMikuDroid"
                   android:label="@string/app_name"
-    			  android:configChanges="orientation" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" android:screenOrientation="user">
+    			  android:configChanges="orientation" android:theme="@android:style/Theme.NoTitleBar.Fullscreen" android:screenOrientation="user">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity android:name="jp.gauzau.MikuMikuDroidmod.TranslucentMikuMikuDroid"
+                  android:label="@string/app_name"
+    			  android:configChanges="orientation" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" android:screenOrientation="user">
         </activity>
         <activity android:name="SettingsActivity"></activity>
 
