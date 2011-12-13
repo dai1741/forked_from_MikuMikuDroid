@@ -264,7 +264,7 @@ public class MikuRenderer extends MikuRendererBase {
 		miku.mAllBuffer.position(3);
 		gl.glNormalPointer(GL10.GL_FLOAT, 8 * 4, miku.mAllBuffer);
 	
-		gl11Ext.glWeightPointerOES(2, GL10.GL_FLOAT, 0, miku.mWeightBuffer);
+		gl11Ext.glWeightPointerOES(2, GL10.GL_SHORT, 0, miku.mWeightBuffer);
 	
 		gl.glClientActiveTexture(GL10.GL_TEXTURE0);
 		gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, miku.mToonCoordBuffer);
