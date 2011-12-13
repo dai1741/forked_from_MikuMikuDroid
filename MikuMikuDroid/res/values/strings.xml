@@ -82,4 +82,6 @@
 <string name="dialog_load_model_motion">Loading Model/Motion...</string>
 <string name="dialog_load_as_bg">Load as Background</string>
 <string name="toast_picture_busy">Processing now...</string>
+
+<string name="dialog_gles20_unavailable">OpenGL ES 2.0 is not available in your device. The animations WILL be broken.</string>
 </resources>

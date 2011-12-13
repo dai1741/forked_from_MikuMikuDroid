@@ -265,11 +265,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         mRelativeLayout.addView(mPictureLayout);
 		setContentView(mRelativeLayout);
 
-		if (mCoreLogic.checkFileIsPrepared() == false) {
+		if (mCoreLogic.checkFileIsPrepared() == false
+		        || !mMMGLSurfaceView.isGLES20Available()) {
 			Builder ad;
 			ad = new AlertDialog.Builder(this);
 			ad.setTitle(R.string.setup_alert_title);
-			ad.setMessage(R.string.setup_alert_text);
+			ad.setMessage(!mCoreLogic.checkFileIsPrepared()
+			        ? R.string.setup_alert_text
+			        : R.string.dialog_gles20_unavailable);
 			ad.setPositiveButton(R.string.select_ok, null);
 			ad.show();
 		}
