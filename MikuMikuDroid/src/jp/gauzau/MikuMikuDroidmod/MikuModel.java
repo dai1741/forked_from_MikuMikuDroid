@@ -98,8 +98,7 @@ public class MikuModel {
 			clusterVertex();
 			mFaceBase = null;
 		}
-//		mWeightBuffer = null;	// no more use
-		mWeightBuffer.position(0); // used in MikuRenderer
+		mWeightBuffer = null;	// no more use
 		pmd.recycle();
 	}
 	

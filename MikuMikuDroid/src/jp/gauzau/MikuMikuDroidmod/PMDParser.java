@@ -524,7 +524,7 @@ public class PMDParser extends ParserBase implements ModelFile {
 		if (num > 0) {
 			mVertexPos = position();
 			mVertBuffer = ByteBuffer.allocateDirect(num * 4 * 8).order(ByteOrder.nativeOrder()).asFloatBuffer();
-			mWeightBuffer = ByteBuffer.allocateDirect(num * 2 * 3).order(ByteOrder.nativeOrder()).asShortBuffer();
+			mWeightBuffer = ByteBuffer.allocate(num * 2 * 3).asShortBuffer();
 			position(mVertexPos + num * 38);
 		} else {
 			mVertBuffer = null;
