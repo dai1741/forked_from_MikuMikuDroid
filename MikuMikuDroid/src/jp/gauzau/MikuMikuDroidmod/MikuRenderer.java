@@ -12,6 +12,9 @@ import javax.microedition.khronos.opengles.GL11Ext;
 import android.opengl.GLU;
 import android.util.Log;
 
+/**
+ * This class currently does not work well.
+ */
 public class MikuRenderer extends MikuRendererBase {
 	private float[] mLightDir = new float[3];
 	private int[] mTexSize = new int[1];
@@ -256,7 +259,8 @@ public class MikuRenderer extends MikuRendererBase {
 
 
 	private void bindBuffer(MikuModel miku, GL10 gl) {
-		GL11Ext gl11Ext = (GL11Ext) gl;
+		@SuppressWarnings("unused")
+        GL11Ext gl11Ext = (GL11Ext) gl;
 	
 		miku.mAllBuffer.position(0);
 		gl.glVertexPointer(3, GL10.GL_FLOAT, 8 * 4, miku.mAllBuffer);
@@ -264,7 +268,7 @@ public class MikuRenderer extends MikuRendererBase {
 		miku.mAllBuffer.position(3);
 		gl.glNormalPointer(GL10.GL_FLOAT, 8 * 4, miku.mAllBuffer);
 	
-		gl11Ext.glWeightPointerOES(2, GL10.GL_FLOAT, 0, miku.mWeightBuffer);
+//		gl11Ext.glWeightPointerOES(2, GL10.GL_FLOAT, 0, miku.mWeightBuffer);
 	
 		gl.glClientActiveTexture(GL10.GL_TEXTURE0);
 		gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, miku.mToonCoordBuffer);
