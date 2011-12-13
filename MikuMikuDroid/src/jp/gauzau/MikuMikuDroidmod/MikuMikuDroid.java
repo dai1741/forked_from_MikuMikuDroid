@@ -79,6 +79,18 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 //		mSM = (SensorManager)getSystemService(SENSOR_SERVICE);
 //		mAx = mSM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 //		mMg = mSM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        
+        int bgType = SettingsHelper.getBgType(this);
+//        if(SettingsHelper.bgUsesWindowAlpha(bgType)) setTheme(android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+//        else setTheme(android.R.style.Theme_NoTitleBar_Fullscreen);
+        
+        if (SettingsHelper.bgUsesWindowAlpha(bgType)
+                && !(this instanceof TranslucentMikuMikuDroid)) {
+            Intent i = new Intent(this, TranslucentMikuMikuDroid.class);
+            startActivity(i);
+            finish();
+            return;
+        }
 
 		mCoreLogic = new CoreLogic(this) {
 			@Override
@@ -153,10 +165,6 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
             
 		};
 		mCoreLogic.setScreenAngle(0);
-        
-        int bgType = SettingsHelper.getBgType(this);
-//        if(SettingsHelper.bgUsesWindowAlpha(bgType)) setTheme(android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
-//        else setTheme(android.R.style.Theme_NoTitleBar_Fullscreen);
 
 		mRelativeLayout = new RelativeLayout(this);
 		mRelativeLayout.setVerticalGravity(Gravity.BOTTOM);
@@ -262,11 +270,14 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         mRelativeLayout.addView(mPictureLayout);
 		setContentView(mRelativeLayout);
 
-		if (mCoreLogic.checkFileIsPrepared() == false) {
+		if (mCoreLogic.checkFileIsPrepared() == false
+		        || !mMMGLSurfaceView.isGLES20Available()) {
 			Builder ad;
 			ad = new AlertDialog.Builder(this);
 			ad.setTitle(R.string.setup_alert_title);
-			ad.setMessage(R.string.setup_alert_text);
+			ad.setMessage(!mCoreLogic.checkFileIsPrepared()
+			        ? R.string.setup_alert_text
+			        : R.string.dialog_gles20_unavailable);
 			ad.setPositiveButton(R.string.select_ok, null);
 			ad.show();
 		}
@@ -617,7 +628,9 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		mCoreLogic.storeState();
+		if (mCoreLogic != null) mCoreLogic.storeState();
+		// mCoreLogic == null only when background image is transparent
+		// and the activity finishes immediately
 	}
 
 	@Override

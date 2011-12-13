@@ -88,4 +88,6 @@
 <string name="pref_key_parallax_factor">setting_parallax_factor</string>
 <string name="pref_title_parallax_factor">3D Parallax</string>
 <string name="pref_summary_parallax_factor">Strength of stereo 3D parallax</string>
+
+<string name="dialog_gles20_unavailable">OpenGL ES 2.0 is not available in your device. The animations WILL be broken.</string>
 </resources>

@@ -17,6 +17,7 @@ public class MMGLSurfaceView extends GLSurfaceView {
 	private MikuRendererBase mMikuRendarer;
 
     private MultisampleConfigChooser mConfigChooser;
+    private boolean mGLES20IsAvailable;
 
 	public MMGLSurfaceView(Context context, CoreLogic cl) {
 		this(context, cl, SettingsHelper.BG_WHITE);
@@ -33,7 +34,8 @@ public class MMGLSurfaceView extends GLSurfaceView {
         boolean hasAlpha = SettingsHelper.bgUsesGlAlpha(bgType);
 	    if(hasAlpha) getHolder().setFormat(PixelFormat.TRANSLUCENT);
 	    
-		if (detectOpenGLES20(ctx)) {
+	    mGLES20IsAvailable = detectOpenGLES20(ctx);
+		if (mGLES20IsAvailable) {
 			setEGLContextClientVersion(2);
 		    setEGLConfigChooser(mConfigChooser = new MultisampleConfigChooser(samples, hasAlpha));
 			mMikuRendarer = new MikuRendererGLES20(cl, bgType, mConfigChooser.usesCoverageAa());
@@ -69,6 +71,10 @@ public class MMGLSurfaceView extends GLSurfaceView {
 				mMikuRendarer.deleteTexture(tex);
 			}
 		});
+	}
+	
+	public boolean isGLES20Available() {
+	    return mGLES20IsAvailable;
 	}
 
     /**
