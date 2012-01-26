@@ -43,11 +43,6 @@
 
 
 
-<string name="pref_key_background_type">setting_background_type</string>
-
-
-
-
 <string name="pref_title_background_type">背景</string>
 
 
@@ -69,4 +64,6 @@
 <string name="dialog_load_model_motion">モデル/モーションデータ読み込み中…</string>
 <string name="dialog_load_as_bg">背景として読み込む</string>
 <string name="toast_picture_busy">処理中...</string>
+
+<string name="dialog_gles20_unavailable">この端末ではOpenGL ES 2.0が利用できません。モーションは正常に表示されません。</string>
 </resources>
