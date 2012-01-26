@@ -965,9 +965,9 @@ public class CoreLogic {
 	private final float[] mPMatrixFor3d2 = new float[16];
 	private final float[] mCameraLocRotFor3d = new float[6];
 
-    public static final float PARALLAX = 0.06f;
+    public static final float DEFAULT_PARALLAX = 0.08f;
     // vars below are modified by foreign classes
-    protected float mParallax = PARALLAX;
+    protected float mParallax = DEFAULT_PARALLAX;
     protected boolean mStereo3dEnabled = true;
 	
 	protected void setCamera(float d, float[] pos, float[] rot, float angle, int width, int height) {

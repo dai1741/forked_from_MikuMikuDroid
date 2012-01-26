@@ -87,6 +87,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
         if (SettingsHelper.bgUsesWindowAlpha(bgType)
                 && !(this instanceof TranslucentMikuMikuDroid)) {
             Intent i = new Intent(this, TranslucentMikuMikuDroid.class);
+            i.setFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
             startActivity(i);
             finish();
             return;
@@ -302,7 +303,7 @@ public class MikuMikuDroid extends Activity implements SensorEventListener {
 		
 		mCoreLogic.mStereo3dEnabled = SettingsHelper.isStereo3dEnabled(this);
         mSurfaceController.setStereoView(mCoreLogic.mStereo3dEnabled);
-        mCoreLogic.mParallax = CoreLogic.PARALLAX * SettingsHelper.getParallaxFactor(this);
+        mCoreLogic.mParallax = CoreLogic.DEFAULT_PARALLAX * SettingsHelper.getParallaxFactor(this);
 	}
 
 	@Override
